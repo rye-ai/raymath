@@ -94,11 +94,59 @@
             0% { transform: translateY(-100px) rotateZ(0deg); opacity: 1; }
             100% { transform: translateY(calc(100vh - 100px)) rotateZ(360deg); opacity: 0; }
         }
+        /* SYNC: Styles for disabled navigation and sync toggle */
+        .disabled-nav {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        #sync-toggle:checked + .block .dot {
+            transform: translateX(100%);
+        }
+        #sync-toggle:checked + .block {
+            background-color: #4ade80; /* Green */
+        }
     </style>
 </head>
 <body class="antialiased">
 
-    <div id="app-container" class="main-container max-w-4xl mx-auto w-full p-4">
+    <!-- SYNC: Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-slate-900 bg-opacity-80 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+            <h1 class="text-3xl font-bold text-slate-800 mb-6 text-center">Join a Lesson</h1>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-2">1. Choose your role:</label>
+                    <div class="flex gap-4" id="role-selector">
+                        <label class="flex-1">
+                            <input type="radio" name="role" value="student" class="peer hidden" checked>
+                            <div class="p-4 rounded-lg border border-slate-300 peer-checked:border-blue-500 peer-checked:bg-blue-50 cursor-pointer text-center">
+                                <span class="text-2xl">👩‍🎓</span>
+                                <p class="font-semibold">Student</p>
+                            </div>
+                        </label>
+                        <label class="flex-1">
+                            <input type="radio" name="role" value="teacher" class="peer hidden">
+                            <div class="p-4 rounded-lg border border-slate-300 peer-checked:border-purple-500 peer-checked:bg-purple-50 cursor-pointer text-center">
+                                <span class="text-2xl">🧑‍🏫</span>
+                                <p class="font-semibold">Teacher</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label for="room-name" class="block text-sm font-medium text-slate-600">2. Enter a Room Name:</label>
+                    <input type="text" id="room-name" value="default" class="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                </div>
+            </div>
+            <div class="mt-8">
+                <button id="join-lesson-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                    Join Lesson
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="main-container max-w-4xl mx-auto w-full p-4 hidden">
         <!-- Header -->
         <header class="bg-white rounded-lg shadow-md p-4 mb-4 flex justify-between items-center">
             <div class="flex items-center">
@@ -106,7 +154,20 @@
                 <h1 id="header-title" class="text-2xl font-bold text-blue-800">Count up to 10</h1>
             </div>
             <div id="header-controls" class="flex items-center gap-2">
-                <button id="sync-toggle" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-sm">Sync: ON</button>
+                 <!-- SYNC: UI Elements for Role, Room, and Sync Toggle -->
+                <div class="flex items-center gap-2 border-r pr-2 mr-2">
+                    <span id="role-room-badge" class="text-sm font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full"></span>
+                    <button id="change-role-room-btn" class="text-sm text-blue-600 hover:underline">Change</button>
+                    <label for="sync-toggle" class="flex items-center cursor-pointer">
+                        <div class="relative">
+                            <input type="checkbox" id="sync-toggle" class="sr-only">
+                            <div class="block bg-gray-600 w-10 h-6 rounded-full"></div>
+                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
+                        </div>
+                        <div id="sync-label" class="ml-2 text-sm font-medium text-gray-700">Sync</div>
+                    </label>
+                </div>
+                <!-- End SYNC UI -->
                 <button id="mode-toggle-btn" class="control-button bg-amber-500 text-white font-bold py-2 px-4 rounded-lg hidden">Go to Assessment</button>
                 <button id="download-html-btn" class="control-button bg-green-500 text-white font-bold py-2 px-4 rounded-lg">
                     <i class="fas fa-download mr-2"></i>Download Work
@@ -161,18 +222,22 @@
     <!-- This script tag will hold student progress for saving -->
     <script id="progress-data" type="application/json"></script>
 
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        window.firebase = {
-            initializeApp,
-            getFirestore,
-            doc,
-            onSnapshot,
-            setDoc,
-            serverTimestamp
-        };
+    <!-- SYNC: Firebase SDKs (Compat Version) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <script>
+    // SYNC: Initialize Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+      authDomain: "lesson-sync-a223a.firebaseapp.com",
+      projectId: "lesson-sync-a223a",
+      storageBucket: "lesson-sync-a223a.firebasestorage.app",
+      messagingSenderId: "906128715071",
+      appId: "1:906128715071:web:347ea08f4d864fde02778a"
+    };
+    firebase.initializeApp(firebaseConfig);
     </script>
     
     <script>
@@ -191,6 +256,8 @@
         const lessonData = JSON.parse(document.getElementById('lesson_data_json').textContent);
 
         // --- 2. DOM REFERENCES & SYNC VARIABLES ---
+        const setupModal = document.getElementById('setup-modal');
+        const appContainer = document.getElementById('app-container');
         const tabNav = document.getElementById('tab-nav');
         const mainContent = document.getElementById('main-content');
         const modeToggleBtn = document.getElementById('mode-toggle-btn');
@@ -206,16 +273,53 @@
         const imageUploader = document.getElementById('image-uploader');
         let currentImageQuestionId = null;
 
-        // --- SYNC VARIABLES ---
-        let _db, _roomRef, _isApplyingRemote = false;
-        let SYNC_ENABLED = true; 
-        const urlParams = new URLSearchParams(window.location.search);
-        const IS_TEACHER = urlParams.get('role') === 'teacher';
-        const ROOM_ID = urlParams.get('room') || 'default-room';
+        // --- SYNC: VARIABLES AND HELPERS ---
+        let _db, _roomRef, _unsubscribe, _isApplyingRemote = false;
+        let ALLOW_FREE_EXPLORE = false; // Will be set by Firestore
+        
+        function getRoleAndRoom() {
+            const url = new URL(window.location.href);
+            const qs = new URLSearchParams(url.search);
+            const hashParams = new URLSearchParams(url.hash.substring(1));
 
+            let role = localStorage.getItem('lesson_role') || null;
+            let room = localStorage.getItem('lesson_room') || null;
+
+            // URL params have highest priority
+            if (qs.has('room') || hashParams.has('room')) {
+                room = qs.get('room') || hashParams.get('room');
+            }
+            if (qs.has('teacher') || hashParams.has('teacher')) {
+                const teacherRaw = qs.get('teacher') ?? hashParams.get('teacher');
+                const v = String(teacherRaw).toLowerCase();
+                if (v === '' || v === '1' || v === 'true' || v === 'yes' || v === 'y') {
+                    role = 'teacher';
+                }
+            } else if (qs.has('role') || hashParams.has('role')) {
+                role = qs.get('role') || hashParams.get('role');
+            }
+            
+            return { isTeacher: role === 'teacher', room: room || 'default', isConfigured: !!(role && room) };
+        }
+        
+        const { isTeacher: IS_TEACHER, room: ROOM_ID, isConfigured } = getRoleAndRoom();
+        
+        function syncIsOn() {
+            return !ALLOW_FREE_EXPLORE;
+        }
 
         // --- 3. INITIALIZATION ---
         function init() {
+            if (!isConfigured) {
+                setupModal.style.display = 'flex';
+                appContainer.style.display = 'none';
+                document.getElementById('join-lesson-btn').addEventListener('click', handleJoinLesson);
+                return;
+            }
+            
+            setupModal.style.display = 'none';
+            appContainer.style.display = 'flex';
+
             // Check for saved data first
             const savedDataScript = document.getElementById('progress-data');
             if (savedDataScript && savedDataScript.textContent.trim().length > 2) {
@@ -857,15 +961,17 @@
         // --- 6. EVENT LISTENERS & HANDLERS ---
         function setupEventListeners() {
             tabNav.addEventListener('click', (e) => {
+                if (!IS_TEACHER && !ALLOW_FREE_EXPLORE) return; // SYNC: Disable student nav
                 if (e.target.matches('.tab-button')) {
                     appState.currentDay = e.target.dataset.day;
                     appState.currentMode = 'lesson'; // Reset to lesson on day change
                     updateView();
-                    syncPush();
+                    pushRoomState();
                 }
             });
 
             modeToggleBtn.addEventListener('click', () => {
+                if (!IS_TEACHER && !ALLOW_FREE_EXPLORE) return; // SYNC: Disable student nav
                 const newMode = appState.currentMode === 'lesson' ? 'assessment' : 'lesson';
                 switchMode(newMode);
             });
@@ -889,6 +995,7 @@
             
             document.getElementById('password-submit').addEventListener('click', handlePasswordSubmit);
             document.getElementById('password-cancel').addEventListener('click', () => passwordModal.classList.add('hidden'));
+            document.getElementById('change-role-room-btn').addEventListener('click', handleChangeRoleRoom);
 
             imageUploader.addEventListener('change', handleImageUpload);
             
@@ -1038,23 +1145,14 @@
             }
             // --- END: DRAG AND DROP EVENT LISTENERS ---
             
-            const syncToggleBtn = document.getElementById('sync-toggle');
-            if (syncToggleBtn && IS_TEACHER) {
-              syncToggleBtn.addEventListener('click', () => {
-                SYNC_ENABLED = !SYNC_ENABLED;
-                syncToggleBtn.textContent = SYNC_ENABLED ? 'Sync: ON' : 'Sync: OFF';
-                syncToggleBtn.className = SYNC_ENABLED
-                  ? 'bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-sm'
-                  : 'bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded-lg text-sm';
-
-                if (SYNC_ENABLED) {
-                  // immediately push current teacher state so students catch up
-                  syncPush();
-                }
-              });
-            } else if (syncToggleBtn && !IS_TEACHER) {
-              syncToggleBtn.style.display = 'none';
-            }
+            // --- SYNC: UI EVENT LISTENERS ---
+            const syncToggle = document.getElementById('sync-toggle');
+            syncToggle.addEventListener('change', () => {
+                ALLOW_FREE_EXPLORE = !syncToggle.checked;
+                localStorage.setItem('lesson_sync_on', syncToggle.checked);
+                updateSyncStateUI();
+                pushRoomState(); // Teacher pushes the new allowFreeExplore state
+            });
         }
         
         function handleCheckAnswer(questionId, slideElement) {
@@ -1126,8 +1224,35 @@
             reader.readAsDataURL(file);
         }
 
+        function handleJoinLesson() {
+            const selectedRole = document.querySelector('#setup-modal input[name="role"]:checked').value;
+            const room = document.getElementById('room-name').value.trim() || 'default';
+            
+            localStorage.setItem('lesson_role', selectedRole);
+            localStorage.setItem('lesson_room', room);
+
+            const url = new URL(window.location);
+            url.searchParams.set('room', room);
+            if (selectedRole === 'teacher') {
+                url.searchParams.set('teacher', '1');
+            } else {
+                url.searchParams.delete('teacher');
+            }
+            window.location.href = url.href;
+        }
+
+        function handleChangeRoleRoom() {
+            localStorage.removeItem('lesson_role');
+            localStorage.removeItem('lesson_room');
+            window.location.search = '';
+        }
+
         // --- 7. VIEW UPDATES & NAVIGATION ---
         function updateView() {
+            // SYNC: Update UI based on role and sync state
+            document.getElementById('role-room-badge').textContent = `${IS_TEACHER ? 'Teacher' : 'Student'} • Room: ${ROOM_ID}`;
+            updateSyncStateUI();
+
             // Update Tabs
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.day === appState.currentDay);
@@ -1203,6 +1328,8 @@
         }
 
         function navigateSlide(direction) {
+            if (!IS_TEACHER && !ALLOW_FREE_EXPLORE) return; // SYNC: Disable student nav
+            
             const dayProgress = appState.progress[appState.currentDay];
             const mode = appState.currentMode;
             const totalSlides = document.querySelectorAll(`#${appState.currentDay}-${mode} .slide`).length;
@@ -1211,15 +1338,16 @@
             if (newIndex >= 0 && newIndex < totalSlides) {
                 dayProgress[mode] = newIndex;
                 updateView();
-                syncPush();
+                pushRoomState();
             }
         }
 
         function switchMode(newMode) {
+            if (!IS_TEACHER && !ALLOW_FREE_EXPLORE) return; // SYNC: Disable student nav
             appState.currentMode = newMode;
             appState.streak = 0; // Reset streak on mode switch
             updateView();
-            syncPush();
+            pushRoomState();
         }
 
         // --- 8. FEEDBACK & SCORING ---
@@ -1415,49 +1543,96 @@
         }
         
         // --- 10. SYNC LOGIC ---
-        function initSync() {
-            const firebaseConfig = {
-              apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
-              authDomain: "lesson-sync-a223a.firebaseapp.com",
-              projectId: "lesson-sync-a223a",
-              storageBucket: "lesson-sync-a223a.firebasestorage.app",
-              messagingSenderId: "906128715071",
-              appId: "1:906128715071:web:347ea08f4d864fde02778a"
-            };
-
+        async function initSync() {
             try {
-                const app = window.firebase.initializeApp(firebaseConfig);
-                _db = window.firebase.getFirestore(app);
-                _roomRef = window.firebase.doc(_db, "rooms", ROOM_ID);
+                _db = firebase.firestore();
+                _roomRef = _db.collection("rooms").doc(ROOM_ID);
 
-                window.firebase.onSnapshot(_roomRef, (doc) => {
-                    if (_isApplyingRemote) return;
-                    const data = doc.data();
-                    if (data && !IS_TEACHER && SYNC_ENABLED) {
-                        _isApplyingRemote = true;
-                        appState.currentDay = data.day || 'day1';
-                        appState.currentMode = data.mode || 'lesson';
-                        appState.progress[appState.currentDay][appState.currentMode] = data.slide || 0;
-                        updateView();
-                        _isApplyingRemote = false;
-                    }
-                });
+                if (IS_TEACHER) {
+                    await firebase.auth().signInAnonymously();
+                    // On load, teacher sets the initial state
+                    ALLOW_FREE_EXPLORE = localStorage.getItem('lesson_sync_on') === 'false';
+                    pushRoomState(); 
+                }
+                
+                startListener();
             } catch (e) {
-                console.error("Firebase initialization failed:", e);
+                console.warn("Firebase initialization failed:", e);
             }
         }
         
-        async function syncPush() {
-            if (!IS_TEACHER || !_roomRef || _isApplyingRemote) return;
-            if (!SYNC_ENABLED) return; // ✅ don’t push when sync is off
+        function startListener() {
+            if (_unsubscribe) _unsubscribe(); // Remove any old listener
+            _unsubscribe = _roomRef.onSnapshot((doc) => {
+                if (_isApplyingRemote) return;
+                const data = doc.data();
+                if (data) {
+                    ALLOW_FREE_EXPLORE = !!data.allowFreeExplore;
+                    
+                    if (!IS_TEACHER && !ALLOW_FREE_EXPLORE) {
+                        _isApplyingRemote = true;
+                        appState.currentDay = data.day || 'day1';
+                        appState.currentMode = data.isPractice ? 'assessment' : 'lesson';
+                        appState.progress[appState.currentDay][appState.currentMode] = data.slide || 0;
+                        updateView();
+                        _isApplyingRemote = false;
+                    } else {
+                        // Still update UI lock state even if not navigating
+                        updateSyncStateUI();
+                    }
+                }
+            }, (error) => {
+                console.warn("Firestore listener error:", error);
+            });
+        }
+
+        async function pushRoomState() {
+            if (!IS_TEACHER || !_roomRef) return;
             
-            const state = {
-                day: appState.currentDay,
-                mode: appState.currentMode,
-                slide: appState.progress[appState.currentDay][appState.currentMode],
-                updatedAt: window.firebase.serverTimestamp()
-            };
-            await window.firebase.setDoc(_roomRef, state, { merge: true });
+            try {
+                const state = {
+                    day: appState.currentDay,
+                    slide: appState.progress[appState.currentDay][appState.currentMode],
+                    isPractice: appState.currentMode === 'assessment',
+                    allowFreeExplore: ALLOW_FREE_EXPLORE,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                await _roomRef.set(state, { merge: true });
+            } catch (error) {
+                console.warn("Could not push state to Firestore:", error);
+            }
+        }
+
+        function updateSyncStateUI() {
+            const syncToggle = document.getElementById('sync-toggle');
+            const syncLabel = document.getElementById('sync-label');
+            
+            if (!IS_TEACHER) {
+                syncToggle.parentElement.style.display = 'none'; // Hide the whole sync control for students
+            } else {
+                 syncToggle.checked = !ALLOW_FREE_EXPLORE;
+                 syncLabel.textContent = syncToggle.checked ? 'Sync: ON' : 'Sync: OFF';
+            }
+
+            const navElements = [
+                ...document.querySelectorAll('.control-button'),
+                ...document.querySelectorAll('.tab-button'),
+                modeToggleBtn
+            ];
+            
+            if (!IS_TEACHER) {
+                navElements.forEach(el => {
+                    if (el.id.includes('download') || el.id.includes('check')) return; // Exclude non-nav buttons
+                    
+                    if (!ALLOW_FREE_EXPLORE) {
+                        el.setAttribute('disabled', true);
+                        el.classList.add('disabled-nav');
+                    } else {
+                        el.removeAttribute('disabled');
+                        el.classList.remove('disabled-nav');
+                    }
+                });
+            }
         }
 
 
@@ -1613,3 +1788,4 @@
     </script>
 </body>
 </html>
+
