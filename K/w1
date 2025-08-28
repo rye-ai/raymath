@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Counting Lesson</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Custom styles for the friendly monster theme */
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', sans-serif;
+            background-color: #F0F9FF; /* Light blue background */
+            color: #1E40AF; /* Dark blue text */
+        }
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+            border-bottom: 4px solid transparent;
+        }
+        .tab-button.active {
+            border-bottom-color: #F59E0B; /* Amber */
+            color: #1E3A8A; /* Darker blue for active tab */
+            transform: translateY(-2px);
+        }
+        .tab-button:hover {
+            background-color: #E0F2FE; /* Lighter blue on hover */
+        }
+        .slide {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        .slide.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .option-button, .control-button {
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .option-button:hover, .control-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+        }
+        .option-button.selected {
+            background-color: #F59E0B; /* Amber for selected */
+            color: white;
+            border-color: #D97706;
+        }
+        .draggable {
+            cursor: grab;
+            user-select: none; /* Prevent text selection during drag */
+        }
+        .dragging {
+            opacity: 0.5;
+            z-index: 100;
+            position: absolute; /* Needed for touch dragging */
+        }
+        .drop-target {
+            border: 2px dashed #93C5FD;
+            min-height: 50px;
+        }
+        .drop-target.drag-over {
+            background-color: #E0F2FE;
+        }
+        /* Feedback Modal */
+        #feedback-modal-content {
+            animation: zoomIn 0.3s;
+        }
+        @keyframes zoomIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        /* Confetti Animation */
+        .confetti-piece {
+            position: absolute;
+            width: 8px;
+            height: 16px;
+            background: #f00;
+            top: 0;
+            opacity: 0;
+            animation: drop-confetti 3s linear forwards;
+        }
+        @keyframes drop-confetti {
+            0% { transform: translateY(-100px) rotateZ(0deg); opacity: 1; }
+            100% { transform: translateY(calc(100vh - 100px)) rotateZ(360deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="app-container" class="main-container max-w-4xl mx-auto w-full p-4">
+        <!-- Header -->
+        <header class="bg-white rounded-lg shadow-md p-4 mb-4 flex justify-between items-center">
+            <div class="flex items-center">
+                <div id="monster-guide" class="text-4xl mr-3">👾</div>
+                <h1 id="header-title" class="text-2xl font-bold text-blue-800">Count up to 10</h1>
+            </div>
+            <div id="header-controls" class="flex items-center gap-2">
+                <button id="sync-toggle" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-sm">Sync: ON</button>
+                <button id="mode-toggle-btn" class="control-button bg-amber-500 text-white font-bold py-2 px-4 rounded-lg hidden">Go to Assessment</button>
+                <button id="download-html-btn" class="control-button bg-green-500 text-white font-bold py-2 px-4 rounded-lg">
+                    <i class="fas fa-download mr-2"></i>Download Work
+                </button>
+                 <button id="download-pdf-btn" class="control-button bg-red-500 text-white font-bold py-2 px-4 rounded-lg">
+                    <i class="fas fa-file-pdf mr-2"></i>Export PDF
+                </button>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav id="tab-nav" class="flex justify-around bg-blue-100 rounded-t-lg">
+            <!-- Tabs will be dynamically inserted here -->
+        </nav>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="bg-white rounded-b-lg shadow-lg p-6 flex-grow overflow-y-auto relative">
+            <!-- Day content containers will be dynamically inserted here -->
+        </main>
+        
+        <!-- Progress Bar -->
+        <div id="progress-bar-container" class="w-full bg-gray-200 rounded-full h-4 mt-4">
+            <div id="progress-bar" class="bg-green-500 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div id="feedback-modal-content" class="bg-white rounded-2xl p-8 text-center max-w-sm mx-auto">
+            <div id="feedback-monster" class="text-7xl mb-4">👍</div>
+            <p id="feedback-text" class="text-2xl font-bold text-blue-800 mb-6">You got it!</p>
+            <button id="feedback-close-btn" class="control-button bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">Continue</button>
+        </div>
+    </div>
+    
+    <!-- Teacher View Password Modal -->
+    <div id="password-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg p-8">
+            <h3 class="text-xl font-bold mb-4">Teacher Access</h3>
+            <p class="mb-4">Please enter the password to view scores.</p>
+            <input type="password" id="password-input" class="border-2 border-blue-200 rounded-md p-2 w-full">
+            <div class="mt-4 flex justify-end">
+                <button id="password-cancel" class="control-button bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg mr-2">Cancel</button>
+                <button id="password-submit" class="control-button bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for image uploads -->
+    <input type="file" id="image-uploader" class="hidden" accept="image/*">
+
+    <!-- This script tag will hold student progress for saving -->
+    <script id="progress-data" type="application/json"></script>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        window.firebase = {
+            initializeApp,
+            getFirestore,
+            doc,
+            onSnapshot,
+            setDoc,
+            serverTimestamp
+        };
+    </script>
+    
+    <script>
+    // --- APPLICATION LOGIC ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- 1. STATE MANAGEMENT ---
+        const appState = {
+            currentDay: 'day1',
+            currentMode: 'lesson', // 'lesson' or 'assessment'
+            progress: {}, // { day1: { lesson: 0, assessment: 0 }, day2: ... }
+            answers: {}, // { q_id_1: 'user answer', q_id_2: [...] }
+            customImages: {}, // { q_id: 'base64string' }
+            streak: 0,
+        };
+
+        const lessonData = JSON.parse(document.getElementById('lesson_data_json').textContent);
+
+        // --- 2. DOM REFERENCES & SYNC VARIABLES ---
+        const tabNav = document.getElementById('tab-nav');
+        const mainContent = document.getElementById('main-content');
+        const modeToggleBtn = document.getElementById('mode-toggle-btn');
+        const headerTitle = document.getElementById('header-title');
+        const progressBar = document.getElementById('progress-bar');
+        const feedbackModal = document.getElementById('feedback-modal');
+        const feedbackMonster = document.getElementById('feedback-monster');
+        const feedbackText = document.getElementById('feedback-text');
+        const feedbackCloseBtn = document.getElementById('feedback-close-btn');
+        const downloadHtmlBtn = document.getElementById('download-html-btn');
+        const downloadPdfBtn = document.getElementById('download-pdf-btn');
+        const passwordModal = document.getElementById('password-modal');
+        const imageUploader = document.getElementById('image-uploader');
+        let currentImageQuestionId = null;
+
+        // --- SYNC VARIABLES ---
+        let _db, _roomRef, _isApplyingRemote = false;
+        let SYNC_ENABLED = true; 
+        const urlParams = new URLSearchParams(window.location.search);
+        const IS_TEACHER = urlParams.get('role') === 'teacher';
+        const ROOM_ID = urlParams.get('room') || 'default-room';
+
+
+        // --- 3. INITIALIZATION ---
+        function init() {
+            // Check for saved data first
+            const savedDataScript = document.getElementById('progress-data');
+            if (savedDataScript && savedDataScript.textContent.trim().length > 2) {
+                try {
+                    const savedState = JSON.parse(savedDataScript.textContent);
+                    Object.assign(appState, savedState);
+                } catch (e) {
+                    console.error("Could not parse saved data. Starting fresh.", e);
+                    initializeNewState();
+                }
+            } else {
+                 initializeNewState();
+            }
+            
+            buildUI();
+            updateView();
+            setupEventListeners();
+            initSync();
+        }
+        
+        function initializeNewState() {
+            Object.keys(lessonData).forEach(day => {
+                appState.progress[day] = { lesson: 0, assessment: 0 };
+            });
+        }
+
+        // --- 4. UI CONSTRUCTION ---
+        function buildUI() {
+            // Create Tabs
+            tabNav.innerHTML = '';
+            Object.keys(lessonData).forEach(dayKey => {
+                const day = parseInt(dayKey.replace('day', ''));
+                const button = document.createElement('button');
+                button.className = `tab-button flex-1 py-4 px-2 text-lg font-bold ${appState.currentDay === dayKey ? 'active' : ''}`;
+                button.textContent = `Day ${day}`;
+                button.dataset.day = dayKey;
+                tabNav.appendChild(button);
+            });
+
+            // Create Day Containers
+            mainContent.innerHTML = '';
+            Object.keys(lessonData).forEach(dayKey => {
+                const dayContainer = document.createElement('div');
+                dayContainer.id = `${dayKey}-container`;
+                dayContainer.className = 'day-container hidden';
+                
+                // Lesson container
+                const lessonContainer = document.createElement('div');
+                lessonContainer.id = `${dayKey}-lesson`;
+                lessonContainer.className = 'mode-container';
+                dayContainer.appendChild(lessonContainer);
+                
+                // Assessment container
+                const assessmentContainer = document.createElement('div');
+                assessmentContainer.id = `${dayKey}-assessment`;
+                assessmentContainer.className = 'mode-container hidden';
+                dayContainer.appendChild(assessmentContainer);
+
+                mainContent.appendChild(dayContainer);
+                
+                populateDayContent(dayKey);
+            });
+        }
+
+        function populateDayContent(dayKey) {
+            const dayData = lessonData[dayKey];
+            const lessonContainer = document.getElementById(`${dayKey}-lesson`);
+            const assessmentContainer = document.getElementById(`${dayKey}-assessment`);
+            
+            // Populate Lesson Slides
+            const lessonSlides = [
+                ...dayData.iDo.map(q => ({...q, section: 'I Do'})),
+                ...dayData.weDo.map(q => ({...q, section: 'We Do'})),
+                ...dayData.youDo.map(q => ({...q, section: 'You Do'})),
+            ];
+            lessonSlides.forEach((question, index) => {
+                const slide = createSlide(question, index, lessonSlides.length, dayKey, 'lesson');
+                lessonContainer.appendChild(slide);
+            });
+            
+            // Populate Assessment Slides
+            const assessmentSlides = dayData.assessment;
+            assessmentSlides.forEach((question, index) => {
+                const slide = createSlide(question, index, assessmentSlides.length, dayKey, 'assessment');
+                assessmentContainer.appendChild(slide);
+            });
+            
+            // Add completion screen to assessment
+            const completionSlide = createCompletionSlide(dayKey, assessmentSlides.length);
+            assessmentContainer.appendChild(completionSlide);
+        }
+        
+        function createSlide(question, index, total, dayKey, mode) {
+            const slide = document.createElement('div');
+            slide.className = 'slide p-4 border rounded-lg bg-blue-50';
+            slide.dataset.index = index;
+            slide.dataset.day = dayKey;
+            slide.dataset.mode = mode;
+
+            // Header (Section Title or Question Number)
+            const header = document.createElement('div');
+            header.className = 'flex justify-between items-center mb-4';
+            const title = document.createElement('h2');
+            title.className = 'text-xl font-bold text-blue-700';
+            title.textContent = mode === 'lesson' ? `${question.section} (${index + 1}/${total})` : `Question ${index + 1} of ${total}`;
+            header.appendChild(title);
+            
+            // Streak counter for assessment
+            if (mode === 'assessment') {
+                const streakCounter = document.createElement('div');
+                streakCounter.id = `streak-counter-${dayKey}`;
+                streakCounter.className = 'text-2xl font-bold text-orange-500';
+                streakCounter.innerHTML = `<i class="fas fa-fire"></i> <span id="streak-value-${dayKey}">0</span>`;
+                header.appendChild(streakCounter);
+            }
+            slide.appendChild(header);
+
+            // Question Content
+            const content = document.createElement('div');
+            content.className = 'question-content text-center';
+            
+            const promptContainer = document.createElement('div');
+            promptContainer.className = 'flex items-center justify-center mb-6';
+            
+            const prompt = document.createElement('p');
+            prompt.className = 'text-2xl leading-relaxed';
+            prompt.textContent = question.prompt;
+            promptContainer.appendChild(prompt);
+
+            if (mode === 'assessment') {
+                const speakBtn = document.createElement('button');
+                speakBtn.innerHTML = '<i class="fas fa-volume-up text-2xl text-blue-500 ml-4 cursor-pointer"></i>';
+                speakBtn.onclick = () => speak(question.prompt);
+                promptContainer.appendChild(speakBtn);
+            }
+            content.appendChild(promptContainer);
+
+            const visualContainer = document.createElement('div');
+            visualContainer.id = `visual-${question.id}`;
+            visualContainer.className = 'my-6 min-h-[150px] flex items-center justify-center';
+            content.appendChild(visualContainer);
+
+            const interactionArea = document.createElement('div');
+            interactionArea.id = `interaction-${question.id}`;
+            interactionArea.className = 'interaction-area mt-6';
+            content.appendChild(interactionArea);
+            
+            slide.appendChild(content);
+
+            // Navigation
+            const nav = document.createElement('div');
+            nav.className = 'flex justify-between items-center mt-8';
+            
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = 'Previous';
+            prevBtn.className = 'control-button bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg';
+            prevBtn.disabled = index === 0;
+            prevBtn.onclick = () => navigateSlide(-1);
+            
+            const checkBtn = document.createElement('button');
+            checkBtn.textContent = 'Check My Work!';
+            checkBtn.className = 'control-button bg-blue-600 text-white font-bold py-3 px-8 text-lg rounded-lg';
+            checkBtn.dataset.questionId = question.id;
+            
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = 'Next';
+            nextBtn.className = 'control-button bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg';
+            nextBtn.onclick = () => navigateSlide(1);
+
+            if (mode === 'lesson' && question.section === 'You Do' && index === total - 1) {
+                nextBtn.textContent = 'Go to Assessment';
+                nextBtn.className = 'control-button bg-amber-500 text-white font-bold py-2 px-6 rounded-lg';
+                nextBtn.onclick = () => switchMode('assessment');
+            } else if (mode === 'assessment' && index === total - 1) {
+                 nextBtn.textContent = 'Finish';
+                 nextBtn.className = 'control-button bg-green-500 text-white font-bold py-2 px-6 rounded-lg';
+                 nextBtn.onclick = () => navigateSlide(1); // Go to completion screen
+            }
+
+            nav.appendChild(prevBtn);
+            nav.appendChild(checkBtn);
+            nav.appendChild(nextBtn);
+            slide.appendChild(nav);
+
+            return slide;
+        }
+        
+        function createCompletionSlide(dayKey, index) {
+            const slide = document.createElement('div');
+            slide.className = 'slide p-4 border rounded-lg bg-green-50 text-center';
+            slide.dataset.index = index; // This is the last slide
+            slide.dataset.day = dayKey;
+            slide.dataset.mode = 'assessment';
+
+            slide.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full">
+                    <div class="text-8xl mb-4">🎉</div>
+                    <h2 class="text-3xl font-bold text-green-800 mb-2">Great work!</h2>
+                    <p class="text-xl text-green-700 mb-8">Your report is ready.</p>
+                    <div id="score-summary-${dayKey}" class="hidden w-full max-w-md bg-white p-6 rounded-lg shadow">
+                         <h3 class="text-2xl font-bold mb-4">Score Summary</h3>
+                         <div id="score-details-${dayKey}"></div>
+                    </div>
+                    <div class="mt-8">
+                        <button id="teacher-view-btn-${dayKey}" class="text-sm text-gray-500 hover:underline">Admin</button>
+                    </div>
+                </div>
+            `;
+            return slide;
+        }
+
+        function renderInteraction(question) {
+            const container = document.getElementById(`interaction-${question.id}`);
+            if (!container) return;
+            container.innerHTML = '';
+            const userAnswer = appState.answers[question.id];
+
+            switch(question.type) {
+                case 'mc':
+                case 'true-false':
+                    const optionsContainer = document.createElement('div');
+                    optionsContainer.className = 'flex justify-center gap-4 flex-wrap';
+                    question.data.options.forEach(option => {
+                        const button = document.createElement('button');
+                        button.className = `option-button bg-white border-2 border-blue-300 rounded-lg py-3 px-6 text-xl ${userAnswer === option ? 'selected' : ''}`;
+                        button.textContent = option;
+                        button.onclick = () => {
+                            // Deselect others
+                            container.querySelectorAll('.option-button').forEach(btn => btn.classList.remove('selected'));
+                            button.classList.add('selected');
+                            appState.answers[question.id] = option;
+                        };
+                        
+                        if (appState.currentMode === 'assessment') {
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'flex items-center';
+                            const speakBtn = document.createElement('button');
+                            speakBtn.innerHTML = '<i class="fas fa-volume-up text-xl text-blue-400 ml-3"></i>';
+                            speakBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                speak(option);
+                            };
+                            wrapper.appendChild(button);
+                            wrapper.appendChild(speakBtn);
+                            optionsContainer.appendChild(wrapper);
+                        } else {
+                            optionsContainer.appendChild(button);
+                        }
+                    });
+                    container.appendChild(optionsContainer);
+                    break;
+                
+                case 'multi-select':
+                    const multiOptionsContainer = document.createElement('div');
+                    multiOptionsContainer.className = 'flex justify-center gap-4 flex-wrap';
+                    question.data.options.forEach(option => {
+                        const button = document.createElement('button');
+                        button.className = `option-button bg-white border-2 border-blue-300 rounded-lg py-3 px-6 text-xl ${(userAnswer || []).includes(option) ? 'selected' : ''}`;
+                        button.textContent = option;
+                        button.onclick = () => {
+                            button.classList.toggle('selected');
+                            const currentAnswers = appState.answers[question.id] || [];
+                            if (button.classList.contains('selected')) {
+                                currentAnswers.push(option);
+                            } else {
+                                const index = currentAnswers.indexOf(option);
+                                if (index > -1) currentAnswers.splice(index, 1);
+                            }
+                            appState.answers[question.id] = currentAnswers;
+                        };
+                        multiOptionsContainer.appendChild(button);
+                    });
+                    container.appendChild(multiOptionsContainer);
+                    break;
+
+                case 'text-box':
+                    const input = document.createElement('textarea');
+                    input.className = 'text-box-input bg-white border-2 border-blue-300 rounded-lg p-3 text-2xl text-center w-full max-w-xs resize-none overflow-hidden';
+                    input.maxLength = question.data.size;
+                    input.rows = 1;
+                    input.value = userAnswer || '';
+                    input.addEventListener('input', () => {
+                        appState.answers[question.id] = input.value;
+                        // Auto-grow
+                        input.style.height = 'auto';
+                        input.style.height = (input.scrollHeight) + 'px';
+                    });
+                    container.appendChild(input);
+                    // Trigger initial size adjustment
+                    setTimeout(() => {
+                        input.style.height = 'auto';
+                        input.style.height = (input.scrollHeight) + 'px';
+                    }, 100);
+                    break;
+
+                case 'drag-drop-match':
+                case 'drag-drop-sort':
+                    // This is a simplified render. Full logic is in event listeners.
+                    const dndContainer = document.createElement('div');
+                    dndContainer.className = 'flex flex-col md:flex-row gap-8 items-start justify-center';
+                    
+                    const draggablesContainer = document.createElement('div');
+                    draggablesContainer.className = 'flex flex-wrap gap-4 p-4 bg-blue-100 rounded-lg justify-center drop-target';
+                    draggablesContainer.id = `draggables-${question.id}`;
+                    draggablesContainer.dataset.target = 'pool'; // Identify this as the return pool
+                    
+                    const targetsContainer = document.createElement('div');
+                    targetsContainer.className = 'flex flex-col gap-4 w-full md:w-1/2';
+
+                    const items = question.type === 'drag-drop-match' ? question.data.draggables : question.data.items;
+                    items.forEach(item => {
+                        const el = document.createElement('div');
+                        el.className = 'draggable bg-amber-300 p-3 rounded-lg shadow cursor-grab';
+                        el.textContent = item;
+                        el.draggable = true;
+                        el.dataset.item = item;
+                        draggablesContainer.appendChild(el);
+                    });
+                    
+                    const targets = question.type === 'drag-drop-match' ? question.data.dropTargets : question.data.categories;
+                    targets.forEach(target => {
+                        const targetWrapper = document.createElement('div');
+                        const targetLabel = document.createElement('p');
+                        targetLabel.className = 'font-bold mb-2 text-left';
+                        targetLabel.textContent = target;
+                        
+                        const dropZone = document.createElement('div');
+                        dropZone.className = 'drop-target p-4 rounded-lg bg-gray-50 w-full flex flex-wrap gap-2 items-center';
+                        dropZone.dataset.target = target;
+                        
+                        targetWrapper.appendChild(targetLabel);
+                        targetWrapper.appendChild(dropZone);
+                        targetsContainer.appendChild(targetWrapper);
+                    });
+
+                    dndContainer.appendChild(draggablesContainer);
+                    dndContainer.appendChild(targetsContainer);
+                    container.appendChild(dndContainer);
+                    
+                    // Restore saved state
+                    if (userAnswer) {
+                        Object.keys(userAnswer).forEach(targetKey => {
+                            const dropZone = container.querySelector(`.drop-target[data-target="${targetKey}"]`);
+                            userAnswer[targetKey].forEach(itemKey => {
+                                const el = container.querySelector(`.draggable[data-item="${itemKey}"]`);
+                                if (el && dropZone) {
+                                    dropZone.appendChild(el);
+                                }
+                            });
+                        });
+                    }
+                    break;
+
+                case 'ebsr':
+                    const ebsrContainer = document.createElement('div');
+                    ebsrContainer.className = 'space-y-6';
+
+                    // Part A
+                    const partA = document.createElement('div');
+                    partA.innerHTML = '<p class="font-bold mb-2">Part A</p>';
+                    const partAOptions = document.createElement('div');
+                    partAOptions.className = 'flex justify-center gap-4';
+                    question.data.partA_options.forEach(opt => {
+                        const btn = document.createElement('button');
+                        btn.className = `option-button bg-white border-2 border-blue-300 rounded-lg py-2 px-4 ${userAnswer?.partA === opt ? 'selected' : ''}`;
+                        btn.textContent = opt;
+                        btn.dataset.part = 'A';
+                        btn.onclick = () => {
+                            partAOptions.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+                            btn.classList.add('selected');
+                            if (!appState.answers[question.id]) appState.answers[question.id] = {};
+                            appState.answers[question.id].partA = opt;
+                        };
+                        partAOptions.appendChild(btn);
+                    });
+                    partA.appendChild(partAOptions);
+                    
+                    // Part B
+                    const partB = document.createElement('div');
+                    partB.innerHTML = '<p class="font-bold mb-2">Part B</p>';
+                    const partBOptions = document.createElement('div');
+                    partBOptions.className = 'flex justify-center gap-4';
+                    question.data.partB_options.forEach(opt => {
+                        const btn = document.createElement('button');
+                        btn.className = `option-button bg-white border-2 border-blue-300 rounded-lg py-2 px-4 ${userAnswer?.partB === opt ? 'selected' : ''}`;
+                        btn.textContent = opt;
+                        btn.dataset.part = 'B';
+                        btn.onclick = () => {
+                            partBOptions.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+                            btn.classList.add('selected');
+                            if (!appState.answers[question.id]) appState.answers[question.id] = {};
+                            appState.answers[question.id].partB = opt;
+                        };
+                        partBOptions.appendChild(btn);
+                    });
+                    partB.appendChild(partBOptions);
+
+                    ebsrContainer.appendChild(partA);
+                    ebsrContainer.appendChild(partB);
+                    container.appendChild(ebsrContainer);
+                    break;
+            }
+        }
+        
+        function renderVisual(question) {
+            const container = document.getElementById(`visual-${question.id}`);
+            if (!container) return;
+            container.innerHTML = '';
+
+            // Check for custom user image first
+            if (appState.customImages[question.id]) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'relative group';
+                
+                const img = document.createElement('img');
+                img.src = appState.customImages[question.id];
+                img.className = 'max-w-full max-h-48 object-contain rounded-lg shadow-md';
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.innerHTML = '&times;';
+                removeBtn.className = 'absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold opacity-0 group-hover:opacity-100 transition-opacity';
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    delete appState.customImages[question.id];
+                    renderVisual(question); // Re-render to show default
+                };
+                
+                wrapper.appendChild(img);
+                wrapper.appendChild(removeBtn);
+                container.appendChild(wrapper);
+                return;
+            }
+
+            // Create default visual
+            const visualString = question.visual;
+            let element;
+
+            const uploadTriggerWrapper = document.createElement('div');
+            uploadTriggerWrapper.className = 'p-4 rounded-lg hover:bg-blue-100 cursor-pointer transition-colors';
+            uploadTriggerWrapper.title = 'Click to upload your own image';
+            uploadTriggerWrapper.onclick = () => {
+                currentImageQuestionId = question.id;
+                imageUploader.click();
+            };
+
+            if (visualString.startsWith('emoji:')) {
+                element = document.createElement('span');
+                element.className = 'text-8xl';
+                element.textContent = visualString.substring(6);
+            } else if (visualString.startsWith('icon:')) {
+                element = document.createElement('i');
+                element.className = `${visualString.substring(5)} text-8xl text-blue-400`;
+            } else if (visualString.startsWith('SVG_COMMAND:')) {
+                element = createSVGFromCommand(visualString);
+            } else {
+                element = document.createElement('div'); // Empty div if no visual
+            }
+            
+            if (element) {
+                uploadTriggerWrapper.appendChild(element);
+                container.appendChild(uploadTriggerWrapper);
+            }
+        }
+
+        // --- 5. SVG GENERATION ---
+        function createSVGFromCommand(command) {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 200 100');
+            svg.setAttribute('width', '250');
+            svg.setAttribute('height', '125');
+            svg.style.filter = 'url(#hand-drawn)';
+
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+            filter.id = 'hand-drawn';
+            filter.innerHTML = `<feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" result="noise" />
+                                <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" />`;
+            defs.appendChild(filter);
+            svg.appendChild(defs);
+
+            const parts = command.replace('SVG_COMMAND: ', '').split(' ');
+            const type = parts[0];
+            const params = {};
+            parts.slice(1).forEach(p => {
+                const [key, value] = p.split('=');
+                try {
+                    params[key] = JSON.parse(value.replace(/'/g, '"'));
+                } catch {
+                    params[key] = value;
+                }
+            });
+
+            switch (type) {
+                case 'create_groups':
+                    const shapeSVG = getShapeSVG(params.shape, params.color || 'teal');
+                    if (!shapeSVG) {
+                         const text = document.createElement('p');
+                         text.className = 'text-gray-500 italic';
+                         text.textContent = `[A picture of ${params.count} ${params.shape}(s)]`;
+                         return text;
+                    }
+                    for (let i = 0; i < params.count; i++) {
+                        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        const x = 10 + (i % 5) * 35;
+                        const y = 20 + Math.floor(i / 5) * 35;
+                        g.setAttribute('transform', `translate(${x}, ${y})`);
+                        g.innerHTML = shapeSVG;
+                        svg.appendChild(g);
+                    }
+                    break;
+                case 'create_ten_frame':
+                    // Draw frame
+                    const frame = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    frame.setAttribute('x', 5);
+                    frame.setAttribute('y', 5);
+                    frame.setAttribute('width', 190);
+                    frame.setAttribute('height', 70);
+                    frame.setAttribute('stroke', 'black');
+                    frame.setAttribute('fill', 'none');
+                    frame.setAttribute('stroke-width', '1');
+                    svg.appendChild(frame);
+                    const midLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    midLine.setAttribute('x1', 5); midLine.setAttribute('y1', 40);
+                    midLine.setAttribute('x2', 195); midLine.setAttribute('y2', 40);
+                    midLine.setAttribute('stroke', 'black'); midLine.setAttribute('stroke-width', '1');
+                    svg.appendChild(midLine);
+                    for (let i = 1; i < 5; i++) {
+                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line.setAttribute('x1', 5 + i * 38); line.setAttribute('y1', 5);
+                        line.setAttribute('x2', 5 + i * 38); line.setAttribute('y2', 75);
+                        line.setAttribute('stroke', 'black'); line.setAttribute('stroke-width', '1');
+                        svg.appendChild(line);
+                    }
+                    // Draw dots
+                    for (let i = 0; i < params.dots; i++) {
+                        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        const x = 24 + (i % 5) * 38;
+                        const y = i < 5 ? 22.5 : 57.5;
+                        dot.setAttribute('cx', x);
+                        dot.setAttribute('cy', y);
+                        dot.setAttribute('r', '12');
+                        dot.setAttribute('fill', 'red');
+                        svg.appendChild(dot);
+                    }
+                    break;
+                case 'create_number_line':
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', 10); line.setAttribute('y1', 50);
+                    line.setAttribute('x2', 190); line.setAttribute('y2', 50);
+                    line.setAttribute('stroke', 'black');
+                    svg.appendChild(line);
+                    for (let i = params.start; i <= params.end; i++) {
+                        const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        const x = 10 + (i * 180 / (params.end - params.start));
+                        tick.setAttribute('x1', x); tick.setAttribute('y1', 45);
+                        tick.setAttribute('x2', x); tick.setAttribute('y2', 55);
+                        tick.setAttribute('stroke', 'black');
+                        svg.appendChild(tick);
+                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        text.setAttribute('x', x); text.setAttribute('y', 70);
+                        text.setAttribute('text-anchor', 'middle');
+                        text.textContent = i;
+                        svg.appendChild(text);
+                    }
+                    if (params.markers) {
+                        params.markers.forEach(marker => {
+                           const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                           const x = 10 + (marker.at * 180 / (params.end - params.start));
+                           dot.setAttribute('cx', x);
+                           dot.setAttribute('cy', 50);
+                           dot.setAttribute('r', 5);
+                           dot.setAttribute('fill', marker.color || 'blue');
+                           svg.appendChild(dot);
+                        });
+                    }
+                    break;
+                case 'create_comparison_groups':
+                    const groupA = params.groupA;
+                    const groupB = params.groupB;
+                    for (let i = 0; i < groupA.count; i++) {
+                        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        const x = 10 + (i % 3) * 30;
+                        const y = 20 + Math.floor(i / 3) * 30;
+                        g.setAttribute('transform', `translate(${x}, ${y})`);
+                        g.innerHTML = getShapeSVG(groupA.shape, 'blue');
+                        svg.appendChild(g);
+                    }
+                    for (let i = 0; i < groupB.count; i++) {
+                        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        const x = 110 + (i % 3) * 30;
+                        const y = 20 + Math.floor(i / 3) * 30;
+                        g.setAttribute('transform', `translate(${x}, ${y})`);
+                        g.innerHTML = getShapeSVG(groupB.shape, 'orange');
+                        svg.appendChild(g);
+                    }
+                    break;
+                default:
+                    console.warn(`Unknown SVG command: ${type}`);
+            }
+
+            return svg;
+        }
+
+        function getShapeSVG(shape, color) {
+            switch (shape) {
+                case 'apple': return `<circle cx="10" cy="10" r="8" fill="red"/><path d="M10 2 L 12 0 L 14 2" stroke="brown" stroke-width="1" fill="none"/>`;
+                case 'circle': return `<circle cx="10" cy="10" r="10" fill="${color}"/>`;
+                case 'square': return `<rect x="0" y="0" width="20" height="20" fill="${color}"/>`;
+                case 'heart': return `<path d="M10 18 C -5 10, 5 -5, 10 5 C 15 -5, 25 10, 10 18" fill="red"/>`;
+                case 'star': return `<polygon points="10,0 13,6 20,7 15,12 16,19 10,16 4,19 5,12 0,7 7,6" fill="gold"/>`;
+                case 'sun': return `<circle cx="10" cy="10" r="7" fill="yellow"/><g stroke="yellow" stroke-width="1.5"><path d="M10 0 V 3 M10 17 V 20 M0 10 H 3 M17 10 H 20 M3 3 L 5 5 M15 15 L 17 17 M3 17 L 5 15 M15 5 L 17 3"/></g>`;
+                case 'tree': return `<polygon points="10,0 20,15 0,15" fill="green"/><rect x="8" y="15" width="4" height="5" fill="brown"/>`;
+                case 'car': return `<rect x="0" y="8" width="20" height="6" fill="${color}"/><path d="M2 8 C 4 4, 16 4, 18 8 Z" fill="${color}"/><circle cx="5" cy="15" r="2" fill="black"/><circle cx="15" cy="15" r="2" fill="black"/>`;
+                case 'butterfly': return `<g fill="${color}"><circle cx="7" cy="7" r="5"/><circle cx="13" cy="7" r="5"/><circle cx="7" cy="13" r="5"/><circle cx="13" cy="13" r="5"/></g><line x1="10" y1="5" x2="10" y2="15" stroke="black"/>`;
+                case 'pencil': return `<polygon points="0,15 0,20 15,20 15,15" fill="pink"/><polygon points="0,15 15,15 15,5 0,5" fill="yellow"/><polygon points="15,5 15,15 20,10" fill="tan"/><polygon points="20,10" fill="black"/>`;
+                case 'happyface': return `<circle cx="10" cy="10" r="10" fill="yellow" stroke="black" stroke-width="0.5"/><circle cx="7" cy="8" r="1"/><circle cx="13" cy="8" r="1"/><path d="M7 12 A 3 3 0 0 0 13 12" stroke="black" fill="none"/>`;
+                case 'dog': return `<rect x="5" y="5" width="10" height="10" fill="brown"/><circle cx="15" cy="5" r="3" fill="brown"/><polygon points="0,5 5,0 5,5" fill="brown"/>`;
+                case 'fish': return `<ellipse cx="10" cy="10" rx="8" ry="5" fill="orange"/><polygon points="17,10 20,5 20,15" fill="orange"/>`;
+                case 'cube': return `<rect x="2" y="2" width="10" height="10" fill="${color}" stroke="black"/><path d="M12 2 L 16 0 L 16 10 L 12 12 M 2 12 L 6 14 L 16 14 L 12 12" fill="${color}" stroke="black"/>`;
+                case 'flower': return `<circle cx="10" cy="10" r="3" fill="yellow"/><g fill="${color}"><circle cx="10" cy="4" r="3"/><circle cx="16" cy="8" r="3"/><circle cx="16" cy="14" r="3"/><circle cx="10" cy="18" r="3"/><circle cx="4" cy="14" r="3"/><circle cx="4" cy="8" r="3"/></g>`;
+                case 'moon': return `<path d="M15 2 A 8 8 0 1 0 15 18 A 6 6 0 1 1 15 2 Z" fill="lightgray"/>`;
+                case 'bird': return `<path d="M2 10 C 5 5, 15 5, 18 10 L 10 18 Z" fill="${color}"/><circle cx="15" cy="8" r="1" fill="black"/>`;
+                case 'person': return `<circle cx="10" cy="5" r="3" fill="${color}"/><path d="M10 8 V 15 M 5 12 L 15 12 M 10 15 L 5 20 M 10 15 L 15 20" stroke="${color}" stroke-width="1.5"/>`;
+                case 'ladybug': return `<circle cx="10" cy="10" r="8" fill="red"/><circle cx="10" cy="6" r="1"/><circle cx="7" cy="9" r="1"/><circle cx="13" cy="9" r="1"/><circle cx="10" cy="12" r="1"/><line x1="10" y1="2" x2="10" y2="18" stroke="black"/>`;
+                case 'frog': return `<circle cx="10" cy="12" r="7" fill="limegreen"/><circle cx="7" cy="8" r="3" fill="white" stroke="black"/><circle cx="13" cy="8" r="3" fill="white" stroke="black"/><circle cx="7" cy="8" r="1" fill="black"/><circle cx="13" cy="8" r="1" fill="black"/>`;
+                case 'strawberry': return `<path d="M10 2 C 0 5, 0 15, 10 18 C 20 15, 20 5, 10 2" fill="red"/><path d="M8 0 L 12 0 L 10 4 Z" fill="green"/>`;
+                case 'cookie': return `<circle cx="10" cy="10" r="9" fill="tan"/><circle cx="7" cy="7" r="1" fill="brown"/><circle cx="13" cy="8" r="1" fill="brown"/><circle cx="10" cy="13" r="1" fill="brown"/>`;
+                case 'spoon': return `<ellipse cx="10" cy="5" rx="4" ry="4" fill="silver"/><rect x="9" y="8" width="2" height="12" fill="silver"/>`;
+                case 'hat': return `<rect x="2" y="10" width="16" height="2" fill="${color}"/><ellipse cx="10" cy="10" rx="6" ry="6" fill="${color}"/><rect x="6" y="4" width="8" height="6" fill="${color}"/>`;
+                case 'crayon': return `<polygon points="0,5 0,15 15,15 15,5" fill="${color}"/><polygon points="15,5 15,15 20,10" fill="${color}"/><path d="M0 5 C 5 2, 10 2, 15 5" fill="none" stroke="black"/>`;
+                case 'cat': return `<circle cx="10" cy="10" r="8" fill="gray"/><polygon points="2,2 5,0 8,2" fill="gray" stroke="black"/><polygon points="12,2 15,0 18,2" fill="gray" stroke="black"/><path d="M5 12 H 15 M 7 10 L 3 8 M 13 10 L 17 8 M 7 10 L 3 12 M 13 10 L 17 12" stroke="black" stroke-width="0.5"/>`;
+                case 'banana': return `<path d="M5 5 C 15 2, 20 10, 18 18 C 10 20, 2 15, 5 5" fill="yellow"/>`;
+                case 'triangle': return `<polygon points="10,0 20,20 0,20" fill="${color}"/>`;
+                case 'orange': return `<circle cx="10" cy="10" r="9" fill="orange"/><circle cx="8" cy="8" r="0.5" fill="darkorange"/><circle cx="12" cy="7" r="0.5" fill="darkorange"/><circle cx="11" cy="12" r="0.5" fill="darkorange"/>`;
+                default: return null; // Return null for unknown shapes
+            }
+        }
+
+        // --- 6. EVENT LISTENERS & HANDLERS ---
+        function setupEventListeners() {
+            tabNav.addEventListener('click', (e) => {
+                if (e.target.matches('.tab-button')) {
+                    appState.currentDay = e.target.dataset.day;
+                    appState.currentMode = 'lesson'; // Reset to lesson on day change
+                    updateView();
+                    syncPush();
+                }
+            });
+
+            modeToggleBtn.addEventListener('click', () => {
+                const newMode = appState.currentMode === 'lesson' ? 'assessment' : 'lesson';
+                switchMode(newMode);
+            });
+            
+            mainContent.addEventListener('click', (e) => {
+                if (e.target.matches('.control-button[data-question-id]')) {
+                    handleCheckAnswer(e.target.dataset.questionId, e.target.parentElement.parentElement);
+                }
+                const teacherBtn = e.target.closest('[id^="teacher-view-btn-"]');
+                if (teacherBtn) {
+                    const dayKey = teacherBtn.id.replace('teacher-view-btn-', '');
+                    passwordModal.classList.remove('hidden');
+                    passwordModal.dataset.dayKey = dayKey;
+                }
+            });
+
+            feedbackCloseBtn.addEventListener('click', () => feedbackModal.classList.add('hidden'));
+            
+            downloadHtmlBtn.addEventListener('click', saveWorkAsHTML);
+            downloadPdfBtn.addEventListener('click', saveWorkAsPDF);
+            
+            document.getElementById('password-submit').addEventListener('click', handlePasswordSubmit);
+            document.getElementById('password-cancel').addEventListener('click', () => passwordModal.classList.add('hidden'));
+
+            imageUploader.addEventListener('change', handleImageUpload);
+            
+            // --- START: DRAG AND DROP EVENT LISTENERS (MOUSE & TOUCH) ---
+            let draggedItem = null;
+            let originalParent = null;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            // Mouse Events
+            mainContent.addEventListener('dragstart', (e) => {
+                const draggable = e.target.closest('.draggable');
+                if (draggable) {
+                    draggedItem = draggable;
+                    setTimeout(() => draggedItem.classList.add('dragging'), 0);
+                }
+            });
+
+            mainContent.addEventListener('dragend', (e) => {
+                 if (draggedItem) {
+                    setTimeout(() => {
+                        if (draggedItem && draggedItem.parentElement && !draggedItem.parentElement.classList.contains('drop-target')) {
+                           const questionId = draggedItem.closest('.slide').querySelector('[data-question-id]').dataset.questionId;
+                           const draggablesPool = document.getElementById(`draggables-${questionId}`);
+                           if (draggablesPool) {
+                               draggablesPool.appendChild(draggedItem);
+                           }
+                        }
+                        if(draggedItem) {
+                            draggedItem.classList.remove('dragging');
+                        }
+                        draggedItem = null;
+                    }, 0);
+                }
+            });
+
+            mainContent.addEventListener('dragover', (e) => {
+                const dropTarget = e.target.closest('.drop-target');
+                if (dropTarget) {
+                    e.preventDefault();
+                }
+            });
+            
+            mainContent.addEventListener('dragenter', (e) => {
+                const dropTarget = e.target.closest('.drop-target');
+                if (dropTarget) {
+                    dropTarget.classList.add('drag-over');
+                }
+            });
+
+            mainContent.addEventListener('dragleave', (e) => {
+                const dropTarget = e.target.closest('.drop-target');
+                if (dropTarget) {
+                    dropTarget.classList.remove('drag-over');
+                }
+            });
+
+            mainContent.addEventListener('drop', (e) => {
+                const dropTarget = e.target.closest('.drop-target');
+                if (dropTarget && draggedItem) {
+                    e.preventDefault();
+                    dropTarget.classList.remove('drag-over');
+                    handleDrop(draggedItem, dropTarget);
+                }
+            });
+
+            // Touch Events
+            mainContent.addEventListener('touchstart', (e) => {
+                const draggable = e.target.closest('.draggable');
+                if (draggable) {
+                    draggedItem = draggable;
+                    originalParent = draggedItem.parentNode;
+                    const rect = draggedItem.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    offsetX = touch.clientX - rect.left;
+                    offsetY = touch.clientY - rect.top;
+
+                    // Style the item for dragging
+                    draggedItem.classList.add('dragging');
+                    draggedItem.style.width = `${rect.width}px`;
+                    draggedItem.style.height = `${rect.height}px`;
+                    draggedItem.style.left = `${touch.clientX - offsetX}px`;
+                    draggedItem.style.top = `${touch.clientY - offsetY}px`;
+                }
+            }, { passive: false });
+
+            mainContent.addEventListener('touchmove', (e) => {
+                if (draggedItem) {
+                    e.preventDefault(); // Prevent scrolling
+                    const touch = e.touches[0];
+                    draggedItem.style.left = `${touch.clientX - offsetX}px`;
+                    draggedItem.style.top = `${touch.clientY - offsetY}px`;
+                }
+            }, { passive: false });
+
+            mainContent.addEventListener('touchend', (e) => {
+                if (draggedItem) {
+                    // Hide the dragged item to find what's underneath
+                    draggedItem.style.visibility = 'hidden';
+                    const touch = e.changedTouches[0];
+                    const elementUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+                    draggedItem.style.visibility = 'visible';
+
+                    const dropTarget = elementUnder ? elementUnder.closest('.drop-target') : null;
+
+                    if (dropTarget) {
+                        handleDrop(draggedItem, dropTarget);
+                    } else {
+                        // No valid drop target, return to the main pool
+                        const questionId = draggedItem.closest('.slide').querySelector('[data-question-id]').dataset.questionId;
+                        const draggablesPool = document.getElementById(`draggables-${questionId}`);
+                        if (draggablesPool) {
+                            draggablesPool.appendChild(draggedItem);
+                        } else if (originalParent) { // Fallback just in case
+                            originalParent.appendChild(draggedItem);
+                        }
+                    }
+                    
+                    // Clean up styles
+                    draggedItem.classList.remove('dragging');
+                    draggedItem.style.position = '';
+                    draggedItem.style.left = '';
+                    draggedItem.style.top = '';
+                    draggedItem.style.width = '';
+                    draggedItem.style.height = '';
+
+                    draggedItem = null;
+                    originalParent = null;
+                }
+            });
+
+            function handleDrop(item, target) {
+                const questionId = target.closest('.slide').querySelector('[data-question-id]').dataset.questionId;
+                const question = findQuestionById(questionId);
+
+                // For matching, only allow one item per target
+                if (question.type === 'drag-drop-match' && target.dataset.target !== 'pool') {
+                    const existingItem = target.querySelector('.draggable');
+                    if (existingItem) {
+                        // Return existing item to the main pool
+                        document.getElementById(`draggables-${questionId}`).appendChild(existingItem);
+                    }
+                }
+                
+                target.appendChild(item);
+                saveDragDropState(questionId);
+            }
+            // --- END: DRAG AND DROP EVENT LISTENERS ---
+            
+            const syncToggleBtn = document.getElementById('sync-toggle');
+            if (syncToggleBtn && IS_TEACHER) {
+              syncToggleBtn.addEventListener('click', () => {
+                SYNC_ENABLED = !SYNC_ENABLED;
+                syncToggleBtn.textContent = SYNC_ENABLED ? 'Sync: ON' : 'Sync: OFF';
+                syncToggleBtn.className = SYNC_ENABLED
+                  ? 'bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-sm'
+                  : 'bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded-lg text-sm';
+
+                if (SYNC_ENABLED) {
+                  // immediately push current teacher state so students catch up
+                  syncPush();
+                }
+              });
+            } else if (syncToggleBtn && !IS_TEACHER) {
+              syncToggleBtn.style.display = 'none';
+            }
+        }
+        
+        function handleCheckAnswer(questionId, slideElement) {
+            const question = findQuestionById(questionId);
+            const userAnswer = appState.answers[question.id];
+            let isCorrect = false;
+
+            switch (question.type) {
+                case 'mc':
+                case 'true-false':
+                case 'text-box':
+                    isCorrect = userAnswer && userAnswer.toString().toLowerCase().trim() === question.correct.toString().toLowerCase().trim();
+                    break;
+                case 'multi-select':
+                    isCorrect = userAnswer && userAnswer.length === question.correct.length && userAnswer.every(val => question.correct.includes(val));
+                    break;
+                case 'drag-drop-match':
+                    const matchState = appState.answers[question.id] || {};
+                    isCorrect = Object.keys(question.correct).every(key => {
+                        const target = question.correct[key];
+                        return matchState[target] && matchState[target].length === 1 && matchState[target][0] === key;
+                    });
+                    break;
+                case 'drag-drop-sort':
+                    const sortState = appState.answers[question.id] || {};
+                    isCorrect = Object.keys(question.correct).every(cat => {
+                        return sortState[cat] && sortState[cat].length === question.correct[cat].length && sortState[cat].every(item => question.correct[cat].includes(item));
+                    });
+                    break;
+                case 'ebsr':
+                    isCorrect = userAnswer && userAnswer.partA === question.correct.partA && userAnswer.partB === question.correct.partB;
+                    break;
+            }
+            
+            showFeedback(isCorrect, slideElement);
+            
+            if (appState.currentMode === 'assessment') {
+                if (isCorrect) {
+                    appState.streak++;
+                } else {
+                    appState.streak = 0;
+                }
+                updateStreakCounter();
+            }
+        }
+        
+        function handlePasswordSubmit() {
+            const input = document.getElementById('password-input');
+            const dayKey = passwordModal.dataset.dayKey;
+            if (input.value === '2026') {
+                showScores(dayKey);
+                passwordModal.classList.add('hidden');
+                input.value = '';
+            } else {
+                alert('Incorrect password.');
+            }
+        }
+        
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file || !currentImageQuestionId) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                appState.customImages[currentImageQuestionId] = e.target.result;
+                const question = findQuestionById(currentImageQuestionId);
+                renderVisual(question); // Re-render the specific visual
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- 7. VIEW UPDATES & NAVIGATION ---
+        function updateView() {
+            // Update Tabs
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.day === appState.currentDay);
+            });
+
+            // Show current day container
+            document.querySelectorAll('.day-container').forEach(cont => {
+                cont.classList.toggle('hidden', cont.id !== `${appState.currentDay}-container`);
+            });
+            
+            // Show current mode container
+            const currentDayContainer = document.getElementById(`${appState.currentDay}-container`);
+            if (currentDayContainer) {
+                currentDayContainer.querySelectorAll('.mode-container').forEach(cont => {
+                    const mode = cont.id.includes('lesson') ? 'lesson' : 'assessment';
+                    cont.classList.toggle('hidden', mode !== appState.currentMode);
+                });
+            }
+            
+            // Update Header
+            const dayData = lessonData[appState.currentDay];
+            headerTitle.textContent = dayData.title;
+            modeToggleBtn.classList.remove('hidden');
+            if (appState.currentMode === 'lesson') {
+                modeToggleBtn.textContent = 'Go to Assessment';
+                modeToggleBtn.classList.remove('bg-blue-500');
+                modeToggleBtn.classList.add('bg-amber-500');
+            } else {
+                modeToggleBtn.textContent = 'Back to Lesson';
+                modeToggleBtn.classList.remove('bg-amber-500');
+                modeToggleBtn.classList.add('bg-blue-500');
+            }
+            
+            // Update slides
+            updateSlides();
+            updateProgressBar();
+            updateStreakCounter();
+        }
+
+        function updateSlides() {
+            const currentProgress = appState.progress[appState.currentDay][appState.currentMode];
+            const slides = document.querySelectorAll(`#${appState.currentDay}-${appState.currentMode} .slide`);
+            
+            slides.forEach((slide, index) => {
+                const isActive = index === currentProgress;
+                slide.classList.toggle('active', isActive);
+                if (isActive) {
+                    const questionId = slide.querySelector('[data-question-id]')?.dataset.questionId;
+                    if (questionId) {
+                        const question = findQuestionById(questionId);
+                        renderInteraction(question);
+                        renderVisual(question);
+                    }
+                }
+            });
+        }
+        
+        function updateProgressBar() {
+            const dayProgress = appState.progress[appState.currentDay];
+            const mode = appState.currentMode;
+            const slides = document.querySelectorAll(`#${appState.currentDay}-${mode} .slide`);
+            const totalSlides = slides.length > 0 ? slides.length - (mode === 'assessment' ? 1 : 0) : 1; // Exclude completion slide for assessment
+            const currentSlide = dayProgress[mode];
+            const percentage = Math.min(100, (currentSlide / totalSlides) * 100);
+            progressBar.style.width = `${percentage}%`;
+        }
+        
+        function updateStreakCounter() {
+            const streakValue = document.getElementById(`streak-value-${appState.currentDay}`);
+            if (streakValue) {
+                streakValue.textContent = appState.streak;
+            }
+        }
+
+        function navigateSlide(direction) {
+            const dayProgress = appState.progress[appState.currentDay];
+            const mode = appState.currentMode;
+            const totalSlides = document.querySelectorAll(`#${appState.currentDay}-${mode} .slide`).length;
+            
+            let newIndex = dayProgress[mode] + direction;
+            if (newIndex >= 0 && newIndex < totalSlides) {
+                dayProgress[mode] = newIndex;
+                updateView();
+                syncPush();
+            }
+        }
+
+        function switchMode(newMode) {
+            appState.currentMode = newMode;
+            appState.streak = 0; // Reset streak on mode switch
+            updateView();
+            syncPush();
+        }
+
+        // --- 8. FEEDBACK & SCORING ---
+        function showFeedback(isCorrect, slideElement) {
+            const positiveMessages = ["You got it!", "Superstar!", "Amazing!", "Great job!", "Exactly right!"];
+            const encouragingMessages = ["Not quite, give it another try!", "So close! Let's look at it again.", "Let's try that one more time."];
+
+            if (isCorrect) {
+                feedbackMonster.textContent = '👍';
+                feedbackText.textContent = positiveMessages[Math.floor(Math.random() * positiveMessages.length)];
+                launchConfetti(slideElement.querySelector('.control-button[data-question-id]'));
+            } else {
+                feedbackMonster.textContent = '🤔';
+                feedbackText.textContent = encouragingMessages[Math.floor(Math.random() * encouragingMessages.length)];
+            }
+            feedbackModal.classList.remove('hidden');
+        }
+
+        function launchConfetti(button) {
+            const rect = button.getBoundingClientRect();
+            for (let i = 0; i < 30; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = `${rect.left + rect.width / 2}px`;
+                piece.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                piece.style.animationDelay = `${Math.random() * 0.2}s`;
+                piece.style.transform = `translateY(-100px) rotateZ(${Math.random() * 360}deg)`;
+                document.body.appendChild(piece);
+                setTimeout(() => piece.remove(), 3000);
+            }
+        }
+        
+        function showScores(dayKey) {
+            const scoreSummaryContainer = document.getElementById(`score-summary-${dayKey}`);
+            const scoreDetailsContainer = document.getElementById(`score-details-${dayKey}`);
+            scoreDetailsContainer.innerHTML = '';
+            
+            const assessmentData = lessonData[dayKey].assessment;
+            let correctCount = 0;
+            
+            assessmentData.forEach(question => {
+                if (['mc', 'true-false', 'multi-select', 'ebsr'].includes(question.type)) {
+                    const userAnswer = appState.answers[question.id];
+                    let isCorrect = false;
+                    // Simplified check for display
+                    if (question.type === 'ebsr') {
+                        isCorrect = userAnswer && userAnswer.partA === question.correct.partA && userAnswer.partB === question.correct.partB;
+                    } else if (question.type === 'multi-select') {
+                        isCorrect = userAnswer && userAnswer.length === question.correct.length && userAnswer.every(val => question.correct.includes(val));
+                    } else {
+                        isCorrect = userAnswer && userAnswer === question.correct;
+                    }
+                    
+                    if (isCorrect) correctCount++;
+                    
+                    const resultEl = document.createElement('p');
+                    resultEl.className = `p-2 rounded ${isCorrect ? 'bg-green-100' : 'bg-red-100'}`;
+                    resultEl.textContent = `Q: ${question.prompt.substring(0, 20)}... - ${isCorrect ? 'Correct' : 'Incorrect'}`;
+                    scoreDetailsContainer.appendChild(resultEl);
+                }
+            });
+            
+            const totalScoreEl = document.createElement('p');
+            totalScoreEl.className = 'mt-4 font-bold text-lg';
+            const autoGradableCount = assessmentData.filter(q => ['mc', 'true-false', 'multi-select', 'ebsr'].includes(q.type)).length;
+            totalScoreEl.textContent = `Total Score: ${correctCount} / ${autoGradableCount}`;
+            scoreDetailsContainer.prepend(totalScoreEl);
+            
+            scoreSummaryContainer.classList.remove('hidden');
+        }
+
+        // --- 9. DATA PERSISTENCE & UTILITIES ---
+        function saveWorkAsHTML() {
+            // 1. Get the current HTML of the page
+            const currentHtml = document.documentElement.outerHTML;
+
+            // 2. Serialize the current app state to a JSON string
+            const stateString = JSON.stringify(appState);
+
+            // 3. Create a temporary DOM to manipulate the HTML string
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = currentHtml;
+
+            // 4. Find the script tag and inject the data
+            const progressScriptTag = tempDiv.querySelector('#progress-data');
+            if (progressScriptTag) {
+                progressScriptTag.textContent = stateString;
+            }
+
+            // 5. Create a blob from the modified HTML
+            const blob = new Blob([tempDiv.innerHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+
+            // 6. Create a link to trigger the download
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'my-counting-lesson.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        async function saveWorkAsPDF() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const contentToPrint = document.getElementById('app-container');
+            const originalStyles = contentToPrint.style.cssText;
+            
+            // Apply print-friendly styles
+            contentToPrint.style.width = '210mm'; // A4 width
+            contentToPrint.style.boxShadow = 'none';
+
+            alert("Preparing PDF. This may take a moment...");
+
+            const canvas = await html2canvas(contentToPrint, {
+                scale: 2, // Higher scale for better quality
+                useCORS: true,
+                logging: false,
+                onclone: (clonedDoc) => {
+                    // Convert interactive elements to static in the clone
+                    const clonedContent = clonedDoc.getElementById('app-container');
+                    clonedContent.querySelectorAll('button, input[type=file]').forEach(el => el.style.display = 'none');
+                    clonedContent.querySelectorAll('textarea').forEach(ta => {
+                        const p = clonedDoc.createElement('p');
+                        p.textContent = ta.value;
+                        p.className = 'border p-2 bg-gray-100';
+                        ta.parentNode.replaceChild(p, ta);
+                    });
+                     clonedContent.querySelectorAll('.option-button.selected').forEach(btn => {
+                        const p = clonedDoc.createElement('p');
+                        p.textContent = `Selected: ${btn.textContent}`;
+                        p.className = 'font-bold text-green-600';
+                        btn.parentNode.replaceChild(p, btn);
+                    });
+                }
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            let heightLeft = pdfHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pdf.internal.pageSize.getHeight();
+
+            while (heightLeft >= 0) {
+                position = heightLeft - pdfHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= pdf.internal.pageSize.getHeight();
+            }
+
+            pdf.save('lesson-progress.pdf');
+            
+            // Restore original styles
+            contentToPrint.style.cssText = originalStyles;
+        }
+
+        function findQuestionById(id) {
+            for (const dayKey in lessonData) {
+                const day = lessonData[dayKey];
+                const allQuestions = [...day.iDo, ...day.weDo, ...day.youDo, ...day.assessment];
+                const found = allQuestions.find(q => q.id === id);
+                if (found) return found;
+            }
+            return null;
+        }
+        
+        function saveDragDropState(questionId) {
+            const slide = document.getElementById(`interaction-${questionId}`).parentElement.parentElement;
+            const dropTargets = slide.querySelectorAll('.drop-target');
+            const state = {};
+            dropTargets.forEach(target => {
+                const targetKey = target.dataset.target;
+                const items = Array.from(target.querySelectorAll('.draggable')).map(el => el.dataset.item);
+                state[targetKey] = items;
+            });
+            appState.answers[questionId] = state;
+        }
+        
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                window.speechSynthesis.cancel(); // Cancel any previous speech
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert('Sorry, your browser does not support the read-aloud feature.');
+            }
+        }
+        
+        // --- 10. SYNC LOGIC ---
+        function initSync() {
+            const firebaseConfig = {
+              apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+              authDomain: "lesson-sync-a223a.firebaseapp.com",
+              projectId: "lesson-sync-a223a",
+              storageBucket: "lesson-sync-a223a.firebasestorage.app",
+              messagingSenderId: "906128715071",
+              appId: "1:906128715071:web:347ea08f4d864fde02778a"
+            };
+
+            try {
+                const app = window.firebase.initializeApp(firebaseConfig);
+                _db = window.firebase.getFirestore(app);
+                _roomRef = window.firebase.doc(_db, "rooms", ROOM_ID);
+
+                window.firebase.onSnapshot(_roomRef, (doc) => {
+                    if (_isApplyingRemote) return;
+                    const data = doc.data();
+                    if (data && !IS_TEACHER && SYNC_ENABLED) {
+                        _isApplyingRemote = true;
+                        appState.currentDay = data.day || 'day1';
+                        appState.currentMode = data.mode || 'lesson';
+                        appState.progress[appState.currentDay][appState.currentMode] = data.slide || 0;
+                        updateView();
+                        _isApplyingRemote = false;
+                    }
+                });
+            } catch (e) {
+                console.error("Firebase initialization failed:", e);
+            }
+        }
+        
+        async function syncPush() {
+            if (!IS_TEACHER || !_roomRef || _isApplyingRemote) return;
+            if (!SYNC_ENABLED) return; // ✅ don’t push when sync is off
+            
+            const state = {
+                day: appState.currentDay,
+                mode: appState.currentMode,
+                slide: appState.progress[appState.currentDay][appState.currentMode],
+                updatedAt: window.firebase.serverTimestamp()
+            };
+            await window.firebase.setDoc(_roomRef, state, { merge: true });
+        }
+
+
+        // --- 11. RUN ---
+        init();
+    });
+    </script>
+    
+    <!-- The lesson data is embedded here -->
+    <script id="lesson_data_json" type="application/json">
+    {
+      "day1": {
+        "title": "Counting Fun with Numbers 1-5",
+        "standard": "K.NR.2.3 - Count objects in a group and write the number.",
+        "iDo": [
+          { "id": "d1_ido_1", "type": "mc", "prompt": "I see a picture with some apples. I'll count them: One... two... three. Which number is 3?", "visual": "SVG_COMMAND: create_groups count=3 shape='apple'", "data": { "options": ["1", "2", "3", "4"] }, "correct": "3" },
+          { "id": "d1_ido_2", "type": "drag-drop-sort", "prompt": "This screen shows the number '4'. I need to drag 4 stars into the box.", "visual": "emoji:⭐", "data": { "items": ["Star 1", "Star 2", "Star 3", "Star 4", "Star 5"], "categories": ["Put 4 Stars Here"] }, "correct": { "Put 4 Stars Here": ["Star 1", "Star 2", "Star 3", "Star 4"] } },
+          { "id": "d1_ido_3", "type": "true-false", "prompt": "Are there 5 dots?", "visual": "SVG_COMMAND: create_groups count=5 shape='circle' color='purple'", "data": { "options": ["True", "False"] }, "correct": "True" }
+        ],
+        "weDo": [
+          { "id": "d1_wedo_1", "type": "mc", "prompt": "Let's count the butterflies together. How many are there?", "visual": "SVG_COMMAND: create_groups count=2 shape='butterfly'", "data": { "options": ["1", "2", "3"] }, "correct": "2" },
+          { "id": "d1_wedo_2", "type": "mc", "prompt": "How many pencils do you see?", "visual": "SVG_COMMAND: create_groups count=4 shape='pencil'", "data": { "options": ["3", "4", "5"] }, "correct": "4" },
+          { "id": "d1_wedo_3", "type": "true-false", "prompt": "Are there 3 cars?", "visual": "SVG_COMMAND: create_groups count=3 shape='car'", "data": { "options": ["True", "False"] }, "correct": "True" },
+          { "id": "d1_wedo_4", "type": "text-box", "prompt": "Count the happy faces and type the number.", "visual": "SVG_COMMAND: create_groups count=5 shape='happyface'", "data": { "size": 2 }, "correct": "5" },
+          { "id": "d1_wedo_5", "type": "mc", "prompt": "Which number matches the dogs?", "visual": "SVG_COMMAND: create_groups count=1 shape='dog'", "data": { "options": ["1", "2", "3"] }, "correct": "1" },
+          { "id": "d1_wedo_6", "type": "true-false", "prompt": "Are there 4 squares?", "visual": "SVG_COMMAND: create_groups count=4 shape='square' color='green'", "data": { "options": ["True", "False"] }, "correct": "True" },
+          { "id": "d1_wedo_7", "type": "mc", "prompt": "Count the fish. Which number is it?", "visual": "SVG_COMMAND: create_groups count=3 shape='fish'", "data": { "options": ["2", "3", "4"] }, "correct": "3" },
+          { "id": "d1_wedo_8", "type": "text-box", "prompt": "How many blocks are there? Type the number.", "visual": "SVG_COMMAND: create_groups count=5 shape='cube'", "data": { "size": 2 }, "correct": "5" },
+          { "id": "d1_wedo_9", "type": "true-false", "prompt": "Are there two balls?", "visual": "SVG_COMMAND: create_groups count=2 shape='circle' color='orange'", "data": { "options": ["True", "False"] }, "correct": "True" },
+          { "id": "d1_wedo_10", "type": "mc", "prompt": "Find the number that matches the flowers.", "visual": "SVG_COMMAND: create_groups count=4 shape='flower'", "data": { "options": ["3", "4", "5"] }, "correct": "4" }
+        ],
+        "youDo": [
+          { "id": "d1_youdo_1", "type": "mc", "prompt": "How many suns are in the picture?", "visual": "SVG_COMMAND: create_groups count=3 shape='sun'", "data": { "options": ["2", "3", "4"] }, "correct": "3" },
+          { "id": "d1_youdo_2", "type": "true-false", "prompt": "Are there 5 hearts in the box?", "visual": "SVG_COMMAND: create_groups count=5 shape='heart'", "data": { "options": ["True", "False"] }, "correct": "True" },
+          { "id": "d1_youdo_3", "type": "text-box", "prompt": "Count the moons and type the number.", "visual": "SVG_COMMAND: create_groups count=4 shape='moon'", "data": { "size": 2 }, "correct": "4" },
+          { "id": "d1_youdo_4", "type": "mc", "prompt": "Which number matches the number of trees?", "visual": "SVG_COMMAND: create_groups count=2 shape='tree'", "data": { "options": ["1", "2", "3"] }, "correct": "2" },
+          { "id": "d1_youdo_5", "type": "true-false", "prompt": "Is there 1 square?", "visual": "SVG_COMMAND: create_groups count=1 shape='square' color='red'", "data": { "options": ["True", "False"] }, "correct": "True" }
+        ],
+        "assessment": [
+          { "id": "d1_assess_1", "type": "mc", "prompt": "How many suns are in the picture?", "visual": "SVG_COMMAND: create_groups count=3 shape='sun'", "data": { "options": ["2", "3", "4"] }, "correct": "3" },
+          { "id": "d1_assess_2", "type": "true-false", "prompt": "Are there 5 hearts in the box?", "visual": "SVG_COMMAND: create_groups count=5 shape='heart'", "data": { "options": ["True", "False"] }, "correct": "True" },
+          { "id": "d1_assess_3", "type": "ebsr", "prompt": "Part A: Which box has 4 circles? Part B: How do you know?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:3, shape:'circle'}, groupB={count:4, shape:'circle'}", "data": { "partA_options": ["Box A", "Box B"], "partB_options": ["I counted 1, 2, 3, 4 circles in that box.", "The circles are blue."] }, "correct": { "partA": "Box B", "partB": "I counted 1, 2, 3, 4 circles in that box." } },
+          { "id": "d1_assess_4", "type": "text-box", "prompt": "A picture shows 2 cats. The text says, 'There are 3 cats.' What is wrong with the text?", "visual": "SVG_COMMAND: create_groups count=2 shape='cat'", "data": { "size": 30 }, "correct": "There are 2 cats" },
+          { "id": "d1_assess_5", "type": "drag-drop-match", "prompt": "Drag the number that matches the number of cars.", "visual": "SVG_COMMAND: create_groups count=5 shape='car'", "data": { "draggables": ["Number 3", "Number 5", "Number 2"], "dropTargets": ["Correct Number"] }, "correct": { "Number 5": "Correct Number" } }
+        ]
+      },
+      "day2": {
+        "title": "Super Numbers 6 to 10",
+        "standard": "K.NR.2.3 - Count objects in a group and write the number.",
+        "iDo": [
+            { "id": "d2_ido_1", "type": "mc", "prompt": "The top row is full, so that's 5. Then I see three more. 5 and 3 make 8. Which number is 8?", "visual": "SVG_COMMAND: create_ten_frame dots=8", "data": { "options": ["7", "8", "9"] }, "correct": "8" },
+            { "id": "d2_ido_2", "type": "drag-drop-sort", "prompt": "The number is 9. I need to drag 9 triangles into the ten frame.", "visual": "SVG_COMMAND: create_ten_frame dots=0", "data": { "items": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10"], "categories": ["Ten Frame"] }, "correct": { "Ten Frame": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9"] } },
+            { "id": "d2_ido_3", "type": "text-box", "prompt": "This question shows 6 bananas. I will count them and type the number.", "visual": "SVG_COMMAND: create_groups count=6 shape='banana'", "data": { "size": 2 }, "correct": "6" }
+        ],
+        "weDo": [
+            { "id": "d2_wedo_1", "type": "mc", "prompt": "How many dots are in the ten frame?", "visual": "SVG_COMMAND: create_ten_frame dots=7", "data": { "options": ["6", "7", "8"] }, "correct": "7" },
+            { "id": "d2_wedo_2", "type": "true-false", "prompt": "Does this ten frame show 10?", "visual": "SVG_COMMAND: create_ten_frame dots=10", "data": { "options": ["True", "False"] }, "correct": "True" },
+            { "id": "d2_wedo_3", "type": "text-box", "prompt": "Count the strawberries and type the number.", "visual": "SVG_COMMAND: create_groups count=8 shape='strawberry'", "data": { "size": 2 }, "correct": "8" },
+            { "id": "d2_wedo_4", "type": "mc", "prompt": "Which number matches the ten frame?", "visual": "SVG_COMMAND: create_ten_frame dots=6", "data": { "options": ["6", "7", "8"] }, "correct": "6" },
+            { "id": "d2_wedo_5", "type": "true-false", "prompt": "Are there 9 squares?", "visual": "SVG_COMMAND: create_groups count=9 shape='square' color='blue'", "data": { "options": ["True", "False"] }, "correct": "True" },
+            { "id": "d2_wedo_6", "type": "mc", "prompt": "How many dots do you see?", "visual": "SVG_COMMAND: create_ten_frame dots=9", "data": { "options": ["8", "9", "10"] }, "correct": "9" },
+            { "id": "d2_wedo_7", "type": "text-box", "prompt": "Count the cookies and type the number.", "visual": "SVG_COMMAND: create_groups count=10 shape='cookie'", "data": { "size": 2 }, "correct": "10" },
+            { "id": "d2_wedo_8", "type": "mc", "prompt": "Which number matches the items?", "visual": "SVG_COMMAND: create_groups count=8 shape='star'", "data": { "options": ["7", "8", "9"] }, "correct": "8" },
+            { "id": "d2_wedo_9", "type": "true-false", "prompt": "Does this show 6?", "visual": "SVG_COMMAND: create_ten_frame dots=7", "data": { "options": ["True", "False"] }, "correct": "False" },
+            { "id": "d2_wedo_10", "type": "text-box", "prompt": "How many circles? Type the number.", "visual": "SVG_COMMAND: create_groups count=7 shape='circle' color='pink'", "data": { "size": 2 }, "correct": "7" }
+        ],
+        "youDo": [
+            { "id": "d2_youdo_1", "type": "mc", "prompt": "How many dots are in the ten frame?", "visual": "SVG_COMMAND: create_ten_frame dots=8", "data": { "options": ["7", "8", "9"] }, "correct": "8" },
+            { "id": "d2_youdo_2", "type": "text-box", "prompt": "Count the spoons and write the number in the box.", "visual": "SVG_COMMAND: create_groups count=9 shape='spoon'", "data": { "size": 2 }, "correct": "9" },
+            { "id": "d2_youdo_3", "type": "true-false", "prompt": "Is the number of flowers 10?", "visual": "SVG_COMMAND: create_ten_frame dots=10", "data": { "options": ["True", "False"] }, "correct": "True" },
+            { "id": "d2_youdo_4", "type": "mc", "prompt": "Which number matches the ten frame?", "visual": "SVG_COMMAND: create_ten_frame dots=6", "data": { "options": ["6", "7", "5"] }, "correct": "6" },
+            { "id": "d2_youdo_5", "type": "text-box", "prompt": "How many hats are there?", "visual": "SVG_COMMAND: create_groups count=7 shape='hat'", "data": { "size": 2 }, "correct": "7" }
+        ],
+        "assessment": [
+            { "id": "d2_assess_1", "type": "mc", "prompt": "How many dots are in the ten frame?", "visual": "SVG_COMMAND: create_ten_frame dots=8", "data": { "options": ["7", "8", "9"] }, "correct": "8" },
+            { "id": "d2_assess_2", "type": "multi-select", "prompt": "Select all the boxes that show 7 items.", "visual": "", "data": { "options": ["Box with 7 stars", "Box with 6 squares", "Ten frame with 7 dots", "Box with 8 triangles"] }, "correct": ["Box with 7 stars", "Ten frame with 7 dots"] },
+            { "id": "d2_assess_3", "type": "ebsr", "prompt": "Part A: Is the number of flowers 10? Part B: Which sentence explains why?", "visual": "SVG_COMMAND: create_ten_frame dots=10", "data": { "partA_options": ["Yes", "No"], "partB_options": ["There is one flower in each spot of the ten frame.", "Some spots in the ten frame are empty."] }, "correct": { "partA": "Yes", "partB": "There is one flower in each spot of the ten frame." } },
+            { "id": "d2_assess_4", "type": "text-box", "prompt": "Count the spoons and write the number in the box.", "visual": "SVG_COMMAND: create_groups count=9 shape='spoon'", "data": { "size": 2 }, "correct": "9" },
+            { "id": "d2_assess_5", "type": "drag-drop-sort", "prompt": "Sort the pictures into two groups: 'Exactly 6' and 'Not 6'.", "visual": "", "data": { "items": ["Image of 6 balls", "Image of 8 hats", "Image of 6 pencils", "Image of 5 dogs"], "categories": ["Exactly 6", "Not 6"] }, "correct": { "Exactly 6": ["Image of 6 balls", "Image of 6 pencils"], "Not 6": ["Image of 8 hats", "Image of 5 dogs"] } }
+        ]
+      },
+      "day3": {
+        "title": "Let's Keep Counting! (Counting On)",
+        "standard": "K.NR.2.3 - Count objects in a group and write the number.",
+        "iDo": [
+            { "id": "d3_ido_1", "type": "mc", "prompt": "I see a jar with 5 cookies inside, and 2 cookies outside. I say 'five...' then 'six, seven.' What is the total?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:5, shape:'circle'}, groupB={count:2, shape:'circle'}", "data": { "options": ["6", "7", "8"] }, "correct": "7" },
+            { "id": "d3_ido_2", "type": "mc", "prompt": "Start at 3 and count on 4. I put my finger on 3, and then I make 4 hops. Where do I land?", "visual": "SVG_COMMAND: create_number_line start=0 end=10 markers=[{at:3, color:'blue', type:'dot'}]", "data": { "options": ["6", "7", "8"] }, "correct": "7" },
+            { "id": "d3_ido_3", "type": "text-box", "prompt": "What number comes after 8?", "visual": "emoji:🤔", "data": { "size": 2 }, "correct": "9" }
+        ],
+        "weDo": [
+            { "id": "d3_wedo_1", "type": "mc", "prompt": "Start at 6. Count on 2. What number are you on?", "visual": "SVG_COMMAND: create_number_line start=0 end=10 markers=[{at:6, color:'green', type:'dot'}]", "data": { "options": ["7", "8", "9"] }, "correct": "8" },
+            { "id": "d3_wedo_2", "type": "text-box", "prompt": "What number is missing? 7, 8, __, 10.", "visual": "", "data": { "size": 2 }, "correct": "9" },
+            { "id": "d3_wedo_3", "type": "mc", "prompt": "There are 4 birds on a branch. 3 more fly down. How many in all?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:4, shape:'bird'}, groupB={count:3, shape:'bird'}", "data": { "options": ["6", "7", "8"] }, "correct": "7" },
+            { "id": "d3_wedo_4", "type": "mc", "prompt": "Start at 2. Count on 5. What is the number?", "visual": "SVG_COMMAND: create_number_line start=0 end=10 markers=[{at:2, color:'red', type:'dot'}]", "data": { "options": ["6", "7", "8"] }, "correct": "7" },
+            { "id": "d3_wedo_5", "type": "text-box", "prompt": "What number comes after 6?", "visual": "", "data": { "size": 2 }, "correct": "7" },
+            { "id": "d3_wedo_6", "type": "mc", "prompt": "There are 8 fish. 2 more swim by. How many fish now?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:8, shape:'fish'}, groupB={count:2, shape:'fish'}", "data": { "options": ["9", "10", "11"] }, "correct": "10" },
+            { "id": "d3_wedo_7", "type": "mc", "prompt": "Start at 1. Count on 6. Where do you land?", "visual": "SVG_COMMAND: create_number_line start=0 end=10 markers=[{at:1, color:'purple', type:'dot'}]", "data": { "options": ["6", "7", "8"] }, "correct": "7" },
+            { "id": "d3_wedo_8", "type": "text-box", "prompt": "What number is missing? 2, 3, 4, __, 6.", "visual": "", "data": { "size": 2 }, "correct": "5" },
+            { "id": "d3_wedo_9", "type": "mc", "prompt": "5 kids are on the bus. 4 more get on. How many kids are on the bus?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:5, shape:'person'}, groupB={count:4, shape:'person'}", "data": { "options": ["8", "9", "10"] }, "correct": "9" },
+            { "id": "d3_wedo_10", "type": "mc", "prompt": "Start at 7. Count on 3. What is the number?", "visual": "SVG_COMMAND: create_number_line start=0 end=10 markers=[{at:7, color:'orange', type:'dot'}]", "data": { "options": ["8", "9", "10"] }, "correct": "10" }
+        ],
+        "youDo": [
+            { "id": "d3_youdo_1", "type": "mc", "prompt": "Start at 5. Count on 3. What number are you on?", "visual": "SVG_COMMAND: create_number_line start=0 end=10 markers=[{at:5, color:'blue', type:'dot'}]", "data": { "options": ["7", "8", "9"] }, "correct": "8" },
+            { "id": "d3_youdo_2", "type": "true-false", "prompt": "There are 6 ladybugs on a leaf and 2 more fly on. The total is 9 ladybugs.", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:6, shape:'ladybug'}, groupB={count:2, shape:'ladybug'}", "data": { "options": ["True", "False"] }, "correct": "False" },
+            { "id": "d3_youdo_3", "type": "text-box", "prompt": "What number is missing? 4, 5, __, 7, 8.", "visual": "", "data": { "size": 2 }, "correct": "6" },
+            { "id": "d3_youdo_4", "type": "mc", "prompt": "There are 3 apples. You add 5 more. How many apples in all?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:3, shape:'apple'}, groupB={count:5, shape:'apple'}", "data": { "options": ["7", "8", "9"] }, "correct": "8" },
+            { "id": "d3_youdo_5", "type": "mc", "prompt": "Start at 8. Count on 2. What is the number?", "visual": "SVG_COMMAND: create_number_line start=0 end=10 markers=[{at:8, color:'teal', type:'dot'}]", "data": { "options": ["9", "10", "11"] }, "correct": "10" }
+        ],
+        "assessment": [
+            { "id": "d3_assess_1", "type": "mc", "prompt": "Start at 5. Count on 3. What number are you on?", "visual": "SVG_COMMAND: create_number_line start=0 end=10 markers=[{at:5, color:'blue', type:'dot'}]", "data": { "options": ["7", "8", "9"] }, "correct": "8" },
+            { "id": "d3_assess_2", "type": "true-false", "prompt": "There are 6 ladybugs on a leaf and 2 more fly on. The total is 9 ladybugs.", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:6, shape:'ladybug'}, groupB={count:2, shape:'ladybug'}", "data": { "options": ["True", "False"] }, "correct": "False" },
+            { "id": "d3_assess_3", "type": "multi-select", "prompt": "Which pictures show a total of 9 items?", "visual": "", "data": { "options": ["4 in a box, 5 outside", "7 in a box, 2 outside", "8 in a box, 0 outside", "5 in a box, 3 outside"] }, "correct": ["4 in a box, 5 outside", "7 in a box, 2 outside"] },
+            { "id": "d3_assess_4", "type": "text-box", "prompt": "What number is missing? 4, 5, __, 7, 8.", "visual": "", "data": { "size": 2 }, "correct": "6" },
+            { "id": "d3_assess_5", "type": "drag-drop-match", "prompt": "Finish the sentence. 'There are 8 frogs. 2 more jump in. The total is...'", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:8, shape:'frog'}, groupB={count:2, shape:'frog'}", "data": { "draggables": ["Number 9", "Number 10", "Number 7"], "dropTargets": ["The Total"] }, "correct": { "Number 10": "The Total" } }
+        ]
+      },
+      "day4": {
+        "title": "More or Less? Let's Compare!",
+        "standard": "K.NR.3.1 - Compare objects using 'more than', 'fewer than', or 'the same as'.",
+        "iDo": [
+            { "id": "d4_ido_1", "type": "mc", "prompt": "Group A has 7 dots. Group B has 5. 7 is bigger than 5, so Group A has more. Which is Group A?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:7, shape:'circle'}, groupB={count:5, shape:'circle'}", "data": { "options": ["Group A", "Group B"] }, "correct": "Group A" },
+            { "id": "d4_ido_2", "type": "mc", "prompt": "Which number is 'fewer than' 8?", "visual": "emoji:🤔", "data": { "options": ["9", "6"] }, "correct": "6" },
+            { "id": "d4_ido_3", "type": "drag-drop-match", "prompt": "One side has 4 stars, the other has 4 circles. They are the same. Drag the correct symbol.", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:4, shape:'star'}, groupB={count:4, shape:'circle'}", "data": { "draggables": [">", "<", "="], "dropTargets": ["Symbol"] }, "correct": { "=": "Symbol" } }
+        ],
+        "weDo": [
+            { "id": "d4_wedo_1", "type": "mc", "prompt": "Which group has more?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:8, shape:'square'}, groupB={count:6, shape:'square'}", "data": { "options": ["Group of 8", "Group of 6"] }, "correct": "Group of 8" },
+            { "id": "d4_wedo_2", "type": "mc", "prompt": "Which group has fewer?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:5, shape:'triangle'}, groupB={count:7, shape:'triangle'}", "data": { "options": ["Group of 5", "Group of 7"] }, "correct": "Group of 5" },
+            { "id": "d4_wedo_3", "type": "true-false", "prompt": "Are the groups the same?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:9, shape:'circle'}, groupB={count:9, shape:'circle'}", "data": { "options": ["True", "False"] }, "correct": "True" },
+            { "id": "d4_wedo_4", "type": "mc", "prompt": "Which number is more than 7?", "visual": "", "data": { "options": ["6", "8"] }, "correct": "8" },
+            { "id": "d4_wedo_5", "type": "mc", "prompt": "Which number is fewer than 4?", "visual": "", "data": { "options": ["3", "5"] }, "correct": "3" },
+            { "id": "d4_wedo_6", "type": "true-false", "prompt": "Is 9 more than 10?", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
+            { "id": "d4_wedo_7", "type": "mc", "prompt": "Which group has fewer?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:10, shape:'star'}, groupB={count:8, shape:'star'}", "data": { "options": ["Group of 10", "Group of 8"] }, "correct": "Group of 8" },
+            { "id": "d4_wedo_8", "type": "mc", "prompt": "Which shows the same number?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:6, shape:'heart'}, groupB={count:7, shape:'heart'}", "data": { "options": ["6 and 7", "5 and 5"] }, "correct": "5 and 5" },
+            { "id": "d4_wedo_9", "type": "true-false", "prompt": "Is 5 fewer than 3?", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
+            { "id": "d4_wedo_10", "type": "mc", "prompt": "Which group has more?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:4, shape:'car'}, groupB={count:2, shape:'car'}", "data": { "options": ["Group of 4", "Group of 2"] }, "correct": "Group of 4" }
+        ],
+        "youDo": [
+            { "id": "d4_youdo_1", "type": "mc", "prompt": "Which group has fewer?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:6, shape:'triangle'}, groupB={count:8, shape:'triangle'}", "data": { "options": ["The group of 6", "The group of 8"] }, "correct": "The group of 6" },
+            { "id": "d4_youdo_2", "type": "mc", "prompt": "Which number is more than 5?", "visual": "", "data": { "options": ["4", "7"] }, "correct": "7" },
+            { "id": "d4_youdo_3", "type": "true-false", "prompt": "Are the number of apples and oranges the same?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:7, shape:'apple'}, groupB={count:7, shape:'orange'}", "data": { "options": ["True", "False"] }, "correct": "True" },
+            { "id": "d4_youdo_4", "type": "text-box", "prompt": "Sam has 8 crayons. Tia has 10 crayons. Who has more?", "visual": "SVG_COMMAND: create_groups count=10 shape='crayon'", "data": { "size": 10 }, "correct": "Tia" },
+            { "id": "d4_youdo_5", "type": "drag-drop-match", "prompt": "Match the groups to the correct description.", "visual": "", "data": { "draggables": ["A picture of 5 dots", "A picture of 9 dots"], "dropTargets": ["Fewer than 7", "More than 7"] }, "correct": { "A picture of 5 dots": "Fewer than 7", "A picture of 9 dots": "More than 7" } }
+        ],
+        "assessment": [
+            { "id": "d4_assess_1", "type": "mc", "prompt": "Which group has fewer?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:6, shape:'triangle'}, groupB={count:8, shape:'triangle'}", "data": { "options": ["The group of 6", "The group of 8"] }, "correct": "The group of 6" },
+            { "id": "d4_assess_2", "type": "multi-select", "prompt": "Select all the numbers that are more than 5.", "visual": "", "data": { "options": ["4", "7", "5", "9", "2"] }, "correct": ["7", "9"] },
+            { "id": "d4_assess_3", "type": "ebsr", "prompt": "Part A: Are the number of apples and oranges the same? Part B: Which sentence proves your answer?", "visual": "SVG_COMMAND: create_comparison_groups groupA={count:7, shape:'apple'}, groupB={count:7, shape:'orange'}", "data": { "partA_options": ["Yes", "No"], "partB_options": ["7 is the same as 7.", "One group is red and one is orange."] }, "correct": { "partA": "Yes", "partB": "7 is the same as 7." } },
+            { "id": "d4_assess_4", "type": "text-box", "prompt": "Sam has 8 crayons. Tia has 10 crayons. Who has more crayons?", "visual": "SVG_COMMAND: create_groups count=10 shape='crayon'", "data": { "size": 10 }, "correct": "Tia" },
+            { "id": "d4_assess_5", "type": "drag-drop-match", "prompt": "Match the groups to the correct description.", "visual": "", "data": { "draggables": ["A picture of 5 dots", "A picture of 9 dots"], "dropTargets": ["Fewer than 7", "More than 7"] }, "correct": { "A picture of 5 dots": "Fewer than 7", "A picture of 9 dots": "More than 7" } }
+        ]
+      }
+    }
+    </script>
+</body>
+</html>
