@@ -1228,6 +1228,14 @@
             const selectedRole = document.querySelector('#setup-modal input[name="role"]:checked').value;
             const room = document.getElementById('room-name').value.trim() || 'default';
             
+            if (selectedRole === 'teacher') {
+                const password = prompt("Enter teacher password:");
+                if (password !== '2026') {
+                    alert('Incorrect password.');
+                    return;
+                }
+            }
+
             localStorage.setItem('lesson_role', selectedRole);
             localStorage.setItem('lesson_room', room);
 
@@ -1788,4 +1796,5 @@
     </script>
 </body>
 </html>
+
 
