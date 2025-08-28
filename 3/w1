@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quest for Knowledge: Word Problems</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom Fantasy RPG Theme Styles */
+        body {
+            font-family: 'Lato', sans-serif;
+            background-color: #2c1e15; /* Dark wood color */
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDUyIDI2Ij48ZyBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiM5YzY5NTEiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMTggMHYyNmg0VjB6TTQxIDB2MjZoNFYweiIvPjwvZz48L2c+PC9zdmc+');
+        }
+        h1, h2, h3, .rpg-font {
+            font-family: 'MedievalSharp', cursive;
+        }
+        .rpg-btn {
+            background-color: #7a5c4f; /* Leather brown */
+            border: 4px solid #4a382f; /* Darker brown */
+            color: #f3e9dc; /* Parchment color */
+            font-family: 'MedievalSharp', cursive;
+            font-size: 1.25rem;
+            padding: 8px 16px;
+            border-radius: 8px;
+            box-shadow: 0 5px #3a2c23;
+            transition: all 0.1s ease-in-out;
+            cursor: pointer;
+            text-shadow: 1px 1px 2px #000;
+        }
+        .rpg-btn:hover {
+            transform: translateY(2px);
+            box-shadow: 0 3px #3a2c23;
+        }
+        .rpg-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px #3a2c23;
+        }
+        .rpg-btn:disabled {
+            background-color: #5d4a41;
+            cursor: not-allowed;
+            box-shadow: 0 2px #3a2c23;
+            transform: translateY(3px);
+        }
+        .tab-btn {
+            background-color: #4a382f;
+            color: #c5b8a5;
+            padding: 12px 24px;
+            border-radius: 10px 10px 0 0;
+            border: 3px solid #3a2c23;
+            border-bottom: none;
+            transition: all 0.3s;
+            position: relative;
+            bottom: -3px;
+        }
+        .tab-btn.active {
+            background-color: #6a4c3f;
+            color: #fff;
+            border-color: #3a2c23;
+        }
+        .quest-scroll {
+            background-color: #f3e9dc; /* Parchment */
+            color: #3a2c23;
+            border: 15px solid transparent;
+            border-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48ZGVmcz48cGF0dGVybiBpZD0icGF0dGVybiIgcGF0dGVyblVuaXRzPSJvYmplY3RCb3VuZGluZ0JveCIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSI+PHBhdGggZmlsbD0iIzdhNWM0ZiIgc3Ryb2tlPSIjNGEzODJmIiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik0wLDBIMzAwVjMwMEgwWiIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9InVybCgjcGF0dGVybikiLz48L3N2Zz4=') 15 stretch;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+        .slide {
+            padding: 2rem;
+            min-height: 500px;
+        }
+        .draggable {
+            cursor: grab;
+            user-select: none;
+        }
+        .drop-target {
+            border: 3px dashed #8a6c5f;
+            min-height: 80px;
+            transition: background-color 0.3s;
+            background: rgba(122, 92, 79, 0.1);
+            border-radius: 10px;
+        }
+        .drop-target.over {
+            background-color: rgba(100, 150, 100, 0.3);
+        }
+        .feedback {
+            font-size: 1.5rem;
+            font-weight: bold;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+            text-align: center;
+            font-family: 'MedievalSharp', cursive;
+        }
+        .feedback.correct {
+            background-color: #e6f4ea;
+            color: #2d6a4f;
+            border: 2px solid #52b788;
+        }
+        .feedback.incorrect {
+            background-color: #fde0e0;
+            color: #9e2a2b;
+            border: 2px solid #e56b6f;
+        }
+        .xp-gain {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            color: #ffd700;
+            text-shadow: 0 0 5px #000;
+            animation: fadeUp 1.5s ease-out forwards;
+        }
+        @keyframes fadeUp {
+            0% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -50px); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="app" class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-4 text-center md:text-left">
+            <h1 class="text-4xl md:text-5xl font-bold text-amber-200 mb-4 md:mb-0" style="text-shadow: 2px 2px 4px #000;">📜 Quest for Knowledge ⚔️</h1>
+            <div class="flex space-x-2">
+                <button id="download-work-btn" class="rpg-btn">Save Quest Log</button>
+                <button id="download-pdf-btn" class="rpg-btn">Export Scroll</button>
+            </div>
+        </header>
+
+        <!-- Main Navigation Tabs -->
+        <nav id="main-tabs" class="flex justify-center space-x-2 z-10 relative rpg-font">
+            <!-- Tabs will be generated here -->
+        </nav>
+
+        <!-- Content Area -->
+        <main id="content-area" class="quest-scroll">
+            <!-- Day content will be injected here -->
+        </main>
+    </div>
+
+    <!-- Hidden data script for saving progress -->
+    <script id="progress-data" type="application/json"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DATA ---
+        const lessonData = {
+          "day1": {
+            "title": "The Dragon's Hoard (Add-To Problems)",
+            "standard": "3.PAFR.2.2 - Solve one- and two-step real-world situations using addition and subtraction up to 1,000.",
+            "sections": {
+              "hook": [
+                { "id": "d1_hook_1", "type": "content", "prompt": "Ignis the dragon counted 245 gold coins in one pile. He found another pile with 132 gold coins. How many coins did he count in all?" }
+              ],
+              "i_do": [
+                { "id": "d1_ido_1", "type": "mc", "prompt": "Ignis found a chest with 357 rubies. His griffin friend brought him 228 more. How many rubies does he have now?", "visual": "graphic_organizer: {story_text:'357 rubies and 228 more.', number_sentence:'357 + 228 = ?', answer:''}", "data": { "options": ["585", "575", "584"] }, "correct": "585" },
+                { "id": "d1_ido_2", "type": "text-box", "prompt": "A royal blacksmith forged 152 iron swords on Monday and 235 on Tuesday. How many swords did he forge in total?", "visual": "equation_scroll: {text:'152 + 235 = ?'}", "data": { "size": 3 }, "correct": "387" },
+                { "id": "d1_ido_3", "type": "true-false", "prompt": "A wizard has 450 spellbooks and buys 125 more. The correct number sentence is 450 + 125 = 575.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }
+              ],
+              "we_do": [
+                { "id": "d1_wedo_1", "type": "mc", "prompt": "Ignis has 418 sapphires and 190 diamonds. How many gems does he have altogether?", "visual": "", "data": { "options": ["608", "508", "618"] }, "correct": "608" },
+                { "id": "d1_wedo_2", "type": "mc", "prompt": "A kingdom has 280 knights. 155 more knights were trained. How many knights does the kingdom have now?", "visual": "", "data": { "options": ["335", "435", "445"] }, "correct": "435" },
+                { "id": "d1_wedo_3", "type": "true-false", "prompt": "342 gold coins plus 259 gold coins equals 601 gold coins.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
+                { "id": "d1_wedo_4", "type": "text-box", "prompt": "A castle has 523 guards. 248 more guards are hired. How many guards are there in total?", "visual": "", "data": { "size": 3 }, "correct": "771" },
+                { "id": "d1_wedo_5", "type": "drag-drop-match", "prompt": "Drag the total to the quest scroll.", "visual": "equation_scroll: {text:'475 + 350 = ?'}", "data": { "draggables": ["825", "725"], "dropTargets": ["Answer"] }, "correct": { "825": "Answer" } },
+                { "id": "d1_wedo_6", "type": "mc", "prompt": "An army has 365 archers and 280 swordsmen. How many soldiers are in the army?", "visual": "", "data": { "options": ["645", "545", "655"] }, "correct": "645" },
+                { "id": "d1_wedo_7", "type": "true-false", "prompt": "You have 615 XP and earn 150 more. You now have 755 XP.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
+                { "id": "d1_wedo_8", "type": "text-box", "prompt": "Solve: A dragon's hoard has 555 rubies and 333 emeralds. How many gems total?", "visual": "", "data": { "size": 3 }, "correct": "888" },
+                { "id": "d1_wedo_9", "type": "mc", "prompt": "Which scroll matches: 'A village has 217 houses. 142 more are built.'?", "visual": "", "data": { "options": ["217 - 142 = 75", "217 + 142 = 359", "359 - 142 = 217"] }, "correct": "217 + 142 = 359" },
+                { "id": "d1_wedo_10", "type": "drag-drop-match", "prompt": "Drag the numbers to the organizer to represent the story: '184 potions and 236 more'.", "visual": "graphic_organizer: {story_text:'', number_sentence:'', answer:''}", "data": { "draggables": ["184", "236"], "dropTargets": ["Part 1", "Part 2"] }, "correct": { "184": "Part 1", "236": "Part 2" } }
+              ],
+              "you_do": [
+                { "id": "d1_youdo_1", "type": "mc", "prompt": "A wizard collected 456 herbs. He found 279 more. How many herbs does he have?", "visual": "", "data": { "options": ["725", "735", "635"] }, "correct": "735" },
+                { "id": "d1_youdo_2", "type": "text-box", "prompt": "A royal library has 682 books. 250 new books arrive. How many books are there now?", "visual": "", "data": { "size": 3 }, "correct": "932" },
+                { "id": "d1_youdo_3", "type": "true-false", "prompt": "A griffin flew 347 miles and then 453 more miles. It flew a total of 800 miles.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
+                { "id": "d1_youdo_4", "type": "mc", "prompt": "A kingdom planted 525 trees one year and 385 the next. How many trees were planted in all?", "visual": "", "data": { "options": ["810", "900", "910"] }, "correct": "910" },
+                { "id": "d1_youdo_5", "type": "drag-drop-match", "prompt": "Drag the total to the equation: 499 + 499 = ?", "visual": "", "data": { "draggables": ["998", "898"], "dropTargets": ["Equation"] }, "correct": { "998": "Equation" } }
+              ]
+            },
+            "assessment": [
+              { "id": "d1_a_1", "type": "mc", "prompt": "A caravan has 175 camels. Another caravan with 215 camels joins them. Which number sentence shows the total number of camels?", "visual": "", "data": { "options": ["215 - 175 = 40", "175 + 215 = 390", "215 + 100 = 315"] }, "correct": "175 + 215 = 390" },
+              { "id": "d1_a_2", "type": "multi-select", "prompt": "A royal feast has 320 apple tarts and 280 cherry tarts. Select all the true statements.", "visual": "", "data": { "options": ["There are 600 tarts in total.", "The number sentence is 320 + 280 = 600.", "There are more cherry tarts than apple tarts.", "This is a subtraction problem."] }, "correct": ["There are 600 tarts in total.", "The number sentence is 320 + 280 = 600."] },
+              { "id": "d1_a_3", "type": "text-box", "prompt": "A castle's wall is 455 feet long. The builders add another 355 feet. How long is the wall now? Write your answer in the box.", "visual": "", "data": { "size": 4 }, "correct": "810" },
+              { "id": "d1_a_4", "type": "drag-drop-match", "prompt": "Drag the correct total to the story: 'A dragon sleeps for 150 years, then sleeps for 150 more years.'", "visual": "", "data": { "draggables": ["300 years", "200 years"], "dropTargets": ["Total Sleep"] }, "correct": { "300 years": "Total Sleep" } },
+              { "id": "d1_a_5", "type": "mc", "prompt": "Part A: A hero scores 475 points in a tournament and gets a 250 point bonus. How many points does she have? Part B: Why is addition the correct operation to use?", "visual": "", "data": { "options": ["A: 725, B: Because she is getting more points.", "A: 225, B: Because a bonus means you subtract.", "A: 725, B: Because the numbers are large."] }, "correct": "A: 725, B: Because she is getting more points." }
+            ]
+          },
+          "day2": {
+            "title": "The Goblin's Riddle (One-Step Subtraction)",
+            "standard": "3.PAFR.2.2 - Solve one- and two-step real-world situations using addition and subtraction up to 1,000.",
+            "sections": {
+              "hook": [
+                { "id": "d2_hook_1", "type": "content", "prompt": "Your party begins its journey with a treasure chest containing 546 gold coins. Grizelda the goblin demands a toll of 123 coins. How many coins are left for your adventure?" }
+               ],
+              "i_do": [
+                { "id": "d2_ido_1", "type": "mc", "prompt": "A castle had 425 flags. A storm tore down 138 of them. How many flags remain?", "visual": "graphic_organizer: {story_text:'Start with 425, lose 138.', number_sentence:'425 - 138 = ?', answer:''}", "data": { "options": ["287", "297", "313"] }, "correct": "287" },
+                { "id": "d2_ido_2", "type": "text-box", "prompt": "A dragon has a hoard of 872 gems. A thief steals 250 of them. How many gems are left?", "visual": "equation_scroll: {text:'872 - 250 = ?'}", "data": { "size": 3 }, "correct": "622" },
+                { "id": "d2_ido_3", "type": "true-false", "prompt": "A wizard had 300 potions and sold 150. The correct number sentence is 300 - 150 = 150.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }
+              ],
+              "we_do": [
+                { "id": "d2_wedo_1", "type": "mc", "prompt": "An army of 872 soldiers marched to battle. 359 were sent to protect the village. How many went to the main battle?", "visual": "", "data": { "options": ["513", "523", "413"] }, "correct": "513" },
+                { "id": "d2_wedo_2", "type": "mc", "prompt": "You have 600 gold pieces and buy a sword for 255. How much gold is left?", "visual": "", "data": { "options": ["345", "355", "455"] }, "correct": "345" },
+                { "id": "d2_wedo_3", "type": "true-false", "prompt": "780 minus 190 equals 590.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
+                { "id": "d2_wedo_4", "type": "text-box", "prompt": "A kingdom has 941 barrels of water. 380 are used during a siege. How many are left?", "visual": "", "data": { "size": 3 }, "correct": "561" },
+                { "id": "d2_wedo_5", "type": "drag-drop-match", "prompt": "Drag the answer to the quest scroll.", "visual": "equation_scroll: {text:'500 - 225 = ?'}", "data": { "draggables": ["275", "375"], "dropTargets": ["Answer"] }, "correct": { "275": "Answer" } },
+                { "id": "d2_wedo_6", "type": "mc", "prompt": "A library had 750 scrolls. 325 were borrowed. How many are on the shelves?", "visual": "", "data": { "options": ["425", "435", "325"] }, "correct": "425" },
+                { "id": "d2_wedo_7", "type": "true-false", "prompt": "You have 800 XP and spend 150 on a new skill. You have 650 XP left.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
+                { "id": "d2_wedo_8", "type": "text-box", "prompt": "Solve: A dragon has 999 scales and loses 111. How many are left?", "visual": "", "data": { "size": 3 }, "correct": "888" },
+                { "id": "d2_wedo_9", "type": "mc", "prompt": "Which scroll matches: 'A castle has 450 guards. 120 are sent away.'?", "visual": "", "data": { "options": ["450 + 120 = 570", "450 - 120 = 330", "570 - 120 = 450"] }, "correct": "450 - 120 = 330" },
+                { "id": "d2_wedo_10", "type": "drag-drop-match", "prompt": "Drag the numbers to represent: 'Start with 673, take away 241'.", "visual": "graphic_organizer: {story_text:'', number_sentence:'', answer:''}", "data": { "draggables": ["673", "241"], "dropTargets": ["Whole", "Part"] }, "correct": { "673": "Whole", "241": "Part" } }
+              ],
+              "you_do": [
+                { "id": "d2_youdo_1", "type": "mc", "prompt": "A royal baker made 345 cakes. The king ate 128 of them. How many are left?", "visual": "", "data": { "options": ["217", "227", "117"] }, "correct": "217" },
+                { "id": "d2_youdo_2", "type": "text-box", "prompt": "A ship has 700 feet of rope. The sailors use 345 feet. How much rope is left?", "visual": "", "data": { "size": 3 }, "correct": "355" },
+                { "id": "d2_youdo_3", "type": "true-false", "prompt": "A wizard had 821 potions. He dropped 139. He has 682 potions left.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
+                { "id": "d2_youdo_4", "type": "mc", "prompt": "A forest has 911 trees. 450 are chopped down. How many trees remain?", "visual": "", "data": { "options": ["461", "561", "451"] }, "correct": "461" },
+                { "id": "d2_youdo_5", "type": "drag-drop-match", "prompt": "Drag the answer to the equation: 1000 - 550 = ?", "visual": "", "data": { "draggables": ["450", "550"], "dropTargets": ["Equation"] }, "correct": { "450": "Equation" } }
+              ]
+            },
+            "assessment": [
+              { "id": "d2_a_1", "type": "mc", "prompt": "A dragon has 742 gold coins. It gives 310 to its child. Which number sentence shows how many coins are left?", "visual": "", "data": { "options": ["742 + 310 = 1052", "310 + 742 = 1052", "742 - 310 = 432"] }, "correct": "742 - 310 = 432" },
+              { "id": "d2_a_2", "type": "multi-select", "prompt": "A wizard has 500 pages of parchment. He uses 175 pages for a long spell. Select all the true statements.", "visual": "", "data": { "options": ["He has 325 pages left.", "This is an addition problem.", "The number sentence is 500 - 175 = 325.", "He has more pages left than he used."] }, "correct": ["He has 325 pages left.", "The number sentence is 500 - 175 = 325.", "He has more pages left than he used."] },
+              { "id": "d2_a_3", "type": "text-box", "prompt": "An army of 900 soldiers attacks a fortress. 285 soldiers are lost in the battle. How many soldiers are left?", "visual": "", "data": { "size": 3 }, "correct": "615" },
+              { "id": "d2_a_4", "type": "drag-drop-match", "prompt": "Drag the correct number of remaining items to the story: 'A royal chef has 450 eggs. He uses 225 for a giant omelet.'", "visual": "", "data": { "draggables": ["225 eggs left", "675 eggs left"], "dropTargets": ["Story"] }, "correct": { "225 eggs left": "Story" } },
+              { "id": "d2_a_5", "type": "mc", "prompt": "Part A: A caravan of 842 camels is crossing a desert. 199 camels get tired and stop to rest. How many camels are still walking? Part B: How do you know you need to regroup to solve this problem?", "visual": "", "data": { "options": ["A: 643, B: Because you can't subtract 9 from 4 in the tens place.", "A: 653, B: Because you don't need to regroup.", "A: 1041, B: Because you should add the numbers."] }, "correct": "A: 643, B: Because you can't subtract 9 from 4 in the tens place." }
+            ]
+          },
+          "day3": {
+            "title": "The Alchemist's Dilemma (Part-Part-Whole Problems)",
+            "standard": "3.PAFR.2.2 - Solve one- and two-step real-world situations using addition and subtraction up to 1,000.",
+            "sections": {
+              "hook": [
+                { "id": "d3_hook_1", "type": "content", "prompt": "The alchemist needs to brew a potion with a total of 350 drops of liquid. He has already poured in 150 drops of sparkling water. The rest must be moonflower nectar. How many drops of moonflower nectar does he need?" }
+              ],
+              "i_do": [
+                { "id": "d3_ido_1", "type": "mc", "prompt": "A knight has 8 steel shields and 5 wooden shields. How many shields in total?", "visual": "part_part_whole_mat: {part1:{type:'shield', count:8}, part2:{type:'shield', count:5}, whole:'?'}", "data": { "options": ["12", "13", "14"] }, "correct": "13" },
+                { "id": "d3_ido_2", "type": "text-box", "prompt": "A wizard has 14 potions. 6 are healing potions, and the rest are mana potions. How many are mana potions?", "visual": "part_part_whole_mat: {whole:14, part1:{type:'potion', count:6}, part2:'?'}", "data": { "size": 2 }, "correct": "8" },
+                { "id": "d3_ido_3", "type": "true-false", "prompt": "If a chest has 17 total coins and 9 are gold, then there must be 8 silver coins.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }
+              ],
+              "we_do": [
+                { "id": "d3_wedo_1", "type": "mc", "prompt": "There are 17 adventurers in a dungeon. 9 are warriors and the rest are mages. How many are mages?", "visual": "", "data": { "options": ["7", "8", "9"] }, "correct": "8" },
+                { "id": "d3_wedo_2", "type": "mc", "prompt": "A treasure map has two parts. The first part is 7 miles long. The second part is 9 miles long. How long is the whole journey?", "visual": "", "data": { "options": ["15 miles", "16 miles", "17 miles"] }, "correct": "16 miles" },
+                { "id": "d3_wedo_3", "type": "true-false", "prompt": "If there are 11 heroes total and 5 are elves, then 7 must be dwarves.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
+                { "id": "d3_wedo_4", "type": "text-box", "prompt": "A dragon's hoard has 18 items. 10 are gold coins and the rest are gems. How many are gems?", "visual": "", "data": { "size": 2 }, "correct": "8" },
+                { "id": "d3_wedo_5", "type": "drag-drop-match", "prompt": "Drag the missing part to the equation scroll.", "visual": "equation_scroll: {text:'8 + ? = 15'}", "data": { "draggables": ["7", "8"], "dropTargets": ["?"] }, "correct": { "7": "?" } },
+                { "id": "d3_wedo_6", "type": "mc", "prompt": "A forest has 13 talking animals. 6 are squirrels and the rest are rabbits. How many are rabbits?", "visual": "", "data": { "options": ["6", "7", "8"] }, "correct": "7" },
+                { "id": "d3_wedo_7", "type": "true-false", "prompt": "A chest with 9 rubies and 9 sapphires has 18 gems in total.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
+                { "id": "d3_wedo_8", "type": "text-box", "prompt": "A hero needs 20 arrows. She has 11. How many more does she need to make?", "visual": "", "data": { "size": 2 }, "correct": "9" },
+                { "id": "d3_wedo_9", "type": "mc", "prompt": "Which story matches '14 - 6 = 8'?", "visual": "", "data": { "options": ["You have 14 coins and find 6 more.", "You have 14 coins. 6 are gold and 8 are silver.", "You have 8 coins and find 6 more."] }, "correct": "You have 14 coins. 6 are gold and 8 are silver." },
+                { "id": "d3_wedo_10", "type": "drag-drop-match", "prompt": "A hoard has 17 gems total. One part is 8 gems. Drag the other part to the mat.", "visual": "part_part_whole_mat: {whole:17, part1:8, part2:'?'}", "data": { "draggables": ["8 gems", "9 gems"], "dropTargets": ["Part 2"] }, "correct": { "9 gems": "Part 2" } }
+              ],
+              "you_do": [
+                { "id": "d3_youdo_1", "type": "mc", "prompt": "A library has 19 spellbooks. 12 are on a shelf and the rest are on a table. How many are on the table?", "visual": "", "data": { "options": ["6", "7", "8"] }, "correct": "7" },
+                { "id": "d3_youdo_2", "type": "text-box", "prompt": "A blacksmith has 9 iron swords and 7 steel swords. How many swords does he have in all?", "visual": "", "data": { "size": 2 }, "correct": "16" },
+                { "id": "d3_youdo_3", "type": "true-false", "prompt": "If a quest has a total of 15 XP and you've earned 8 XP, you still need to earn 7 XP.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
+                { "id": "d3_youdo_4", "type": "mc", "prompt": "A potion requires 13 total ingredients. You have 6. How many more do you need?", "visual": "", "data": { "options": ["7", "8", "9"] }, "correct": "7" },
+                { "id": "d3_youdo_5", "type": "drag-drop-match", "prompt": "Drag the missing part to the equation: ? + 5 = 11", "visual": "", "data": { "draggables": ["6", "7"], "dropTargets": ["?"] }, "correct": { "6": "?" } }
+              ]
+            },
+            "assessment": [
+              { "id": "d3_a_1", "type": "mc", "prompt": "A quest requires a total of 500 XP. You have 250 XP. Which number sentence finds how much XP you still need?", "visual": "", "data": { "options": ["500 + 250 = 750", "500 - 250 = 250", "250 + 500 = 750"] }, "correct": "500 - 250 = 250" },
+              { "id": "d3_a_2", "type": "multi-select", "prompt": "A dragon's hoard has 800 coins. Some are gold and 350 are silver. Select all true statements.", "visual": "", "data": { "options": ["There are 450 gold coins.", "This is an addition problem.", "The number sentence could be 350 + ? = 800.", "There are more silver coins than gold coins."] }, "correct": ["There are 450 gold coins.", "The number sentence could be 350 + ? = 800."] },
+              { "id": "d3_a_3", "type": "text-box", "prompt": "A castle needs 975 guards for its walls. There are 625 guards already on duty. How many more guards are needed?", "visual": "", "data": { "size": 3 }, "correct": "350" },
+              { "id": "d3_a_4", "type": "drag-drop-match", "prompt": "Drag the correct missing part to the story: 'A wizard has 215 fire potions. He has 400 potions in total. The rest are ice potions.'", "visual": "", "data": { "draggables": ["185 ice potions", "615 ice potions"], "dropTargets": ["Missing Part"] }, "correct": { "185 ice potions": "Missing Part" } },
+              { "id": "d3_a_5", "type": "mc", "prompt": "Part A: An army has 720 soldiers. 350 are archers and the rest are swordsmen. How many are swordsmen? Part B: Which statement best explains why you solved it that way?", "visual": "", "data": { "options": ["A: 370, B: I knew the whole and one part, so I subtracted to find the other part.", "A: 1070, B: I knew two parts, so I added to find the whole.", "A: 370, B: I guessed because the numbers were large."] }, "correct": "A: 370, B: I knew the whole and one part, so I subtracted to find the other part." }
+            ]
+          },
+          "day4": {
+            "title": "The Two-Step Trial (Multi-Step Problems)",
+            "standard": "3.PAFR.2.2 - Solve one- and two-step real-world situations using addition and subtraction up to 1,000.",
+            "sections": {
+              "hook": [
+                { "id": "d4_hook_1", "type": "content", "prompt": "To begin your journey, you pack a bag with 124 berries. You find another 78 berries on the path. Then, you are ambushed by hungry pixies and give them 50 berries. How many berries do you have left?" }
+              ],
+              "i_do": [
+                { "id": "d4_ido_1", "type": "mc", "prompt": "A castle has 350 soldiers. 120 ride out to patrol. Then, 75 new recruits arrive. How many soldiers are at the castle now?", "visual": "graphic_organizer: {story_text:'Step 1: 350 - 120. Step 2: Add 75.', number_sentence:'230 + 75 = ?', answer:''}", "data": { "options": ["305", "230", "425"] }, "correct": "305" },
+                { "id": "d4_ido_2", "type": "text-box", "prompt": "You have 520 gold coins. You buy a shield for 150 and a helmet for 80. How much gold is left?", "visual": "equation_scroll: {text:'520 - 150 - 80 = ?'}", "data": { "size": 3 }, "correct": "290" },
+                { "id": "d4_ido_3", "type": "true-false", "prompt": "A dragon had 200 gems. It found 50 more, then lost 100. The final amount is 150.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }
+              ],
+              "we_do": [
+                { "id": "d4_wedo_1", "type": "mc", "prompt": "A wizard had 420 potions. He sold 150, then brewed 85 more. How many potions does he have now?", "visual": "", "data": { "options": ["270", "355", "485"] }, "correct": "355" },
+                { "id": "d4_wedo_2", "type": "mc", "prompt": "A library had 800 scrolls. 250 were borrowed. Then, 120 were returned. How many scrolls are in the library?", "visual": "", "data": { "options": ["550", "670", "430"] }, "correct": "670" },
+                { "id": "d4_wedo_3", "type": "true-false", "prompt": "You start with 500 gold. You earn 200, then spend 300. You have 400 gold left.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
+                { "id": "d4_wedo_4", "type": "text-box", "prompt": "A forest has 980 trees. 150 are cut down, but 200 new trees are planted. How many trees are in the forest?", "visual": "", "data": { "size": 4 }, "correct": "1030" },
+                { "id": "d4_wedo_5", "type": "drag-drop-match", "prompt": "Drag the final answer to the quest: 'Start with 300, add 150, subtract 100'", "visual": "", "data": { "draggables": ["350", "450"], "dropTargets": ["Answer"] }, "correct": { "350": "Answer" } },
+                { "id": "d4_wedo_6", "type": "mc", "prompt": "A hero has 180 arrows. He shoots 60, then finds 40 more. How many arrows does he have?", "visual": "", "data": { "options": ["120", "160", "200"] }, "correct": "160" },
+                { "id": "d4_wedo_7", "type": "true-false", "prompt": "A castle has 600 guards. 250 leave, then 150 return. There are now 500 guards.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
+                { "id": "d4_wedo_8", "type": "text-box", "prompt": "Solve: A dragon had 740 gems. It gave away 200, then found 110. How many gems now?", "visual": "", "data": { "size": 3 }, "correct": "650" },
+                { "id": "d4_wedo_9", "type": "mc", "prompt": "Which story matches '100 + 50 - 25 = 125'?", "visual": "", "data": { "options": ["You had 100 coins, lost 50, then found 25.", "You had 100 coins, found 50, then spent 25.", "You had 100 coins, found 50, then found 25."] }, "correct": "You had 100 coins, found 50, then spent 25." },
+                { "id": "d4_wedo_10", "type": "drag-drop-match", "prompt": "What is the answer after the first step? 'A baker has 250 cakes. He sells 120, then bakes 50 more.'", "visual": "", "data": { "draggables": ["130", "300"], "dropTargets": ["Answer to Step 1"] }, "correct": { "130": "Answer to Step 1" } }
+              ],
+              "you_do": [
+                { "id": "d4_youdo_1", "type": "mc", "prompt": "You have 325 gold. You buy a shield for 110 and a potion for 25. How much is left?", "visual": "", "data": { "options": ["190", "215", "200"] }, "correct": "190" },
+                { "id": "d4_youdo_2", "type": "text-box", "prompt": "A kingdom had 800 soldiers. 250 went on a quest. 150 new soldiers were recruited. How many soldiers are there now?", "visual": "", "data": { "size": 3 }, "correct": "700" },
+                { "id": "d4_youdo_3", "type": "true-false", "prompt": "A wizard started with 500 pages of paper. He used 125 for spells and 50 for letters. He has 325 pages left.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
+                { "id": "d4_youdo_4", "type": "mc", "prompt": "A dragon collected 240 gems. It lost 80 in a fight, but then found 100 more. How many gems does it have?", "visual": "", "data": { "options": ["160", "260", "340"] }, "correct": "260" },
+                { "id": "d4_youdo_5", "type": "drag-drop-match", "prompt": "Drag the final answer to the quest: 'Start with 950, subtract 500, add 150'", "visual": "", "data": { "draggables": ["600", "500"], "dropTargets": ["Final Answer"] }, "correct": { "600": "Final Answer" } }
+              ]
+            },
+            "assessment": [
+                { "id": "d4_a_1", "type": "mc", "prompt": "A merchant has 250 apples. She sells 120, then buys 80 more. Which pair of number sentences solves the problem?", "visual": "", "data": { "options": ["250 + 120, then 370 + 80", "250 - 120, then 130 + 80", "250 - 120, then 130 - 80"] }, "correct": "250 - 120, then 130 + 80" },
+                { "id": "d4_a_2", "type": "multi-select", "prompt": "A hero has 500 health points. He takes 150 damage, then drinks a potion that heals 75 points. Select all true statements.", "visual": "", "data": { "options": ["His health after being hit is 350.", "His final health is 425.", "He should add 150 and 75 first.", "His final health is 275."] }, "correct": ["His health after being hit is 350.", "His final health is 425."] },
+                { "id": "d4_a_3", "type": "text-box", "prompt": "A castle library has 675 books. 250 are checked out. Then, 115 new books are added. How many books are in the library now?", "visual": "", "data": { "size": 3 }, "correct": "540" },
+                { "id": "d4_a_4", "type": "drag-drop-match", "prompt": "Drag the correct final answer to the story: 'A dragon has 300 gold coins. It gets 250 more from a village, then spends 120 on a new cave.'", "visual": "", "data": { "draggables": ["430 coins", "550 coins"], "dropTargets": ["Final Amount"] }, "correct": { "430 coins": "Final Amount" } },
+                { "id": "d4_a_5", "type": "mc", "prompt": "Part A: A blacksmith has 180 iron bars. He uses 120 to make swords. Then he buys 200 more. How many iron bars does he have? Part B: Which step must be completed first to find the correct answer?", "visual": "", "data": { "options": ["A: 260, B: You must first find how many bars he had after making swords.", "A: 500, B: You must first add the bars he started with and the bars he bought.", "A: 260, B: It does not matter which step you do first."] }, "correct": "A: 260, B: You must first find how many bars he had after making swords." }
+            ]
+          }
+        };
+
+        // --- STATE MANAGEMENT ---
+        let appState = {
+            activeDay: 'day1',
+            currentMode: 'lesson', // 'lesson' or 'assessment'
+            progress: {}
+        };
+
+        const POSITIVE_FEEDBACK = ["Huzzah!", "A legendary success!", "Your wisdom grows!", "Quest Complete!", "Victory!"];
+
+        // --- SVG & DYNAMIC ELEMENT GENERATION ---
+
+        const createSvgElement = (tag, attrs) => {
+            const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+            for (let key in attrs) {
+                el.setAttribute(key, attrs[key]);
+            }
+            return el;
+        };
+        
+        const generateVisual = (visualString) => {
+            if (!visualString) return null;
+
+            const svg = createSvgElement('svg', { viewBox: '0 0 400 200', class: 'w-full h-auto max-w-lg mx-auto' });
+            
+            const [type, paramsStr] = visualString.split(/:(.+)/);
+            let params = {};
+            if (paramsStr) {
+                try {
+                    params = new Function(`return ${paramsStr}`)();
+                } catch (e) {
+                    console.error("Could not parse visual params:", paramsStr, e);
+                    return null;
+                }
+            }
+            
+            const getItemEmoji = (type) => {
+                const map = { 'potion': '🧪', 'arrow': '🏹', 'shield': '🛡️', 'gold_coin': '💰', 'ruby': '💎', 'sapphire': '💠', 'scale': '🐉' };
+                return map[type] || '❓';
+            };
+
+            switch (type.trim()) {
+                case 'part_part_whole_mat':
+                    const { part1, part2, whole } = params;
+                    const matGroup = createSvgElement('g');
+                    // Whole Box
+                    matGroup.appendChild(createSvgElement('rect', { x: 50, y: 20, width: 300, height: 70, rx:10, fill: 'rgba(122, 92, 79, 0.1)', stroke: '#7a5c4f', 'stroke-width': 2 }));
+                    // Part Boxes
+                    matGroup.appendChild(createSvgElement('rect', { x: 50, y: 110, width: 140, height: 70, rx:10, fill: 'rgba(122, 92, 79, 0.1)', stroke: '#7a5c4f', 'stroke-width': 2 }));
+                    matGroup.appendChild(createSvgElement('rect', { x: 210, y: 110, width: 140, height: 70, rx:10, fill: 'rgba(122, 92, 79, 0.1)', stroke: '#7a5c4f', 'stroke-width': 2 }));
+
+                    const renderContent = (content, x, y) => {
+                        if (typeof content === 'string' || typeof content === 'number') {
+                            const text = createSvgElement('text', { x, y, 'font-size': '40px', 'font-family': 'MedievalSharp', fill: '#3a2c23', 'text-anchor': 'middle' });
+                            text.textContent = content;
+                            return text;
+                        }
+                        if (typeof content === 'object') {
+                            const itemText = createSvgElement('text', { x, y, 'font-size': '24px', 'text-anchor': 'middle' });
+                            itemText.textContent = `${getItemEmoji(content.type)} x ${content.count}`;
+                            return itemText;
+                        }
+                        return null;
+                    };
+                    
+                    matGroup.appendChild(renderContent(whole, 200, 65));
+                    matGroup.appendChild(renderContent(part1, 120, 155));
+                    matGroup.appendChild(renderContent(part2, 280, 155));
+
+                    svg.appendChild(matGroup);
+                    break;
+                case 'equation_scroll':
+                     svg.setAttribute('viewBox', '0 0 300 100');
+                    const scrollText = createSvgElement('text', { x: 150, y: 58, 'font-size': '28px', 'font-family': 'MedievalSharp', fill: '#3a2c23', 'text-anchor': 'middle' });
+                    scrollText.textContent = params.text;
+                    svg.appendChild(scrollText);
+                    break;
+                case 'item_counter':
+                    svg.setAttribute('viewBox', '0 0 200 100');
+                    const itemGroup = createSvgElement('g');
+                    const itemEmoji = createSvgElement('text', { x: 100, y: 60, 'font-size': '40px', 'text-anchor': 'middle' });
+                    itemEmoji.textContent = `${getItemEmoji(params.type)} x ${params.count}`;
+                    itemGroup.appendChild(itemEmoji);
+                    svg.appendChild(itemGroup);
+                    break;
+            }
+            return svg;
+        };
+
+        // --- APPLICATION LOGIC ---
+        const init = () => {
+            loadProgress();
+            renderTabs();
+            renderDay(appState.activeDay);
+            setupEventListeners();
+        };
+
+        const renderTabs = () => {
+            const tabsContainer = document.getElementById('main-tabs');
+            tabsContainer.innerHTML = '';
+            Object.keys(lessonData).forEach(dayKey => {
+                const dayNum = dayKey.replace('day', '');
+                const button = document.createElement('button');
+                button.className = `tab-btn ${appState.activeDay === dayKey ? 'active' : ''}`;
+                button.textContent = `Day ${dayNum}`;
+                button.dataset.day = dayKey;
+                tabsContainer.appendChild(button);
+            });
+        };
+
+        const renderDay = (dayKey) => {
+            const dayData = lessonData[dayKey];
+            const contentArea = document.getElementById('content-area');
+            
+            if (!appState.progress[dayKey]) {
+                appState.progress[dayKey] = {
+                    lesson: { slideIndex: 0, answers: {} },
+                    assessment: { slideIndex: 0, answers: {}, completed: false }
+                };
+            }
+
+            contentArea.innerHTML = `
+                <div class="day-container" data-day="${dayKey}">
+                    <div class="flex justify-between items-center mb-4 p-4">
+                        <button class="mode-toggle-btn rpg-btn" data-mode="${appState.currentMode === 'lesson' ? 'assessment' : 'lesson'}">
+                            ${appState.currentMode === 'lesson' ? 'Go to Assessment ⚔️' : 'Back to Lesson 🏕️'}
+                        </button>
+                    </div>
+                    <div id="lesson-view" class="${appState.currentMode === 'lesson' ? '' : 'hidden'}"></div>
+                    <div id="assessment-view" class="${appState.currentMode === 'assessment' ? '' : 'hidden'}"></div>
+                </div>
+            `;
+            
+            if (appState.currentMode === 'lesson') {
+                renderLessonView(dayKey);
+            } else {
+                renderAssessmentView(dayKey);
+            }
+        };
+        
+        const renderLessonView = (dayKey) => {
+            const dayData = lessonData[dayKey];
+            const lessonContainer = document.getElementById('lesson-view');
+            const lessonProgress = appState.progress[dayKey].lesson;
+            
+            const allSlides = [].concat(...Object.values(dayData.sections));
+
+            lessonContainer.innerHTML = `
+                <h2 class="text-3xl font-bold text-center mb-2">${dayData.title}</h2>
+                <p class="text-center text-lg italic mb-4">${dayData.standard}</p>
+                <div id="lesson-slides-container"></div>
+                <div class="flex justify-between items-center mt-4">
+                    <button id="lesson-prev-btn" class="rpg-btn">⬅️ Last Page</button>
+                    <div id="quest-map" class="w-1/2 h-8 bg-center bg-no-repeat bg-contain" style="background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAiPjxwYXRoIGQ9Ik0wIDEwIEwgMjAwIDEwIiBzdHJva2U9IiM4YTZjNWYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWRhc2hhcnJheT0iNCA0Ii8+PC9zdmc+');">
+                        <div id="hero-icon" class="w-8 h-8 transition-all duration-500" style="transform: translateX(0px);">👣</div>
+                    </div>
+                    <button id="lesson-next-btn" class="rpg-btn">Next Page ➡️</button>
+                </div>
+            `;
+            
+            renderSlide('lesson', dayKey, lessonProgress.slideIndex);
+        };
+
+        const renderAssessmentView = (dayKey) => {
+            const assessmentContainer = document.getElementById('assessment-view');
+            const assessmentProgress = appState.progress[dayKey].assessment;
+            
+            if (assessmentProgress.completed) {
+                renderCompletionScreen(dayKey);
+                return;
+            }
+
+            const questions = lessonData[dayKey].assessment;
+
+            assessmentContainer.innerHTML = `
+                <div class="flex justify-center items-center mb-4 space-x-4">
+                    <h2 class="text-3xl font-bold">Assessment Trial</h2>
+                </div>
+                <div id="assessment-slides-container"></div>
+                 <div class="flex justify-between items-center mt-4">
+                    <button id="assessment-prev-btn" class="rpg-btn">⬅️ Previous</button>
+                    <span class="font-bold text-lg rpg-font">${assessmentProgress.slideIndex + 1} / ${questions.length}</span>
+                    <button id="assessment-next-btn" class="rpg-btn">Next ➡️</button>
+                </div>
+            `;
+            
+            renderSlide('assessment', dayKey, assessmentProgress.slideIndex);
+        };
+
+        const renderSlide = (mode, dayKey, slideIndex) => {
+            const container = document.getElementById(`${mode}-slides-container`);
+            if (!container) return;
+
+            let slideData;
+            if (mode === 'lesson') {
+                const allSlides = [].concat(...Object.values(lessonData[dayKey].sections));
+                slideData = allSlides[slideIndex];
+            } else { // assessment
+                slideData = lessonData[dayKey].assessment[slideIndex];
+            }
+
+            if (!slideData) return;
+
+            const slideElement = document.createElement('div');
+            slideElement.className = 'slide flex flex-col items-center justify-center text-center';
+            slideElement.dataset.id = slideData.id;
+
+            const visualElement = generateVisual(slideData.visual);
+            
+            slideElement.innerHTML = `
+                <p class="text-2xl mb-4">${slideData.prompt}</p>
+                ${visualElement ? `<div class="visual-container mb-4 w-full">${visualElement.outerHTML}</div>` : ''}
+                <div class="interactive-area w-full max-w-2xl"></div>
+                <div class="feedback-area mt-4 w-full max-w-2xl relative"></div>
+            `;
+
+            container.innerHTML = '';
+            container.appendChild(slideElement);
+            
+            renderInteractiveElement(slideElement, slideData, mode);
+
+            const savedAnswer = appState.progress[dayKey][mode].answers[slideData.id];
+            if (savedAnswer) {
+                restoreAnswer(slideElement, slideData.type, savedAnswer);
+                if (mode === 'lesson') {
+                    handleCheckAnswer({ target: slideElement.querySelector('.check-answer-btn') });
+                }
+            }
+            
+            if (mode === 'lesson') {
+                const allLessonSlides = [].concat(...Object.values(lessonData[dayKey].sections));
+                if (slideIndex === allLessonSlides.length - 1) {
+                    const btn = document.createElement('button');
+                    btn.textContent = 'Go to Assessment ⚔️';
+                    btn.className = 'rpg-btn text-2xl mt-8 mode-toggle-btn';
+                    btn.dataset.mode = 'assessment';
+                    slideElement.querySelector('.interactive-area').appendChild(btn);
+                }
+            }
+            
+            updateNavButtons(mode, dayKey);
+        };
+
+        const renderInteractiveElement = (slideElement, question, mode) => {
+            const container = slideElement.querySelector('.interactive-area');
+            switch (question.type) {
+                case 'mc':
+                case 'multi-select':
+                case 'true-false':
+                    const optionsContainer = document.createElement('div');
+                    optionsContainer.className = 'flex flex-wrap justify-center gap-4';
+                    question.data.options.forEach(option => {
+                        const button = document.createElement('button');
+                        button.className = 'rpg-btn';
+                        button.textContent = option;
+                        button.dataset.option = option;
+                        optionsContainer.appendChild(button);
+                    });
+                    container.appendChild(optionsContainer);
+                    break;
+                case 'text-box':
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.maxLength = question.data.size;
+                    input.className = 'p-2 bg-[#f3e9dc] border-2 border-[#8a6c5f] rounded-lg text-2xl text-center text-[#3a2c23] w-full md:w-1/2';
+                    container.appendChild(input);
+                    break;
+                case 'drag-drop-match':
+                case 'drag-drop-sort':
+                    initDragAndDrop(slideElement, question);
+                    break;
+            }
+
+            if (question.type !== 'content' && mode === 'lesson') {
+                 const checkButton = document.createElement('button');
+                 checkButton.textContent = 'Check Answer';
+                 checkButton.className = 'rpg-btn check-answer-btn mt-6';
+                 container.appendChild(checkButton);
+            }
+        };
+        
+        function initDragAndDrop(slideElement, question) {
+            const interactiveArea = slideElement.querySelector('.interactive-area');
+            interactiveArea.innerHTML = ''; // Clear for DD setup
+
+            if (question.type === 'drag-drop-match') {
+                const container = document.createElement('div');
+                container.className = 'flex flex-col md:flex-row items-center justify-center gap-8';
+                
+                const draggablesContainer = document.createElement('div');
+                draggablesContainer.className = 'flex flex-col gap-4';
+                question.data.draggables.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = 'rpg-btn draggable p-4';
+                    el.textContent = item;
+                    el.draggable = true;
+                    el.dataset.value = item;
+                    draggablesContainer.appendChild(el);
+                });
+
+                const dropTargetsContainer = document.createElement('div');
+                dropTargetsContainer.className = 'flex flex-col gap-4';
+                question.data.dropTargets.forEach(target => {
+                    const targetEl = document.createElement('div');
+                    targetEl.className = 'flex items-center gap-4';
+                    targetEl.innerHTML = `<div class="drop-target w-48 h-16 rounded-lg flex items-center justify-center" data-target="${target}"></div><span class="text-xl font-bold rpg-font">${target}</span>`;
+                    dropTargetsContainer.appendChild(targetEl);
+                });
+
+                container.appendChild(draggablesContainer);
+                container.appendChild(dropTargetsContainer);
+                interactiveArea.appendChild(container);
+            }
+            
+            let draggedItem = null;
+            slideElement.querySelectorAll('.draggable').forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedItem = e.target;
+                    setTimeout(() => e.target.style.opacity = '0.5', 0);
+                });
+                item.addEventListener('dragend', (e) => {
+                    draggedItem = null;
+                    e.target.style.opacity = '1';
+                });
+            });
+
+            slideElement.querySelectorAll('.drop-target').forEach(target => {
+                target.addEventListener('dragover', (e) => { e.preventDefault(); target.classList.add('over'); });
+                target.addEventListener('dragleave', () => { target.classList.remove('over'); });
+                target.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    target.classList.remove('over');
+                    if (draggedItem) {
+                        if (target.children.length > 0 && question.type === 'drag-drop-match') {
+                            const existingItem = target.firstElementChild;
+                            draggedItem.parentElement.appendChild(existingItem);
+                        }
+                        target.appendChild(draggedItem);
+                        saveProgress(question.id);
+                    }
+                });
+            });
+        }
+
+        const updateNavButtons = (mode, dayKey) => {
+            const progress = appState.progress[dayKey][mode];
+            const prevBtn = document.getElementById(`${mode}-prev-btn`);
+            const nextBtn = document.getElementById(`${mode}-next-btn`);
+            
+            let totalSlides;
+            if (mode === 'lesson') {
+                totalSlides = [].concat(...Object.values(lessonData[dayKey].sections)).length;
+                const map = document.getElementById('quest-map');
+                const hero = document.getElementById('hero-icon');
+                if(map && hero) {
+                    const mapWidth = map.offsetWidth;
+                    const progressPercentage = totalSlides > 1 ? progress.slideIndex / (totalSlides - 1) : 1;
+                    hero.style.transform = `translateX(${progressPercentage * (mapWidth - 32)}px)`; // 32 is hero width
+                }
+            } else { // assessment
+                totalSlides = lessonData[dayKey].assessment.length;
+            }
+
+            prevBtn.disabled = progress.slideIndex === 0;
+            if (mode === 'assessment' && progress.slideIndex === totalSlides - 1) {
+                nextBtn.textContent = 'Finish Trial ➡️';
+            } else {
+                nextBtn.textContent = 'Next Page ➡️';
+            }
+            nextBtn.disabled = false; // Next is never disabled until completion screen
+        };
+        
+        // --- EVENT HANDLERS ---
+        const setupEventListeners = () => {
+            document.getElementById('main-tabs').addEventListener('click', handleTabClick);
+            document.getElementById('content-area').addEventListener('click', handleContentClick);
+            document.getElementById('download-work-btn').addEventListener('click', downloadWork);
+            document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
+        };
+        
+        const handleContentClick = (e) => {
+            const target = e.target;
+            
+            if (target.closest('.mode-toggle-btn')) {
+                appState.currentMode = target.closest('.mode-toggle-btn').dataset.mode;
+                renderDay(appState.activeDay);
+                saveProgress();
+            }
+            
+            if (target.matches('#lesson-prev-btn, #lesson-next-btn, #assessment-prev-btn, #assessment-next-btn')) {
+                handleSlideNav(target.id);
+            }
+            
+            if (target.closest('.interactive-area .rpg-btn') && target.closest('.interactive-area .rpg-btn').dataset.option) {
+                handleOptionSelect(target.closest('.interactive-area .rpg-btn'));
+            }
+
+            if (target.closest('.check-answer-btn')) {
+                handleCheckAnswer({ target: target.closest('.check-answer-btn') });
+            }
+        };
+
+        const handleTabClick = (e) => {
+            const dayKey = e.target.dataset.day;
+            if (dayKey) {
+                appState.activeDay = dayKey;
+                appState.currentMode = 'lesson';
+                renderTabs();
+                renderDay(dayKey);
+                saveProgress();
+            }
+        };
+
+        const handleSlideNav = (buttonId) => {
+            const [mode, direction] = buttonId.split('-');
+            const progress = appState.progress[appState.activeDay][mode];
+            const totalSlides = (mode === 'lesson') ? 
+                [].concat(...Object.values(lessonData[appState.activeDay].sections)).length :
+                lessonData[appState.activeDay].assessment.length;
+
+            saveProgress(document.querySelector('.slide').dataset.id);
+
+            if (direction === 'next') {
+                if (progress.slideIndex < totalSlides - 1) {
+                    progress.slideIndex++;
+                    renderSlide(mode, appState.activeDay, progress.slideIndex);
+                } else if (mode === 'assessment') {
+                    progress.completed = true;
+                    renderCompletionScreen(appState.activeDay);
+                }
+            }
+            if (direction === 'prev') {
+                if (progress.slideIndex > 0) {
+                    progress.slideIndex--;
+                    renderSlide(mode, appState.activeDay, progress.slideIndex);
+                }
+            }
+            saveProgress();
+        };
+
+        const handleOptionSelect = (selectedButton) => {
+            const slide = selectedButton.closest('.slide');
+            const questionId = slide.dataset.id;
+            const mode = document.getElementById('lesson-view').classList.contains('hidden') ? 'assessment' : 'lesson';
+
+            let question;
+            if (mode === 'lesson') {
+                question = [].concat(...Object.values(lessonData[appState.activeDay].sections)).find(q => q.id === questionId);
+            } else {
+                question = lessonData[appState.activeDay].assessment.find(q => q.id === questionId);
+            }
+
+            if (question.type === 'multi-select') {
+                selectedButton.classList.toggle('bg-amber-600');
+            } else {
+                slide.querySelectorAll('[data-option]').forEach(btn => btn.classList.remove('bg-amber-600'));
+                selectedButton.classList.add('bg-amber-600');
+            }
+            saveProgress(questionId);
+        };
+        
+        const handleCheckAnswer = (e) => {
+            const button = e.target;
+            const slide = button.closest('.slide');
+            if (!slide) return;
+            
+            const questionId = slide.dataset.id;
+            const mode = 'lesson'; // Only lessons have a check answer button
+            
+            let question = [].concat(...Object.values(lessonData[appState.activeDay].sections)).find(q => q.id === questionId);
+            if (!question) return;
+
+            let userAnswer;
+            let isCorrect = false;
+
+            switch (question.type) {
+                case 'mc':
+                case 'true-false':
+                    const selected = slide.querySelector('.bg-amber-600');
+                    userAnswer = selected ? selected.dataset.option : null;
+                    isCorrect = userAnswer === question.correct;
+                    break;
+                case 'multi-select':
+                    const selectedNodes = slide.querySelectorAll('.bg-amber-600');
+                    userAnswer = Array.from(selectedNodes).map(n => n.dataset.option);
+                    isCorrect = question.correct.length === userAnswer.length && question.correct.every(val => userAnswer.includes(val));
+                    break;
+                case 'text-box':
+                    const input = slide.querySelector('input[type="text"]');
+                    userAnswer = input.value.trim();
+                    isCorrect = userAnswer.toLowerCase() === question.correct.toLowerCase();
+                    break;
+                case 'drag-drop-match':
+                    const matchTargets = slide.querySelectorAll('.drop-target');
+                    userAnswer = {};
+                    let allMatched = true;
+                    matchTargets.forEach(target => {
+                        const dropped = target.querySelector('.draggable');
+                        if (dropped) {
+                            userAnswer[dropped.dataset.value] = target.dataset.target;
+                        } else {
+                            allMatched = false;
+                        }
+                    });
+                    isCorrect = allMatched && JSON.stringify(userAnswer) === JSON.stringify(question.correct);
+                    break;
+            }
+
+            displayFeedback(slide, isCorrect, mode);
+            
+            const interactiveElements = slide.querySelectorAll('.interactive-area button, .interactive-area input, .draggable');
+            interactiveElements.forEach(el => el.disabled = true);
+            slide.querySelectorAll('.draggable').forEach(el => el.draggable = false);
+            button.style.display = 'none';
+        };
+
+        const displayFeedback = (slide, isCorrect, mode) => {
+            const feedbackArea = slide.querySelector('.feedback-area');
+            const feedbackDiv = document.createElement('div');
+            feedbackDiv.className = `feedback ${isCorrect ? 'correct' : 'incorrect'}`;
+
+            if (isCorrect) {
+                feedbackDiv.textContent = `🎉 ${POSITIVE_FEEDBACK[Math.floor(Math.random() * POSITIVE_FEEDBACK.length)]}`;
+            } else {
+                feedbackDiv.textContent = '🛡️ A valiant effort, hero! Rethink your strategy.';
+            }
+            feedbackArea.prepend(feedbackDiv);
+        };
+
+        // --- DATA PERSISTENCE ---
+        const saveProgress = (questionId = null) => {
+            if (questionId) {
+                const slide = document.querySelector(`[data-id="${questionId}"]`);
+                if (!slide) return;
+                
+                const mode = document.getElementById('lesson-view').classList.contains('hidden') ? 'assessment' : 'lesson';
+                const dayKey = appState.activeDay;
+
+                let question;
+                if (mode === 'lesson') {
+                    question = [].concat(...Object.values(lessonData[dayKey].sections)).find(q => q.id === questionId);
+                } else {
+                    question = lessonData[dayKey].assessment.find(q => q.id === questionId);
+                }
+
+                let answer;
+                switch (question.type) {
+                    case 'mc':
+                    case 'true-false':
+                        answer = slide.querySelector('.bg-amber-600')?.dataset.option || null;
+                        break;
+                    case 'multi-select':
+                        answer = Array.from(slide.querySelectorAll('.bg-amber-600')).map(n => n.dataset.option);
+                        break;
+                    case 'text-box':
+                        answer = slide.querySelector('input').value;
+                        break;
+                    case 'drag-drop-match':
+                        answer = {};
+                        slide.querySelectorAll('.drop-target').forEach(target => {
+                            const dropped = target.querySelector('.draggable');
+                            if(dropped) answer[dropped.dataset.value] = target.dataset.target;
+                        });
+                        break;
+                }
+                appState.progress[dayKey][mode].answers[questionId] = answer;
+            }
+            
+            localStorage.setItem('rpgWordProblemsProgress', JSON.stringify(appState));
+        };
+
+        const loadProgress = () => {
+            const progressDataScript = document.getElementById('progress-data');
+            let loadedState = null;
+
+            if (progressDataScript && progressDataScript.textContent.trim().length > 2) {
+                try {
+                    loadedState = JSON.parse(progressDataScript.textContent);
+                } catch (e) { console.error("Failed to parse embedded progress data.", e); }
+            } else {
+                const savedState = localStorage.getItem('rpgWordProblemsProgress');
+                if (savedState) {
+                    try {
+                        loadedState = JSON.parse(savedState);
+                    } catch (e) { console.error("Failed to parse localStorage progress data.", e); }
+                }
+            }
+
+            if (loadedState) appState = loadedState;
+        };
+
+        const restoreAnswer = (slide, type, answer) => {
+            if (!answer) return;
+            switch (type) {
+                case 'mc':
+                case 'true-false':
+                    slide.querySelector(`[data-option="${answer}"]`)?.classList.add('bg-amber-600');
+                    break;
+                case 'multi-select':
+                    answer.forEach(opt => slide.querySelector(`[data-option="${opt}"]`)?.classList.add('bg-amber-600'));
+                    break;
+                case 'text-box':
+                    slide.querySelector('input').value = answer;
+                    break;
+                case 'drag-drop-match':
+                     Object.entries(answer).forEach(([draggableValue, targetValue]) => {
+                        const draggable = slide.querySelector(`[data-value="${draggableValue}"]`);
+                        const target = slide.querySelector(`[data-target="${targetValue}"]`);
+                        if (draggable && target) target.appendChild(draggable);
+                    });
+                    break;
+            }
+        };
+
+        const downloadWork = () => {
+            saveProgress();
+            const progressJsonString = JSON.stringify(appState);
+            const updatedHtml = document.documentElement.outerHTML.replace(
+                /<script id="progress-data" type="application\/json">.*?<\/script>/,
+                `<script id="progress-data" type="application/json">${progressJsonString}<\/script>`
+            );
+            const blob = new Blob([updatedHtml], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'rpg-word-problems-progress.html';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        };
+        
+        const downloadPDF = async () => {
+            const { jsPDF } = window.jspdf;
+            const clone = document.createElement('div');
+            clone.style.position = 'absolute';
+            clone.style.left = '-9999px';
+            clone.style.width = '1200px';
+            clone.style.background = '#f3e9dc';
+            clone.style.color = '#3a2c23';
+            clone.style.fontFamily = 'Lato, sans-serif';
+            document.body.appendChild(clone);
+
+            for (const dayKey in lessonData) {
+                const dayData = lessonData[dayKey];
+                clone.innerHTML += `<h1 style="font-family: 'MedievalSharp', cursive; font-size: 24px; font-weight: bold; padding: 10px; background-color: #eaddc7; text-align: center;">Day ${dayKey.replace('day', '')}: ${dayData.title}</h1>`;
+
+                const allSlides = [
+                    ...dayData.sections.hook, ...dayData.sections.i_do, ...dayData.sections.we_do, ...dayData.sections.you_do,
+                    ...(dayData.assessment || [])
+                ];
+
+                for (const slideData of allSlides) {
+                    const savedAnswer = appState.progress[dayKey]?.lesson?.answers[slideData.id] || appState.progress[dayKey]?.assessment?.answers[slideData.id];
+                    if (!savedAnswer || (Array.isArray(savedAnswer) && savedAnswer.length === 0)) continue;
+
+                    clone.innerHTML += `
+                        <div style="padding: 10px; border-bottom: 1px solid #d3c5b4;">
+                            <p style="font-weight: bold;">${slideData.prompt}</p>
+                            <p style="color: #6a4c3f;"><strong>Answer:</strong> ${JSON.stringify(savedAnswer)}</p>
+                        </div>
+                    `;
+                }
+            }
+
+            const canvas = await html2canvas(clone, { scale: 2 });
+            document.body.removeChild(clone);
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const imgProps = pdf.getImageProperties(imgData);
+            const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+            heightLeft -= pdfHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                heightLeft -= pdfHeight;
+            }
+            pdf.save('rpg-word-problems-log.pdf');
+        };
+
+        // --- START THE APP ---
+        init();
+    });
+    </script>
+</body>
+</html>
