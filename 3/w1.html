@@ -3,114 +3,1186 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join a Lesson</title>
+    <title>Math Detective Agency - 3rd Grade</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Slab:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- SYNC: Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
         }
+        h1, h2, h3 {
+            font-family: 'Roboto Slab', serif;
+        }
+        .slide {
+            display: none;
+        }
+        .slide.active {
+            display: block;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .feedback-banner {
+            transition: all 0.3s ease-in-out;
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        .feedback-banner.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .slide-transition-out {
+            animation: fadeOut 0.3s forwards;
+        }
+        .slide-transition-in {
+            animation: fadeIn 0.3s forwards;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        /* Drag and Drop Styles */
+        .draggable {
+            cursor: grab;
+            user-select: none;
+        }
+        .draggable.dragging {
+            opacity: 0.4;
+            border: 2px dashed #0284c7;
+        }
+        .drop-target {
+            border: 2px dashed #ccc;
+            min-height: 40px;
+        }
+        .drop-target.drag-over {
+            background-color: #e0f7fa;
+            border-color: #007bff;
+        }
+        /* SYNC: Styles for disabled navigation */
+        .disabled-nav { 
+            pointer-events: none; 
+            opacity: .5; 
+        }
+        #setup-modal { 
+            backdrop-filter: blur(5px); 
+        }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
+<body class="bg-amber-50">
+    
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-lg">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">Join a Lesson</h1>
+            <p class="text-center text-gray-500 mb-8">Set your role and room to get started.</p>
 
-    <div class="max-w-md w-full bg-white p-8 rounded-lg shadow-lg">
-        <h1 class="text-3xl font-bold text-gray-800 text-center mb-6">Join a Lesson</h1>
-
-        <div class="space-y-4">
-            <div>
-                <label class="block text-gray-700 font-semibold mb-2">Role</label>
-                <div class="flex gap-4">
-                    <label class="flex items-center p-3 border rounded-lg flex-1 cursor-pointer hover:bg-gray-50">
-                        <input type="radio" name="role" value="student" class="mr-2" checked>
-                        Student
-                    </label>
-                    <label class="flex items-center p-3 border rounded-lg flex-1 cursor-pointer hover:bg-gray-50">
-                        <input type="radio" name="role" value="teacher" class="mr-2">
-                        Teacher
-                    </label>
+            <div class="space-y-6">
+                <div>
+                    <label class="block font-semibold mb-2 text-gray-700">1. Select Your Role:</label>
+                    <div class="flex gap-4">
+                        <label class="flex-1 border-2 border-gray-300 p-4 rounded-lg text-center cursor-pointer has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 transition-all">
+                            <input type="radio" name="role" value="student" checked class="sr-only">
+                            <span class="text-lg">Student</span>
+                        </label>
+                        <label class="flex-1 border-2 border-gray-300 p-4 rounded-lg text-center cursor-pointer has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 transition-all">
+                            <input type="radio" name="role" value="teacher" class="sr-only">
+                            <span class="text-lg">Teacher</span>
+                        </label>
+                    </div>
                 </div>
+                
+                <div id="teacher-password-container" class="hidden">
+                    <label for="teacher-password" class="block font-semibold mb-1 text-gray-700">Teacher Password:</label>
+                    <input type="password" id="teacher-password" class="w-full border-gray-300 border-2 p-3 rounded-lg" placeholder="Enter password...">
+                    <p id="password-error" class="text-red-500 text-sm mt-1 hidden">Incorrect password.</p>
+                </div>
+
+                <div>
+                    <label for="room-name" class="block font-semibold mb-2 text-gray-700">2. Enter Room Name:</label>
+                    <input type="text" id="room-name" class="w-full border-gray-300 border-2 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value="default">
+                </div>
+
+                <button id="open-lesson-btn" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg hover:bg-blue-700 transition-transform hover:scale-105 text-lg">Start Lesson</button>
             </div>
-
-            <div>
-                <label for="room-name" class="block text-gray-700 font-semibold mb-2">Room Name</label>
-                <input type="text" id="room-name" value="default" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-
-            <div>
-                <label for="lesson-url" class="block text-gray-700 font-semibold mb-2">Lesson URL</label>
-                <input type="text" id="lesson-url" value="math_detective_progress.html" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
+            
+            <p class="text-center text-xs text-gray-400 mt-6">You can click 'Change' in the lesson header to switch later.</p>
         </div>
-
-        <div class="mt-8">
-            <button id="open-lesson-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300">
-                Open Lesson
-            </button>
-        </div>
-        
-        <div class="mt-4 space-y-2">
-             <button id="copy-student-link" class="w-full bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-300">Copy Student Link</button>
-             <button id="copy-teacher-link" class="w-full bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-300">Copy Teacher Link</button>
-        </div>
-
-
-        <p class="text-center text-gray-500 text-sm mt-6">
-            Or click "Change" in the lesson header to switch later.
-        </p>
     </div>
 
+
+    <div id="app-container" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 opacity-0 transition-opacity duration-500 pointer-events-none">
+        <header class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">Math Detective Agency</h1>
+                    <p class="text-gray-600">3rd Grade Division - Word Problem Investigations</p>
+                </div>
+                <div class="flex items-center space-x-2 mt-4 sm:mt-0">
+                    <!-- SYNC: UI Controls -->
+                    <span id="role-room-badge" class="px-3 py-1.5 rounded-full bg-gray-200 text-gray-700 text-xs font-semibold"></span>
+                    <button id="change-role-room-btn" class="bg-gray-500 text-white font-bold py-2 px-3 rounded-lg hover:bg-gray-600">Change</button>
+                    <label id="sync-toggle-label" class="flex items-center cursor-pointer">
+                        <input type="checkbox" id="sync-toggle" class="form-checkbox h-5 w-5 text-blue-600">
+                        <span id="sync-label-text" class="ml-2 text-gray-700 font-semibold">Sync: ON</span>
+                    </label>
+                    <button id="download-html-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-transform hover:scale-105">
+                        Download Work
+                    </button>
+                    <button id="download-pdf-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-transform hover:scale-105">
+                        Export as PDF
+                    </button>
+                </div>
+            </div>
+            <!-- Tab Navigation -->
+            <nav id="main-tabs" class="mt-4 border-b-2 border-gray-200">
+                <div class="flex flex-wrap -mb-px">
+                    <button data-day="day1" class="tab-btn text-lg font-semibold py-3 px-6 border-b-4 border-blue-600 text-blue-600">Day 1</button>
+                    <button data-day="day2" class="tab-btn text-lg font-semibold py-3 px-6 border-b-4 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300">Day 2</button>
+                    <button data-day="day3" class="tab-btn text-lg font-semibold py-3 px-6 border-b-4 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300">Day 3</button>
+                    <button data-day="day4" class="tab-btn text-lg font-semibold py-3 px-6 border-b-4 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300">Day 4</button>
+                </div>
+            </nav>
+        </header>
+
+        <main id="content-area">
+            <!-- Content for each day will be dynamically inserted here -->
+        </main>
+    </div>
+    
+    <!-- This script tag is used to save and load student progress -->
+    <script id="progress-data" type="application/json"></script>
+    
     <script>
-        // SYNC: Get elements from the DOM
-        const openLessonBtn = document.getElementById('open-lesson-btn');
-        const roomNameInput = document.getElementById('room-name');
-        const lessonUrlInput = document.getElementById('lesson-url');
-        const copyStudentBtn = document.getElementById('copy-student-link');
-        const copyTeacherBtn = document.getElementById('copy-teacher-link');
-        
-        // SYNC: Generates the URL based on current form values
-        function generateUrl(isTeacher) {
-            const lessonUrl = lessonUrlInput.value.trim();
-            const roomName = roomNameInput.value.trim();
-            let url = `${lessonUrl}?room=${encodeURIComponent(roomName)}`;
-            if (isTeacher) {
-                url += '&teacher=1';
-            }
-            return url;
+        // --- App State ---
+        let IS_TEACHER = false;
+        let ROOM_ID = 'default';
+
+        // SYNC: Helper to check if sync is currently active
+        function syncIsOn() {
+            const syncState = localStorage.getItem('lesson_sync_on');
+            // Default to ON if no setting exists
+            return syncState === null ? true : syncState === 'true';
         }
 
-        // SYNC: Handles opening the lesson page
-        openLessonBtn.addEventListener('click', () => {
-            const selectedRole = document.querySelector('input[name="role"]:checked').value;
-            const roomName = roomNameInput.value.trim();
-            const isTeacher = selectedRole === 'teacher';
+        // SYNC: Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+            authDomain: "lesson-sync-a223a.firebaseapp.com",
+            projectId: "lesson-sync-a223a",
+            storageBucket: "lesson-sync-a223a.firebasestorage.app",
+            messagingSenderId: "906128715071",
+            appId: "1:906128715071:web:347ea08f4d864fde02778a"
+        };
+        firebase.initializeApp(firebaseConfig);
 
-            // SYNC: Save role and room to localStorage to persist the choice
-            localStorage.setItem('lesson_role', selectedRole);
-            localStorage.setItem('lesson_room', roomName);
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- SYNC: GLOBAL STATE ---
+            let _db, _auth, _roomRef, _unsubSnap = null, _isApplyingRemote = false;
+
+            // --- DATA (Original lesson data is kept intact) ---
+            const lessonData = {
+                day1: {
+                    title: "The Case of the Combined Collections",
+                    iDo: [
+                        { "id": "d1_ido_q1", "type": "mc", "prompt": "Here's the case file: 'The zoo has 245 mammals and 132 reptiles. How many animals are there in total?' Which are the number clues we should circle?", "visual": "{\"type\":\"cubes-strategy-highlight\", \"text\":\"The zoo has 245 mammals and 132 reptiles. How many animals are there in total?\", \"circles\":[], \"underline\":\"\", \"box\":\"\"}", "data": { "options": ["245 and 132", "245 and animals", "132 and zoo"] }, "correct": "245 and 132" },
+                        { "id": "d1_ido_q2", "type": "mc", "prompt": "Case File: 'A video game costs $45. A new controller costs $25. What is the total cost?' Which keyword tells us this is an addition case?", "visual": "{\"type\":\"cubes-strategy-highlight\", \"text\":\"A video game costs $45. A new controller costs $25. What is the total cost?\", \"circles\":[45, 25], \"underline\":\"What is the total cost?\", \"box\":\"\"}", "data": { "options": ["video game", "costs", "total"] }, "correct": "total" },
+                        { "id": "d1_ido_q3", "type": "drag-drop-match", "prompt": "Look at this blueprint for the case. Drag the clues to the right spots on the strip diagram. The parts are 210 and 150.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[\"\",\"\"]}", "data": { "draggables": ["210", "150"], "dropTargets": ["Part 1", "Part 2"] }, "correct": { "210": "Part 1", "150": "Part 2" } }
+                    ],
+                    weDo: [
+                        { "id": "d1_wedo_q1", "type": "true-false", "prompt": "Case: 'On Saturday, 350 people visited the museum. On Sunday, 425 people visited. How many people visited in all?' The numbers 350 and 425 are the 'parts'.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[350, 425]}", "data": { "options": ["True", "False"] }, "correct": "True" },
+                        { "id": "d1_wedo_q2", "type": "mc", "prompt": "Case: 'The school cafeteria made 276 cheese pizzas and 312 pepperoni pizzas.' Where does the number 276 go in our blueprint?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Total Pizzas\", \"parts\":[\"Cheese\", \"Pepperoni\"]}", "data": { "options": ["As a part", "As the whole", "It's extra information"] }, "correct": "As a part" },
+                        { "id": "d1_wedo_q3", "type": "text-box", "prompt": "A farm has 180 chickens and 115 cows. What is the total number of animals? Solve the case!", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[180, 115]}", "data": { "size": 10 }, "correct": "295" },
+                        { "id": "d1_wedo_q4", "type": "mc", "prompt": "Look at this strip diagram. What addition equation matches this blueprint?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[400, 150]}", "data": { "options": ["400 + ? = 150", "150 - 400 = ?", "400 + 150 = ?"] }, "correct": "400 + 150 = ?" },
+                        { "id": "d1_wedo_q5", "type": "true-false", "prompt": "Case: 'Lila read 120 pages of her book, which has 300 pages. Her brother read 75 pages. How many pages did Lila and her brother read altogether?' The number 300 is extra information we can eliminate.", "visual": "{\"type\":\"cubes-strategy-highlight\", \"text\":\"Lila read 120 pages of her book, which has 300 pages. Her brother read 75 pages. How many pages did Lila and her brother read altogether?\", \"circles\":[120, 300, 75], \"underline\":\"How many pages did Lila and her brother read altogether?\", \"box\":\"altogether\"}", "data": { "options": ["True", "False"] }, "correct": "True" },
+                        { "id": "d1_wedo_q6", "type": "text-box", "prompt": "Using the clues from the last case (Lila read 120 pages, her brother read 75), what is the total number of pages they read?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[120, 75]}", "data": { "size": 10 }, "correct": "195" },
+                        { "id": "d1_wedo_q7", "type": "mc", "prompt": "A baker made 255 vanilla cupcakes and 220 chocolate cupcakes. Which strip diagram correctly shows this case?", "visual": "", "data": { "options": ["Whole: ?, Parts: 255, 220", "Whole: 255, Parts: 220, ?", "Whole: 220, Parts: 255, ?"] }, "correct": "Whole: ?, Parts: 255, 220" },
+                        { "id": "d1_wedo_q8", "type": "text-box", "prompt": "Solve the cupcake case! How many cupcakes in all?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[255, 220]}", "data": { "size": 10 }, "correct": "475" },
+                        { "id": "d1_wedo_q9", "type": "mc", "prompt": "Case: 'A train traveled 450 miles on Monday and 450 miles on Tuesday.' Which number sentence solves the case?", "visual": "", "data": { "options": ["450 - 450 = 0", "450 + 450 = 900", "450 + 0 = 450"] }, "correct": "450 + 450 = 900" },
+                        { "id": "d1_wedo_q10", "type": "true-false", "prompt": "When solving an addition word problem, we are looking for one of the 'parts'.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Whole\", \"parts\":[\"Part\", \"Part\"]}", "data": { "options": ["True", "False"] }, "correct": "False" }
+                    ],
+                    youDo: [
+                        { "id": "d1_youdo_q1", "type": "text-box", "prompt": "You are on a case! There are 345 apple trees and 231 pear trees in an orchard. How many trees are there in total?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[345, 231]}", "data": { "size": 10 }, "correct": "576" },
+                        { "id": "d1_youdo_q2", "type": "mc", "prompt": "Case File: 'A store sold 520 adult tickets and 355 child tickets to a movie.' What is the question you are trying to answer?", "visual": "", "data": { "options": ["How many more adult tickets were sold?", "What is the total number of tickets sold?", "How much did the tickets cost?"] }, "correct": "What is the total number of tickets sold?" },
+                        { "id": "d1_youdo_q3", "type": "text-box", "prompt": "Solve the movie ticket case: 520 adult tickets and 355 child tickets were sold. What is the total?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[520, 355]}", "data": { "size": 10 }, "correct": "875" },
+                        { "id": "d1_youdo_q4", "type": "drag-drop-match", "prompt": "Match the parts of the problem to the blueprint. Problem: 'A team scored 140 points in their first game and 125 in their second.'", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Total Points\", \"parts\":[\"Game 1\", \"Game 2\"]}", "data": { "draggables": ["140", "125", "?"], "dropTargets": ["Game 1", "Game 2", "Total Points"] }, "correct": { "140": "Game 1", "125": "Game 2", "?": "Total Points" } },
+                        { "id": "d1_youdo_q5", "type": "true-false", "prompt": "The keyword 'altogether' usually means you should subtract.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" }
+                    ],
+                    assessment: [
+                        { "id": "d1_assess_q1", "type": "mc", "prompt": "In the problem: 'A class library has 418 fiction books and 351 non-fiction books. How many books are there in all?' What is the keyword that tells you to add?", "visual": "", "data": { "options": ["library", "books", "in all"] }, "correct": "in all" },
+                        { "id": "d1_assess_q2", "type": "mc", "prompt": "Which visual model correctly represents finding the total of 250 and 300?", "visual": "", "data": { "options": ["A strip diagram with 250 as the whole and 300 as a part.", "A strip diagram with the whole as unknown and parts of 250 and 300.", "A strip diagram with 300 as the whole and 250 as a part."] }, "correct": "A strip diagram with the whole as unknown and parts of 250 and 300." },
+                        { "id": "d1_assess_q3", "type": "multi-select", "prompt": "A cafeteria served 247 slices of pizza on Monday. They served 321 slices on Tuesday. The oven can cook 100 slices at a time. How many slices did they serve altogether on Monday and Tuesday? Select the two numbers that are the 'parts' needed to find the total.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[\"Monday\", \"Tuesday\"]}", "data": { "options": ["247", "321", "100", "Monday"] }, "correct": ["247", "321"] },
+                        { "id": "d1_assess_q4", "type": "text-box", "prompt": "At a school assembly, there are 264 third graders and 225 fourth graders. How many students are there in total?", "visual": "{\"type\":\"object-group\", \"groups\":[{\"name\":\"third-graders\", \"count\":264, \"icon-description\":\"stick figure\"}, {\"name\":\"fourth-graders\", \"count\":225, \"icon-description\":\"stick figure\"}]}", "data": { "size": 10 }, "correct": "489" },
+                        { "id": "d1_assess_q5", "type": "drag-drop-sort", "prompt": "Read the problem, then sort the numbers into the correct categories. Problem: 'An airplane flew 375 miles. After a stop, it flew another 420 miles. The plane can hold 200 people.'", "visual": "", "data": { "items": ["375", "420", "200"], "categories": ["Part (Needed Clue)", "Extra Information"] }, "correct": { "Part (Needed Clue)": ["375", "420"], "Extra Information": ["200"] } }
+                    ]
+                },
+                day2: {
+                    title: "The Case of the Missing Pieces",
+                    iDo: [
+                        { "id": "d2_ido_q1", "type": "mc", "prompt": "Case File: 'There were 750 tickets for sale. The school sold 500 tickets. How many tickets are left?' In our blueprint, what number is the 'whole'?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"\", \"parts\":[\"\",\"\"]}", "data": { "options": ["750", "500", "We don't know the whole"] }, "correct": "750" },
+                        { "id": "d2_ido_q2", "type": "mc", "prompt": "Case File: 'A whale is 87 feet long. A shark is 25 feet long. What is the difference in their length?' Which keyword tells us this is a subtraction case?", "visual": "{\"type\":\"cubes-strategy-highlight\", \"text\":\"A whale is 87 feet long. A shark is 25 feet long. What is the difference in their length?\", \"circles\":[87, 25], \"underline\":\"What is the difference in their length?\", \"box\":\"\"}", "data": { "options": ["long", "shark", "difference"] }, "correct": "difference" },
+                        { "id": "d2_ido_q3", "type": "drag-drop-match", "prompt": "Look at this blueprint for the case. The whole is 950 and one part is 400. Drag the clues to the right spots on the strip diagram.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"\", \"parts\":[\"\",\"\"]}", "data": { "draggables": ["950", "400", "?"], "dropTargets": ["The Whole", "Part 1", "Part 2"] }, "correct": { "950": "The Whole", "400": "Part 1", "?": "Part 2" } }
+                    ],
+                    weDo: [
+                        { "id": "d2_wedo_q1", "type": "true-false", "prompt": "Case: 'A library has 800 books. 250 are checked out. How many are on the shelves?' The number 800 is the 'whole'.", "visual": "{\"type\":\"strip-diagram\", \"whole\":800, \"parts\":[250, \"?\"]}", "data": { "options": ["True", "False"] }, "correct": "True" },
+                        { "id": "d2_wedo_q2", "type": "mc", "prompt": "Case: 'A farmer picked 450 apples. He sold 300 of them.' Where does 300 go in our blueprint?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Total Apples\", \"parts\":[\"Sold\", \"Left\"]}", "data": { "options": ["As a part", "As the whole", "It's extra information"] }, "correct": "As a part" },
+                        { "id": "d2_wedo_q3", "type": "text-box", "prompt": "A roll of ribbon was 98 inches long. You cut off 35 inches. How many inches are left? Solve the case!", "visual": "{\"type\":\"strip-diagram\", \"whole\":98, \"parts\":[35, \"?\"]}", "data": { "size": 10 }, "correct": "63" },
+                        { "id": "d2_wedo_q4", "type": "mc", "prompt": "Look at this strip diagram. What subtraction equation matches this blueprint?", "visual": "{\"type\":\"strip-diagram\", \"whole\":600, \"parts\":[250, \"?\"]}", "data": { "options": ["600 + 250 = ?", "250 - ? = 600", "600 - 250 = ?"] }, "correct": "600 - 250 = ?" },
+                        { "id": "d2_wedo_q5", "type": "true-false", "prompt": "If a problem asks 'How many are left?', you should probably add the numbers together.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
+                        { "id": "d2_wedo_q6", "type": "text-box", "prompt": "The school fundraiser goal is $950. So far, they have raised $720. How much more money do they need to raise?", "visual": "{\"type\":\"strip-diagram\", \"whole\":950, \"parts\":[720, \"?\"]}", "data": { "size": 10 }, "correct": "230" },
+                        { "id": "d2_wedo_q7", "type": "mc", "prompt": "There were 345 people on a train. 120 people got off at the first stop. Which strip diagram correctly shows this case?", "visual": "", "data": { "options": ["Whole: ?, Parts: 345, 120", "Whole: 345, Parts: 120, ?", "Whole: 120, Parts: 345, ?"] }, "correct": "Whole: 345, Parts: 120, ?" },
+                        { "id": "d2_wedo_q8", "type": "text-box", "prompt": "Solve the train case! How many people are still on the train?", "visual": "{\"type\":\"strip-diagram\", \"whole\":345, \"parts\":[120, \"?\"]}", "data": { "size": 10 }, "correct": "225" },
+                        { "id": "d2_wedo_q9", "type": "mc", "prompt": "Case: 'A painter has 150 ounces of paint. He uses 80 ounces.' Which number sentence solves the case?", "visual": "", "data": { "options": ["150 + 80 = 230", "150 - 80 = 70", "80 + 150 = 230"] }, "correct": "150 - 80 = 70" },
+                        { "id": "d2_wedo_q10", "type": "true-false", "prompt": "In subtraction problems, we always know the 'whole' and one 'part'.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Whole\", \"parts\":[\"Part\", \"Part\"]}", "data": { "options": ["True", "False"] }, "correct": "True" }
+                    ],
+                    youDo: [
+                        { "id": "d2_youdo_q1", "type": "text-box", "prompt": "Time to solve a case, detective. There are 876 bricks to build a wall. So far, 550 have been used. How many bricks are left?", "visual": "{\"type\":\"strip-diagram\", \"whole\":876, \"parts\":[550, \"?\"]}", "data": { "size": 10 }, "correct": "326" },
+                        { "id": "d2_youdo_q2", "type": "mc", "prompt": "Case File: 'A water tank holds 600 gallons. It currently has 250 gallons in it.' What question are you trying to answer?", "visual": "{\"type\":\"strip-diagram\", \"whole\":600, \"parts\":[250, \"?\"]}", "data": { "options": ["How many gallons are there in total?", "How much was used?", "How many more gallons can fit in the tank?"] }, "correct": "How many more gallons can fit in the tank?" },
+                        { "id": "d2_youdo_q3", "type": "text-box", "prompt": "Solve the water tank case: A 600-gallon tank has 250 gallons in it. How much more can it hold?", "visual": "{\"type\":\"strip-diagram\", \"whole\":600, \"parts\":[250, \"?\"]}", "data": { "size": 10 }, "correct": "350" },
+                        { "id": "d2_youdo_q4", "type": "drag-drop-match", "prompt": "Match the parts of the problem to the blueprint. Problem: 'A book has 280 pages. Sam has read 150 pages.'", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Total Pages\", \"parts\":[\"Read\", \"Not Read\"]}", "data": { "draggables": ["280", "150", "?"], "dropTargets": ["Total Pages", "Read", "Not Read"] }, "correct": { "280": "Total Pages", "150": "Read", "?": "Not Read" } },
+                        { "id": "d2_youdo_q5", "type": "true-false", "prompt": "The word 'difference' usually means you should add.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" }
+                    ],
+                    assessment: [
+                        { "id": "d2_assess_q1", "type": "mc", "prompt": "In the problem: 'A baker made 350 cookies. She sold 200 of them. How many cookies are left?' What number represents the 'whole'?", "visual": "", "data": { "options": ["350", "200", "The answer is the whole."] }, "correct": "350" },
+                        { "id": "d2_assess_q2", "type": "mc", "prompt": "Which visual model correctly represents finding how many are left if you start with 500 and take away 150?", "visual": "", "data": { "options": ["A strip diagram with 150 as the whole and 500 as a part.", "A strip diagram with the whole as unknown and parts of 500 and 150.", "A strip diagram with 500 as the whole and 150 as a part."] }, "correct": "A strip diagram with 500 as the whole and 150 as a part." },
+                        { "id": "d2_assess_q3", "type": "multi-select", "prompt": "A city park has 980 trees. 400 of the trees are oak trees. The park also has 2 playgrounds. How many trees in the park are not oak trees? Select the two numbers needed to solve this problem.", "visual": "{\"type\":\"strip-diagram\", \"whole\":980, \"parts\":[400, \"?\"]}", "data": { "options": ["980", "400", "2", "trees"] }, "correct": ["980", "400"] },
+                        { "id": "d2_assess_q4", "type": "text-box", "prompt": "A marathon is 26 miles long. A runner has already run 10 miles. How many miles does she have left to run?", "visual": "{\"type\":\"object-group\", \"groups\":[{\"name\":\"total-miles\", \"count\":26, \"icon-description\":\"road marker\"}, {\"name\":\"run-miles\", \"count\":10, \"icon-description\":\"runner icon\"}]}", "data": { "size": 10 }, "correct": "16" },
+                        { "id": "d2_assess_q5", "type": "drag-drop-sort", "prompt": "Read the problem, then sort the words into the correct operation category. Problem: 'On a farm with 80 animals, 50 are cows. The rest are pigs. What is the difference between the number of cows and pigs?'", "visual": "", "data": { "items": ["total", "difference", "left", "in all"], "categories": ["Addition Keyword", "Subtraction Keyword"] }, "correct": { "Addition Keyword": ["total", "in all"], "Subtraction Keyword": ["difference", "left"] } }
+                    ]
+                },
+                day3: {
+                    title: "The Case of the Comparison",
+                    iDo: [
+                        { "id": "d3_ido_q1", "type": "mc", "prompt": "Read the case: 'A mountain is 950 feet tall. A nearby hill is 300 feet tall. How much taller is the mountain?' Is this a case for addition or subtraction?", "visual": "{\"type\":\"comparison-bar-diagram\", \"bar1_label\":\"Mountain\", \"bar1_value\":950, \"bar2_label\":\"Hill\", \"bar2_value\":300, \"difference_label\":\"?\"}", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Subtraction" },
+                        { "id": "d3_ido_q2", "type": "mc", "prompt": "Now read this case: 'A red building is 250 feet tall. A blue building is 200 feet tall. What is their combined height?' Is this a case for addition or subtraction?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[250, 200]}", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Addition" },
+                        { "id": "d3_ido_q3", "type": "drag-drop-sort", "prompt": "Let's sort our keywords. Drag the phrases to the correct detective tool.", "visual": "", "data": { "items": ["How many in all?", "How many fewer?", "What is the total?", "What is the difference?"], "categories": ["Addition", "Subtraction"] }, "correct": { "Addition": ["How many in all?", "What is the total?"], "Subtraction": ["How many fewer?", "What is the difference?"] } }
+                    ],
+                    weDo: [
+                        { "id": "d3_wedo_q1", "type": "mc", "prompt": "Case: 'A video game has 560 possible points. You have scored 340 points. How many more points do you need to get a perfect score?'", "visual": "{\"type\":\"strip-diagram\", \"whole\":560, \"parts\":[340, \"?\"]}", "data": { "options": ["Add", "Subtract"] }, "correct": "Subtract" },
+                        { "id": "d3_wedo_q2", "type": "mc", "prompt": "Case: 'A whale weighs 850 pounds. A dolphin weighs 320 pounds. What is their combined weight?'", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[850, 320]}", "data": { "options": ["Add", "Subtract"] }, "correct": "Add" },
+                        { "id": "d3_wedo_q3", "type": "text-box", "prompt": "Solve the whale and dolphin case. What is their combined weight?", "visual": "", "data": { "size": 10 }, "correct": "1170" },
+                        { "id": "d3_wedo_q4", "type": "mc", "prompt": "Look at this blueprint. Does it show an addition or subtraction problem?", "visual": "{\"type\":\"strip-diagram\", \"whole\":900, \"parts\":[450, \"?\"]}", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Subtraction" },
+                        { "id": "d3_wedo_q5", "type": "true-false", "prompt": "The phrase 'how many fewer' means you should add.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
+                        { "id": "d3_wedo_q6", "type": "text-box", "prompt": "Maria's book has 275 pages. Leo's book has 250 pages. How many more pages does Maria's book have?", "visual": "{\"type\":\"comparison-bar-diagram\", \"bar1_label\":\"Maria\", \"bar1_value\":275, \"bar2_label\":\"Leo\", \"bar2_value\":250, \"difference_label\":\"?\"}", "data": { "size": 10 }, "correct": "25" },
+                        { "id": "d3_wedo_q7", "type": "mc", "prompt": "Choose the correct operation for this case: 'There are 180 days in a school year. We have already completed 95 days.'", "visual": "", "data": { "options": ["180 + 95", "180 - 95"] }, "correct": "180 - 95" },
+                        { "id": "d3_wedo_q8", "type": "text-box", "prompt": "Solve it! How many school days are left?", "visual": "{\"type\":\"strip-diagram\", \"whole\":180, \"parts\":[95, \"?\"]}", "data": { "size": 10 }, "correct": "85" },
+                        { "id": "d3_wedo_q9", "type": "mc", "prompt": "Case: 'A plane flies 600 miles. A car drives 300 miles. What is the sum of their distances?' What operation does 'sum' tell you to do?", "visual": "", "data": { "options": ["Add", "Subtract", "Multiply"] }, "correct": "Add" },
+                        { "id": "d3_wedo_q10", "type": "true-false", "prompt": "To find a total, you add. To find a difference, you subtract.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }
+                    ],
+                    youDo: [
+                        { "id": "d3_youdo_q1", "type": "mc", "prompt": "First, identify the operation. Case: 'Last year, 458 students were at the school. This year, there are 512 students. How many more students are there this year?'", "visual": "", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Subtraction" },
+                        { "id": "d3_youdo_q2", "type": "text-box", "prompt": "Now, solve the case. How many more students are there?", "visual": "{\"type\":\"comparison-bar-diagram\", \"bar1_label\":\"This Year\", \"bar1_value\":512, \"bar2_label\":\"Last Year\", \"bar2_value\":458, \"difference_label\":\"?\"}", "data": { "size": 10 }, "correct": "54" },
+                        { "id": "d3_youdo_q3", "type": "mc", "prompt": "Identify the operation. Case: 'A jogger ran 150 minutes one week and 180 minutes the next week. What was the total time she ran?'", "visual": "", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Addition" },
+                        { "id": "d3_youdo_q4", "type": "text-box", "prompt": "Now, solve the jogger case. What was the total time?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[150, 180]}", "data": { "size": 10 }, "correct": "330" },
+                        { "id": "d3_youdo_q5", "type": "drag-drop-sort", "prompt": "Sort these problems. You don't have to solve them, just decide on the operation.", "visual": "", "data": { "items": ["Find the total of 100 and 200.", "Find the difference between 300 and 150."], "categories": ["Addition", "Subtraction"] }, "correct": { "Addition": ["Find the total of 100 and 200."], "Subtraction": ["Find the difference between 300 and 150."] } }
+                    ],
+                    assessment: [
+                        { "id": "d3_assess_q1", "type": "mc", "prompt": "Which question is asking you to find a difference?", "visual": "", "data": { "options": ["What is the total cost?", "How many are there in all?", "How many fewer apples are there?"] }, "correct": "How many fewer apples are there?" },
+                        { "id": "d3_assess_q2", "type": "mc", "prompt": "Read the problem: 'A farm has 125 chickens and 75 pigs.' Which question would you need to SUBTRACT to solve?", "visual": "", "data": { "options": ["How many animals are there altogether?", "How many more chickens than pigs are there?", "If they get 50 more chickens, how many chickens will they have?"] }, "correct": "How many more chickens than pigs are there?" },
+                        { "id": "d3_assess_q3", "type": "multi-select", "prompt": "Which two problems below require ADDITION to be solved?", "visual": "", "data": { "options": ["What is the total of 250 and 310?", "What is 400 minus 150?", "How many are left if you start with 500 and give away 200?", "What is the sum of 180 and 220?"] }, "correct": ["What is the total of 250 and 310?", "What is the sum of 180 and 220?"] },
+                        { "id": "d3_assess_q4", "type": "text-box", "prompt": "Solve this case: Team Blue scored 450 points. Team Red scored 325 points. How many more points did Team Blue score?", "visual": "{\"type\":\"comparison-bar-diagram\", \"bar1_label\":\"Blue\", \"bar1_value\":450, \"bar2_label\":\"Red\", \"bar2_value\":325, \"difference_label\":\"?\"}", "data": { "size": 10 }, "correct": "125" },
+                        { "id": "d3_assess_q5", "type": "drag-drop-sort", "prompt": "Create your own problems. Drag a number to each box to create one addition problem and one subtraction problem.", "visual": "", "data": { "items": ["300", "500"], "categories": ["How many more is ___ than ___?", "What is the total of ___ and ___?"] }, "correct": { "How many more is ___ than ___?": ["500", "300"], "What is the total of ___ and ___?": ["500", "300"] } }
+                    ]
+                },
+                day4: {
+                    title: "The Case of Multiple Strategies",
+                    iDo: [
+                        { "id": "d4_ido_q1", "type": "mc", "prompt": "Let's solve 350 + 125. If we use a number line and start at 350, what could be our first 'jump'?", "visual": "{\"type\":\"number-line-jumps\", \"start\":350, \"end\":475, \"jumps\":[]}", "data": { "options": ["A jump of 100", "A jump of 5", "A jump of 350"] }, "correct": "A jump of 100" },
+                        { "id": "d4_ido_q2", "type": "true-false", "prompt": "When using the standard algorithm (stacking) to solve 451 + 23, it's important to line up the 1 over the 3.", "visual": "{\"type\":\"place-value-chart\", \"number\":451, \"representation\":\"digits\"}", "data": { "options": ["True", "False"] }, "correct": "True" },
+                        { "id": "d4_ido_q3", "type": "mc", "prompt": "Let's solve 500 - 150. If we use a number line, we can start at 500 and jump backwards. What would a good first jump be?", "visual": "{\"type\":\"number-line-jumps\", \"start\":500, \"end\":350, \"jumps\":[]}", "data": { "options": ["A jump back of 10", "A jump back of 500", "A jump back of 100"] }, "correct": "A jump back of 100" }
+                    ],
+                    weDo: [
+                        { "id": "d4_wedo_q1", "type": "mc", "prompt": "Let's solve 220 + 150 on a number line. Start at 220. Jump 100. Where are you now?", "visual": "{\"type\":\"number-line-jumps\", \"start\":220, \"end\":370, \"jumps\":[{\"size\":100, \"direction\":\"forward\"}]}", "data": { "options": ["220", "320", "100"] }, "correct": "320" },
+                        { "id": "d4_wedo_q2", "type": "mc", "prompt": "You are at 320. Now jump 50. Where are you now?", "visual": "{\"type\":\"number-line-jumps\", \"start\":220, \"end\":370, \"jumps\":[{\"size\":100, \"direction\":\"forward\"}, {\"size\":50, \"direction\":\"forward\"}]}", "data": { "options": ["370", "350", "325"] }, "correct": "370" },
+                        { "id": "d4_wedo_q3", "type": "text-box", "prompt": "Now solve 220 + 150 using the standard algorithm (stacking). What's the answer?", "visual": "", "data": { "size": 10 }, "correct": "370" },
+                        { "id": "d4_wedo_q4", "type": "mc", "prompt": "Let's solve 450 - 110. Using the standard algorithm, what is 0 - 0?", "visual": "{\"type\":\"place-value-chart\", \"number\":450, \"representation\":\"digits\"}", "data": { "options": ["0", "1", "10"] }, "correct": "0" },
+                        { "id": "d4_wedo_q5", "type": "mc", "prompt": "Next, in the tens place, what is 5 - 1?", "visual": "{\"type\":\"place-value-chart\", \"number\":450, \"representation\":\"digits\"}", "data": { "options": ["3", "4", "5"] }, "correct": "4" },
+                        { "id": "d4_wedo_q6", "type": "text-box", "prompt": "Finish the problem: 450 - 110. What's the final answer?", "visual": "", "data": { "size": 10 }, "correct": "340" },
+                        { "id": "d4_wedo_q7", "type": "mc", "prompt": "Case: 'A bucket holds 128 ounces of water. Another bucket holds 64 ounces.' If we need to find the total, which strategy seems faster here?", "visual": "", "data": { "options": ["Number Line", "Standard Algorithm", "Both are good"] }, "correct": "Both are good" },
+                        { "id": "d4_wedo_q8", "type": "text-box", "prompt": "Solve it using any strategy: 128 + 64.", "visual": "", "data": { "size": 10 }, "correct": "192" },
+                        { "id": "d4_wedo_q9", "type": "true-false", "prompt": "You must always use the standard algorithm to get the right answer.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
+                        { "id": "d4_wedo_q10", "type": "mc", "prompt": "Let's solve a two-step case! 'You have $200. You spend $50 on a game and $30 on a book. How much is left?' What is the first step?", "visual": "", "data": { "options": ["Add $50 and $30", "Subtract $50 from $200", "Subtract $30 from $50"] }, "correct": "Add $50 and $30" }
+                    ],
+                    youDo: [
+                        { "id": "d4_youdo_q1", "type": "text-box", "prompt": "Case: 'There are 345 fish in a large tank. The owner adds 125 more.' First, solve using a number line. What is the total?", "visual": "{\"type\":\"number-line-jumps\", \"start\":345, \"end\":470, \"jumps\":[]}", "data": { "size": 10 }, "correct": "470" },
+                        { "id": "d4_youdo_q2", "type": "text-box", "prompt": "Now, solve the same case (345 + 125) using the standard algorithm. What is the total?", "visual": "{\"type\":\"place-value-chart\", \"number\":345, \"representation\":\"digits\"}", "data": { "size": 10 }, "correct": "470" },
+                        { "id": "d4_youdo_q3", "type": "text-box", "prompt": "Case: 'A movie is 180 minutes long. You have watched 70 minutes.' Solve using any strategy. How many minutes are left?", "visual": "{\"type\":\"strip-diagram\", \"whole\":180, \"parts\":[70, \"?\"]}", "data": { "size": 10 }, "correct": "110" },
+                        { "id": "d4_youdo_q4", "type": "mc", "prompt": "For the last problem (180 - 70), which strategy is likely fastest and easiest?", "visual": "", "data": { "options": ["Number Line because the numbers are 'friendly'", "Standard Algorithm because it requires regrouping", "Both are equally hard"] }, "correct": "Number Line because the numbers are 'friendly'" },
+                        { "id": "d4_youdo_q5", "type": "text-box", "prompt": "TWO-STEP case: 'Leo had 150 stickers. He gave 20 to a friend and 30 to his brother.' How many stickers does he have left? (Hint: First find out how many he gave away in total).", "visual": "{\"type\":\"strip-diagram\", \"whole\":150, \"parts\":[50, \"?\"]}", "data": { "size": 10 }, "correct": "100" }
+                    ],
+                    assessment: [
+                        { "id": "d4_assess_q1", "type": "mc", "prompt": "To solve 456 + 213 using the standard algorithm, you should start by adding which two digits?", "visual": "{\"type\":\"place-value-chart\", \"number\":456, \"representation\":\"digits\"}", "data": { "options": ["4 and 2", "5 and 1", "6 and 3"] }, "correct": "6 and 3" },
+                        { "id": "d4_assess_q2", "type": "mc", "prompt": "Which strategy involves making 'jumps' of hundreds, tens, and ones from a starting number?", "visual": "", "data": { "options": ["The CUBES strategy", "The Standard Algorithm", "The Number Line strategy"] }, "correct": "The Number Line strategy" },
+                        { "id": "d4_assess_q3", "type": "multi-select", "prompt": "To solve 315 - 160, which two strategies would work?", "visual": "", "data": { "options": ["Starting at 315 and jumping back on a number line.", "Stacking the numbers and regrouping (borrowing).", "Adding 315 and 160.", "Finding the total."] }, "correct": ["Starting at 315 and jumping back on a number line.", "Stacking the numbers and regrouping (borrowing)."] },
+                        { "id": "d4_assess_q4", "type": "text-box", "prompt": "Solve using any strategy: A new bike costs $355. You have saved $225. How much more money do you need?", "visual": "{\"type\":\"strip-diagram\", \"whole\":355, \"parts\":[225, \"?\"]}", "data": { "size": 10 }, "correct": "130" },
+                        { "id": "d4_assess_q5", "type": "drag-drop-sort", "prompt": "This is a two-step problem. Drag the steps into the correct order to solve. Problem: 'Sam had 500 pennies. He spent 150, then he found 50 more. How many does he have now?'", "visual": "", "data": { "items": ["Add 50 to the new total.", "Start with 500.", "Subtract 150 from 500."], "categories": ["Step 1", "Step 2", "Step 3"] }, "correct": { "Step 1": ["Start with 500."], "Step 2": ["Subtract 150 from 500."], "Step 3": ["Add 50 to the new total."] } }
+                    ]
+                }
+            };
+
+            const POSITIVE_AFFIRMATIONS = ["Case solved!", "Excellent deduction!", "You've cracked the code!", "Brilliant work, Detective!", "Another mystery solved!"];
+            const GENTLE_NUDGES = ["Not quite, Detective. Re-examine the evidence.", "That lead went cold. Let's look at the clues again.", "Good try! Check your calculations and try again."];
             
-            // SYNC: Navigate to the generated URL
-            window.open(generateUrl(isTeacher), '_blank');
-        });
-        
-        // SYNC: Handles copying student link
-        copyStudentBtn.addEventListener('click', () => {
-            const url = generateUrl(false);
-            navigator.clipboard.writeText(window.location.origin + window.location.pathname.replace('index.html', '') + url).then(() => {
-                alert('Student link copied to clipboard!');
-            });
-        });
-        
-        // SYNC: Handles copying teacher link
-        copyTeacherBtn.addEventListener('click', () => {
-            const url = generateUrl(true);
-            navigator.clipboard.writeText(window.location.origin + window.location.pathname.replace('index.html', '') + url).then(() => {
-                alert('Teacher link copied to clipboard!');
-            });
+            // --- STATE MANAGEMENT (Original logic is kept intact) ---
+            let appState;
+
+            const defaultState = {
+                currentDay: 'day1',
+                day1: { lessonSlideIndex: 0, assessmentSlideIndex: 0, answers: {}, view: 'lesson' },
+                day2: { lessonSlideIndex: 0, assessmentSlideIndex: 0, answers: {}, view: 'lesson' },
+                day3: { lessonSlideIndex: 0, assessmentSlideIndex: 0, answers: {}, view: 'lesson' },
+                day4: { lessonSlideIndex: 0, assessmentSlideIndex: 0, answers: {}, view: 'lesson' },
+            };
+
+            function saveProgress() {
+                try {
+                    localStorage.setItem('mathDetectiveProgress', JSON.stringify(appState));
+                } catch (e) {
+                    console.error("Could not save progress to localStorage", e);
+                }
+            }
+
+            function loadProgress() {
+                let loadedState = null;
+                const progressDataScript = document.getElementById('progress-data');
+                
+                if (progressDataScript && progressDataScript.textContent.trim()) {
+                    try {
+                        loadedState = JSON.parse(progressDataScript.textContent);
+                    } catch (e) { console.error("Could not parse progress from script tag.", e); }
+                }
+
+                if (!loadedState) {
+                    try {
+                        const savedProgress = localStorage.getItem('mathDetectiveProgress');
+                        if (savedProgress) {
+                            loadedState = JSON.parse(savedProgress);
+                        }
+                    } catch (e) { console.error("Could not parse progress from localStorage.", e); }
+                }
+                
+                appState = { ...defaultState };
+                if(loadedState) {
+                    for(const day in defaultState){
+                        if(loadedState[day]){
+                           appState[day] = { ...defaultState[day], ...loadedState[day] };
+                        }
+                    }
+                    appState.currentDay = loadedState.currentDay || defaultState.currentDay;
+                }
+            }
+            
+            // --- SYNC: CORE FUNCTIONS ---
+            function applyStudentNavPolicy() {
+              const shouldDisable = !IS_TEACHER && syncIsOn();
+              const activeDayContainer = document.getElementById(appState.currentDay);
+              if (activeDayContainer) {
+                  const prevBtn = activeDayContainer.querySelector('.prev-btn');
+                  const nextBtn = activeDayContainer.querySelector('.next-btn');
+                  if(prevBtn) prevBtn.classList.toggle('disabled-nav', shouldDisable);
+                  if(nextBtn) nextBtn.classList.toggle('disabled-nav', shouldDisable);
+              }
+              document.querySelectorAll('#main-tabs .tab-btn').forEach(b => {
+                b.classList.toggle('disabled-nav', shouldDisable);
+              });
+              document.querySelectorAll('.view-switch-btn').forEach(b => {
+                b.classList.toggle('disabled-nav', shouldDisable);
+              });
+            }
+
+            async function syncPush() {
+              if (!IS_TEACHER || !syncIsOn() || !_roomRef || _isApplyingRemote) return;
+              try {
+                const currentDayState = appState[appState.currentDay];
+                const stateToPush = {
+                  day: appState.currentDay,
+                  view: currentDayState.view,
+                  slide: currentDayState.view === 'lesson' ? currentDayState.lessonSlideIndex : currentDayState.assessmentSlideIndex,
+                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                await _roomRef.set(stateToPush, { merge: true });
+              } catch (e) {
+                console.error('SYNC: pushRoomState failed:', e);
+              }
+            }
+            
+            async function initFirebaseSync() {
+                if (_unsubSnap) {
+                    _unsubSnap();
+                    _unsubSnap = null;
+                }
+
+                if (!syncIsOn()) {
+                    console.log("SYNC: Sync is off. Skipping Firebase connection.");
+                    applyStudentNavPolicy();
+                    return;
+                }
+                
+                try {
+                    _auth = firebase.auth();
+                    _db = firebase.firestore();
+                    if (IS_TEACHER && !_auth.currentUser) {
+                        await _auth.signInAnonymously();
+                    }
+
+                    _roomRef = _db.collection('rooms').doc(ROOM_ID);
+
+                    if (IS_TEACHER) {
+                        await syncPush(); // SYNC: Initial seed on teacher load
+                    }
+
+                    _unsubSnap = _roomRef.onSnapshot((doc) => {
+                        if (!syncIsOn() || IS_TEACHER || doc.metadata.hasPendingWrites) {
+                            return;
+                        }
+                        
+                        const data = doc.data();
+                        if (!data) return;
+
+                        _isApplyingRemote = true;
+                        
+                        const remoteDay = data.day || 'day1';
+                        const remoteView = data.view || 'lesson';
+                        const remoteSlide = data.slide || 0;
+
+                        appState.currentDay = remoteDay;
+                        appState[remoteDay].view = remoteView;
+                        if (remoteView === 'lesson') {
+                            appState[remoteDay].lessonSlideIndex = remoteSlide;
+                        } else {
+                            appState[remoteDay].assessmentSlideIndex = remoteSlide;
+                        }
+                        
+                        renderApp();
+                        _isApplyingRemote = false;
+                    });
+                } catch (err) {
+                    console.error("SYNC: Firebase initialization failed.", err);
+                }
+                applyStudentNavPolicy();
+            }
+
+            // --- SVG & DYNAMIC ELEMENT GENERATION (Original logic is kept intact) ---
+            function generateVisual(visualDescription) {
+                if (!visualDescription) return null;
+
+                try {
+                    const visual = JSON.parse(visualDescription);
+                    const svgNS = "http://www.w3.org/2000/svg";
+                    const svg = document.createElementNS(svgNS, "svg");
+                    svg.setAttribute("class", "w-full my-4");
+                    let width = 400; let height = 150;
+
+                    switch (visual.type) {
+                        case 'strip-diagram':
+                            height = visual.whole && visual.parts.length > 2 ? 150 : 100;
+                            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+                            
+                            const wholeRect = document.createElementNS(svgNS, "rect");
+                            wholeRect.setAttribute("x", 1);
+                            wholeRect.setAttribute("y", 1);
+                            wholeRect.setAttribute("width", width - 2);
+                            wholeRect.setAttribute("height", height / 2 - 2);
+                            wholeRect.setAttribute("fill", "#e0f2fe");
+                            wholeRect.setAttribute("stroke", "#0284c7");
+                            wholeRect.setAttribute("stroke-width", 2);
+                            svg.appendChild(wholeRect);
+
+                            const wholeText = document.createElementNS(svgNS, "text");
+                            wholeText.setAttribute("x", width / 2);
+                            wholeText.setAttribute("y", height / 4 + 5);
+                            wholeText.setAttribute("text-anchor", "middle");
+                            wholeText.setAttribute("fill", "#0369a1");
+                            wholeText.textContent = visual.whole || "?";
+                            svg.appendChild(wholeText);
+
+                            const numParts = visual.parts.length;
+                            const partWidth = (width - (numParts - 1) * 2) / numParts;
+                            visual.parts.forEach((part, index) => {
+                                const partRect = document.createElementNS(svgNS, "rect");
+                                const x = index * (partWidth + 2) + 1;
+                                partRect.setAttribute("x", x);
+                                partRect.setAttribute("y", height / 2 + 1);
+                                partRect.setAttribute("width", partWidth - 2);
+                                partRect.setAttribute("height", height / 2 - 2);
+                                partRect.setAttribute("fill", "#fef3c7");
+                                partRect.setAttribute("stroke", "#d97706");
+                                partRect.setAttribute("stroke-width", 2);
+                                svg.appendChild(partRect);
+
+                                const partText = document.createElementNS(svgNS, "text");
+                                partText.setAttribute("x", x + partWidth / 2);
+                                partText.setAttribute("y", height * 0.75 + 5);
+                                partText.setAttribute("text-anchor", "middle");
+                                partText.setAttribute("fill", "#b45309");
+                                partText.textContent = part || "?";
+                                svg.appendChild(partText);
+                            });
+                            break;
+                        
+                        case 'comparison-bar-diagram':
+                            height = 120;
+                            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+                            const maxVal = Math.max(visual.bar1_value, visual.bar2_value, 1);
+                            const bar1Height = (visual.bar1_value / maxVal) * (height-20);
+                            const bar2Height = (visual.bar2_value / maxVal) * (height-20);
+
+                            const bar1 = document.createElementNS(svgNS, "rect");
+                            bar1.setAttribute("x", width * 0.2);
+                            bar1.setAttribute("y", height - bar1Height);
+                            bar1.setAttribute("width", width * 0.2);
+                            bar1.setAttribute("height", bar1Height);
+                            bar1.setAttribute("fill", "#dbeafe");
+                            svg.appendChild(bar1);
+                            
+                            const bar2 = document.createElementNS(svgNS, "rect");
+                            bar2.setAttribute("x", width * 0.6);
+                            bar2.setAttribute("y", height - bar2Height);
+                            bar2.setAttribute("width", width*0.2);
+                            bar2.setAttribute("height", bar2Height);
+                            bar2.setAttribute("fill", "#fee2e2");
+                            svg.appendChild(bar2);
+
+                            const label1 = document.createElementNS(svgNS, "text");
+                            label1.setAttribute("x", width * 0.3);
+                            label1.setAttribute("y", height - bar1Height - 5);
+                            label1.setAttribute("text-anchor", "middle");
+                            label1.textContent = visual.bar1_label;
+                            svg.appendChild(label1);
+
+                            const label2 = document.createElementNS(svgNS, "text");
+                            label2.setAttribute("x", width * 0.7);
+                            label2.setAttribute("y", height - bar2Height - 5);
+                            label2.setAttribute("text-anchor", "middle");
+                            label2.textContent = visual.bar2_label;
+                            svg.appendChild(label2);
+                            break;
+                        default:
+                            return null;
+                    }
+                    return svg;
+                } catch (e) {
+                    console.error("Could not generate visual:", e);
+                    return null;
+                }
+            }
+            
+            function createQuestionHTML(question, dayKey, section) {
+                 const savedAnswers = appState[dayKey].answers;
+                 let savedAnswer = savedAnswers[question.id];
+                let answerHTML = '';
+                switch (question.type) {
+                    case 'mc':
+                    case 'true-false':
+                        answerHTML = question.data.options.map(option => `
+                            <label class="block border rounded-lg p-3 my-2 hover:bg-gray-100 cursor-pointer">
+                                <input type="radio" name="${question.id}" value="${option}" class="mr-2" ${savedAnswer === option ? 'checked' : ''}>
+                                ${option}
+                            </label>
+                        `).join('');
+                        break;
+                    case 'multi-select':
+                        savedAnswer = savedAnswer || [];
+                        answerHTML = question.data.options.map(option => `
+                            <label class="block border rounded-lg p-3 my-2 hover:bg-gray-100 cursor-pointer">
+                                <input type="checkbox" name="${question.id}" value="${option}" class="mr-2" ${savedAnswer.includes(option) ? 'checked' : ''}>
+                                ${option}
+                            </label>
+                        `).join('');
+                        break;
+                    case 'text-box':
+                        answerHTML = `<textarea class="w-full border-2 border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="1" maxlength="${question.data.size}" placeholder="Type your answer here...">${savedAnswer || ''}</textarea>`;
+                        break;
+                    case 'drag-drop-match':
+                    case 'drag-drop-sort':
+                         answerHTML = `<div class="flex flex-col md:flex-row gap-4">
+                            <div class="w-full md:w-1/3 p-2 bg-gray-100 rounded-lg">
+                                <h4 class="font-bold mb-2">Drag From Here:</h4>
+                                <div id="draggables-${question.id}" class="space-y-2">
+                                    ${(question.data.draggables || question.data.items).map(item => `<div class="draggable bg-white p-2 rounded shadow border cursor-grab">${item}</div>`).join('')}
+                                </div>
+                            </div>
+                            <div class="w-full md:w-2/3 p-2">
+                                <h4 class="font-bold mb-2">Drop Here:</h4>
+                                <div class="space-y-4">
+                                     ${(question.data.dropTargets || question.data.categories).map(target => `
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-semibold w-1/3">${target}:</span>
+                                            <div class="drop-target w-2/3 p-2 rounded-lg bg-gray-50 min-h-[44px]" data-target="${target}"></div>
+                                        </div>
+                                     `).join('')}
+                                </div>
+                            </div>
+                         </div>`;
+                        break;
+                }
+
+                const visualElement = generateVisual(question.visual);
+                
+                return `
+                    <div class="question-slide bg-white rounded-lg shadow-lg p-6 border border-gray-200" data-question-id="${question.id}" data-question-type="${question.type}">
+                        <div class="feedback-banner absolute top-0 left-0 right-0 p-2 text-white font-bold text-center rounded-t-lg"></div>
+                        <p class="text-lg text-gray-700 mb-4">${question.prompt}</p>
+                        <div class="visual-container mb-4">${visualElement ? visualElement.outerHTML : ''}</div>
+                        <div class="answer-area">${answerHTML}</div>
+                        <div class="mt-6 flex justify-between items-center">
+                           <button class="try-again-btn bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-600 transition-transform hover:scale-105" style="display: none;">Try Again</button>
+                           <button class="check-answer-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-transform hover:scale-105">Analyze Clues</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // --- RENDERING (Original logic is kept intact) ---
+            function renderApp() {
+                const contentArea = document.getElementById('content-area');
+                contentArea.innerHTML = ''; 
+
+                Object.keys(lessonData).forEach(dayKey => {
+                    const dayData = lessonData[dayKey];
+                    const dayState = appState[dayKey];
+                    const dayContainer = document.createElement('div');
+                    dayContainer.id = dayKey;
+                    dayContainer.className = `tab-content ${appState.currentDay === dayKey ? 'active' : ''}`;
+                    
+                    const lessonSlides = [
+                        ...dayData.iDo.map(q => createQuestionHTML(q, dayKey, 'lesson')),
+                        ...dayData.weDo.map(q => createQuestionHTML(q, dayKey, 'lesson')),
+                        ...dayData.youDo.map(q => createQuestionHTML(q, dayKey, 'lesson')),
+                    ];
+                    
+                    const totalLessonSlides = lessonSlides.length;
+                    
+                    const assessmentSlides = dayData.assessment.map(q => createQuestionHTML(q, dayKey, 'assessment'));
+                    const totalAssessmentSlides = assessmentSlides.length;
+                    
+                    assessmentSlides.push(`
+                        <div class="bg-white rounded-lg shadow-lg p-6 text-center">
+                            <h2 class="text-2xl font-bold text-green-700 mb-4">Great work, Detective! Your report is ready.</h2>
+                            <p class="mb-6">You have completed the investigation for this day.</p>
+                            <div id="score-summary-${dayKey}" class="hidden text-left mt-6 p-4 bg-gray-100 rounded"></div>
+                            <div class="flex justify-center space-x-4">
+                               <button class="go-back-btn bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">Go Back To Double Check</button>
+                               <button class="teacher-view-btn bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800">Admin</button>
+                            </div>
+                        </div>
+                    `);
+
+                    const progressPercent = dayState.view === 'lesson'
+                        ? (dayState.lessonSlideIndex / Math.max(1, totalLessonSlides - 1)) * 100
+                        : (dayState.assessmentSlideIndex / Math.max(1, totalAssessmentSlides - 1)) * 100;
+                    
+                    dayContainer.innerHTML = `
+                        <div class="bg-white rounded-lg shadow-md p-4 mb-4">
+                           <div class="flex justify-between items-center mb-4">
+                              <h2 class="text-2xl font-bold text-gray-800">${dayData.title}</h2>
+                              <div class="flex space-x-2">
+                                 <button data-view="lesson" class="view-switch-btn ${dayState.view === 'lesson' ? 'bg-blue-600 text-white' : 'bg-gray-200'} font-bold py-2 px-4 rounded-lg">Lesson</button>
+                                 <button data-view="assessment" class="view-switch-btn ${dayState.view === 'assessment' ? 'bg-blue-600 text-white' : 'bg-gray-200'} font-bold py-2 px-4 rounded-lg">Final Investigation</button>
+                              </div>
+                           </div>
+                           <div class="w-full bg-gray-200 rounded-full h-2.5">
+                              <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${progressPercent}%"></div>
+                           </div>
+                        </div>
+                        
+                        <div class="slides-container-lesson" style="${dayState.view !== 'lesson' ? 'display: none;' : ''}">
+                             ${lessonSlides.map((slide, index) => `<div class="slide ${index === dayState.lessonSlideIndex ? 'active' : ''}">${slide}</div>`).join('')}
+                        </div>
+
+                        <div class="slides-container-assessment" style="${dayState.view !== 'assessment' ? 'display: none;' : ''}">
+                             ${assessmentSlides.map((slide, index) => `<div class="slide ${index === dayState.assessmentSlideIndex ? 'active' : ''}">${slide}</div>`).join('')}
+                        </div>
+
+                        <div class="mt-6 flex justify-between">
+                           <button class="prev-btn bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">← Previous Clue</button>
+                           <button class="next-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Next Clue →</button>
+                        </div>
+                    `;
+                    contentArea.appendChild(dayContainer);
+                });
+
+                updateTabStyles();
+                attachAllEventListeners();
+                applyStudentNavPolicy();
+            }
+            
+            function updateTabStyles() {
+                const tabs = document.querySelectorAll('.tab-btn');
+                tabs.forEach(tab => {
+                    if (tab.dataset.day === appState.currentDay) {
+                        tab.classList.remove('border-transparent', 'text-gray-500', 'hover:border-blue-300');
+                        tab.classList.add('border-blue-600', 'text-blue-600');
+                    } else {
+                        tab.classList.remove('border-blue-600', 'text-blue-600');
+                        tab.classList.add('border-transparent', 'text-gray-500', 'hover:border-blue-300');
+                    }
+                });
+            }
+
+            // --- EVENT LISTENERS (Original logic is kept intact, but hooks added) ---
+            function attachAllEventListeners() {
+                document.querySelectorAll('.tab-btn').forEach(tab => {
+                    tab.addEventListener('click', handleTabClick);
+                });
+                
+                const activeDayContainer = document.getElementById(appState.currentDay);
+                if (activeDayContainer) {
+                    activeDayContainer.querySelectorAll('.view-switch-btn').forEach(btn => btn.addEventListener('click', handleViewSwitch));
+                    activeDayContainer.querySelector('.prev-btn').addEventListener('click', () => handleSlideNavigation('prev'));
+                    activeDayContainer.querySelector('.next-btn').addEventListener('click', () => handleSlideNavigation('next'));
+                    activeDayContainer.querySelectorAll('.check-answer-btn').forEach(btn => btn.addEventListener('click', handleCheckAnswer));
+                    activeDayContainer.querySelectorAll('.try-again-btn').forEach(btn => btn.addEventListener('click', handleTryAgain));
+                    
+                    activeDayContainer.querySelectorAll('.draggable').forEach(item => {
+                        item.setAttribute('draggable', true);
+                        item.addEventListener('dragstart', handleDragStart);
+                        item.addEventListener('dragend', handleDragEnd);
+                    });
+                    activeDayContainer.querySelectorAll('.drop-target').forEach(target => {
+                        target.addEventListener('dragover', handleDragOver);
+                        target.addEventListener('dragleave', handleDragLeave);
+                        target.addEventListener('drop', handleDrop);
+                    });
+
+                    const teacherBtn = activeDayContainer.querySelector('.teacher-view-btn');
+                    if (teacherBtn) teacherBtn.addEventListener('click', handleTeacherView);
+                    const goBackBtn = activeDayContainer.querySelector('.go-back-btn');
+                    if (goBackBtn) goBackBtn.addEventListener('click', handleGoBack);
+                }
+
+                document.getElementById('download-html-btn').addEventListener('click', handleDownloadHTML);
+                document.getElementById('download-pdf-btn').addEventListener('click', handleDownloadPDF);
+            }
+
+            // --- EVENT HANDLERS (Modified for SYNC) ---
+            function handleTabClick(event) {
+                if (_isApplyingRemote) return;
+                appState.currentDay = event.target.dataset.day;
+                saveProgress();
+                renderApp();
+                syncPush(); // SYNC: Push state change
+            }
+
+            function handleViewSwitch(event) {
+                if (_isApplyingRemote) return;
+                const dayState = appState[appState.currentDay];
+                dayState.view = event.target.dataset.view;
+                saveProgress();
+                renderApp();
+                syncPush(); // SYNC: Push state change
+            }
+
+            function handleSlideNavigation(direction) {
+                if (_isApplyingRemote) return;
+                const dayState = appState[appState.currentDay];
+                const view = dayState.view;
+                const slideContainer = document.querySelector(`#${appState.currentDay} .slides-container-${view}`);
+                const slides = slideContainer.querySelectorAll('.slide');
+                let currentIndex = view === 'lesson' ? dayState.lessonSlideIndex : dayState.assessmentSlideIndex;
+                const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+
+                if (newIndex >= 0 && newIndex < slides.length) {
+                    slides[currentIndex].classList.add('slide-transition-out');
+                    setTimeout(() => {
+                        slides[currentIndex].classList.remove('active', 'slide-transition-out');
+                        if (view === 'lesson') {
+                            dayState.lessonSlideIndex = newIndex;
+                        } else {
+                            dayState.assessmentSlideIndex = newIndex;
+                        }
+                        slides[newIndex].classList.add('active', 'slide-transition-in');
+                        saveProgress();
+                        
+                        const progressPercent = (newIndex / (slides.length - 1)) * 100;
+                        document.querySelector(`#${appState.currentDay} .bg-blue-600.h-2\\.5`).style.width = `${progressPercent}%`;
+                        document.querySelector(`#${appState.currentDay} .prev-btn`).disabled = newIndex === 0;
+                        document.querySelector(`#${appState.currentDay} .next-btn`).disabled = newIndex === slides.length - 1;
+
+                        syncPush(); // SYNC: Push state change
+                    }, 300);
+                }
+            }
+            
+            function handleCheckAnswer(event) {
+                const button = event.target;
+                const questionContainer = button.closest('.question-slide');
+                const questionId = questionContainer.dataset.questionId;
+                const questionType = questionContainer.dataset.questionType;
+
+                const dayData = lessonData[appState.currentDay];
+                const allQuestions = [...dayData.iDo, ...dayData.weDo, ...dayData.youDo, ...dayData.assessment];
+                const question = allQuestions.find(q => q.id === questionId);
+                
+                let userAnswer;
+                let isCorrect = false;
+
+                switch (questionType) {
+                    case 'mc':
+                    case 'true-false':
+                        const selectedRadio = questionContainer.querySelector(`input[name="${questionId}"]:checked`);
+                        userAnswer = selectedRadio ? selectedRadio.value : null;
+                        isCorrect = userAnswer === question.correct;
+                        break;
+                    case 'multi-select':
+                        const selectedCheckboxes = Array.from(questionContainer.querySelectorAll(`input[name="${questionId}"]:checked`));
+                        userAnswer = selectedCheckboxes.map(cb => cb.value);
+                        isCorrect = question.correct.length === userAnswer.length && [...question.correct].sort().every((val, i) => val === [...userAnswer].sort()[i]);
+                        break;
+                    case 'text-box':
+                        userAnswer = questionContainer.querySelector('textarea').value.trim();
+                        isCorrect = userAnswer.toLowerCase() === question.correct.toLowerCase();
+                        break;
+                    case 'drag-drop-match': {
+                        userAnswer = {};
+                        let allTargetsFilled = true;
+                        questionContainer.querySelectorAll('.drop-target').forEach(target => {
+                            const droppedItem = target.querySelector('.draggable');
+                            if (droppedItem) {
+                                userAnswer[droppedItem.textContent] = target.dataset.target;
+                            } else {
+                                allTargetsFilled = false;
+                            }
+                        });
+                        
+                        isCorrect = allTargetsFilled && 
+                                    Object.keys(question.correct).length === Object.keys(userAnswer).length &&
+                                    Object.keys(question.correct).every(key => question.correct[key] === userAnswer[key]);
+                        break;
+                    }
+                    case 'drag-drop-sort': {
+                        userAnswer = {};
+                        question.data.categories.forEach(cat => userAnswer[cat] = []);
+
+                        questionContainer.querySelectorAll('.drop-target').forEach(target => {
+                            const category = target.dataset.target;
+                            const droppedItems = Array.from(target.querySelectorAll('.draggable'));
+                            if (droppedItems.length > 0) {
+                                userAnswer[category] = droppedItems.map(item => item.textContent);
+                            }
+                        });
+
+                        const sortedUserAnswer = {};
+                        const sortedCorrectAnswer = {};
+                        Object.keys(userAnswer).sort().forEach(key => {
+                            sortedUserAnswer[key] = userAnswer[key].sort();
+                        });
+                        Object.keys(question.correct).sort().forEach(key => {
+                            sortedCorrectAnswer[key] = question.correct[key].sort();
+                        });
+
+                        isCorrect = JSON.stringify(sortedUserAnswer) === JSON.stringify(sortedCorrectAnswer);
+                        break;
+                    }
+                }
+
+                appState[appState.currentDay].answers[questionId] = userAnswer;
+                saveProgress();
+                
+                showFeedback(questionContainer, isCorrect);
+            }
+
+            function showFeedback(container, isCorrect) {
+                const feedbackBanner = container.querySelector('.feedback-banner');
+                const checkBtn = container.querySelector('.check-answer-btn');
+                const tryAgainBtn = container.querySelector('.try-again-btn');
+
+                if (isCorrect) {
+                    feedbackBanner.textContent = POSITIVE_AFFIRMATIONS[Math.floor(Math.random() * POSITIVE_AFFIRMATIONS.length)];
+                    feedbackBanner.className = 'feedback-banner absolute top-0 left-0 right-0 p-2 text-white font-bold text-center rounded-t-lg bg-green-500 show';
+                    checkBtn.disabled = true;
+                    container.querySelectorAll('input, textarea').forEach(el => el.disabled = true);
+                } else {
+                    feedbackBanner.textContent = GENTLE_NUDGES[Math.floor(Math.random() * GENTLE_NUDGES.length)];
+                    feedbackBanner.className = 'feedback-banner absolute top-0 left-0 right-0 p-2 text-white font-bold text-center rounded-t-lg bg-red-500 show';
+                    checkBtn.style.display = 'none';
+                    tryAgainBtn.style.display = 'inline-block';
+                }
+            }
+
+            function handleTryAgain(event) {
+                const button = event.target;
+                const questionContainer = button.closest('.question-slide');
+                const feedbackBanner = questionContainer.querySelector('.feedback-banner');
+                const checkBtn = questionContainer.querySelector('.check-answer-btn');
+
+                feedbackBanner.classList.remove('show');
+                checkBtn.style.display = 'inline-block';
+                button.style.display = 'none';
+            }
+            
+            // Drag and Drop Handlers
+            let draggedItem = null;
+            let sourceContainer = null;
+
+            function handleDragStart(event) {
+                draggedItem = event.target;
+                sourceContainer = draggedItem.parentNode;
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', draggedItem.textContent);
+                draggedItem.classList.add('dragging');
+            }
+            function handleDragOver(event) {
+                event.preventDefault();
+                const dropTarget = event.target.closest('.drop-target');
+                if(dropTarget) {
+                    dropTarget.classList.add('drag-over');
+                }
+            }
+            function handleDragLeave(event) {
+                const dropTarget = event.target.closest('.drop-target');
+                if(dropTarget) {
+                    dropTarget.classList.remove('drag-over');
+                }
+            }
+            function handleDrop(event) {
+                event.preventDefault();
+                const dropTarget = event.target.closest('.drop-target');
+                if (dropTarget && draggedItem) {
+                    dropTarget.classList.remove('drag-over');
+                    
+                    if (dropTarget.children.length > 0) {
+                       const questionType = draggedItem.closest('.question-slide').dataset.questionType;
+                       if(questionType === 'drag-drop-match') {
+                           const existingItem = dropTarget.children[0];
+                           sourceContainer.appendChild(existingItem);
+                       }
+                    }
+                    dropTarget.appendChild(draggedItem);
+                }
+            }
+            function handleDragEnd(event) {
+                if (draggedItem) {
+                    draggedItem.classList.remove('dragging');
+                }
+                draggedItem = null;
+                sourceContainer = null;
+            }
+            
+            function handleGoBack() {
+                if (_isApplyingRemote) return;
+                const dayState = appState[appState.currentDay];
+                dayState.assessmentSlideIndex = 0;
+                saveProgress();
+                renderApp();
+                syncPush(); // SYNC: Push state change
+            }
+
+            function handleTeacherView() {
+                const password = prompt("Please enter the teacher password:");
+                if (password === "2026") {
+                    const dayKey = appState.currentDay;
+                    const summaryContainer = document.getElementById(`score-summary-${dayKey}`);
+                    const dayData = lessonData[dayKey];
+                    const userAnswers = appState[dayKey].answers;
+                    let correctCount = 0;
+                    
+                    let summaryHTML = `<h3 class="font-bold text-lg mb-2">Score Summary</h3><ul>`;
+                    dayData.assessment.forEach((q, index) => {
+                        const userAnswer = userAnswers[q.id];
+                        let isCorrect = JSON.stringify(userAnswer) === JSON.stringify(q.correct);
+                        if (isCorrect) correctCount++;
+                        summaryHTML += `<li class="mb-1">
+                            <strong>Q${index+1}:</strong> ${isCorrect ? '<span class="text-green-600">Correct</span>' : '<span class="text-red-600">Incorrect</span>'}
+                            (Your answer: ${JSON.stringify(userAnswer || 'N/A')})
+                        </li>`;
+                    });
+                    summaryHTML += `</ul><p class="font-bold mt-4">Total Score: ${correctCount} / ${dayData.assessment.length}</p>`;
+
+                    summaryContainer.innerHTML = summaryHTML;
+                    summaryContainer.classList.remove('hidden');
+                } else {
+                    alert("Incorrect password.");
+                }
+            }
+            function handleDownloadHTML() {
+                saveProgress();
+                const currentStateJSON = JSON.stringify(appState, null, 2);
+                let fileContent = document.documentElement.outerHTML;
+                const scriptTagRegex = /<script id="progress-data" type="application\/json">[\s\S]*?<\/script>/;
+                const newScriptTag = `<script id="progress-data" type="application/json">${currentStateJSON}<\/script>`;
+                if (scriptTagRegex.test(fileContent)) {
+                    fileContent = fileContent.replace(scriptTagRegex, newScriptTag);
+                } else {
+                    fileContent = fileContent.replace('</body>', `${newScriptTag}</body>`);
+                }
+                const blob = new Blob([fileContent], { type: 'text/html' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'math_detective_progress.html';
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+            function handleDownloadPDF() {
+                alert("Preparing PDF. This may take a moment...");
+                const { jsPDF } = window.jspdf;
+                const dayKey = appState.currentDay;
+                const dayContent = document.getElementById(dayKey);
+                if (!dayContent) return;
+                
+                const printContainer = document.createElement('div');
+                printContainer.style.position = 'absolute';
+                printContainer.style.left = '-9999px';
+                printContainer.style.width = '800px';
+
+                const allSlides = Array.from(dayContent.querySelectorAll('.slide'));
+                allSlides.forEach((slide, index) => {
+                    const clone = slide.cloneNode(true);
+                    clone.querySelectorAll('input, textarea, button').forEach(el => {
+                        if (el.type === 'radio' || el.type === 'checkbox') {
+                            const label = el.closest('label');
+                            if (el.checked) {
+                                label.style.backgroundColor = '#dcfce7';
+                                label.style.fontWeight = 'bold';
+                            }
+                            el.style.display = 'none';
+                        } else if (el.tagName === 'TEXTAREA') {
+                           const p = document.createElement('p');
+                           p.textContent = el.value;
+                           p.className = 'p-2 bg-gray-100 rounded border';
+                           el.parentNode.replaceChild(p, el);
+                        } else {
+                           el.remove();
+                        }
+                    });
+                    
+                    clone.style.display = 'block';
+                    clone.style.marginBottom = '20px';
+                    printContainer.appendChild(clone);
+                });
+                
+                document.body.appendChild(printContainer);
+
+                html2canvas(printContainer, { scale: 2 }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const ratio = canvas.width / pdfWidth;
+                    const scaledHeight = canvas.height / ratio;
+                    let position = 0;
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, scaledHeight);
+                    let heightLeft = scaledHeight - pdfHeight;
+                    while (heightLeft > 0) {
+                        position -= pdfHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledHeight);
+                        heightLeft -= pdfHeight;
+                    }
+                    pdf.save(`math_detective_${dayKey}_report.pdf`);
+                    document.body.removeChild(printContainer);
+                }).catch(e => {
+                    console.error("PDF generation failed:", e);
+                    document.body.removeChild(printContainer);
+                });
+            }
+
+
+            // --- APP INITIALIZATION ---
+            function initLessonApp() {
+                document.getElementById('role-room-badge').textContent = `${IS_TEACHER ? 'Teacher' : 'Student'} • room: ${ROOM_ID}`;
+                const syncToggle = document.getElementById('sync-toggle');
+                const syncLabel = document.getElementById('sync-toggle-label');
+                
+                if (!IS_TEACHER) {
+                    syncLabel.style.display = 'none';
+                } else {
+                    syncToggle.checked = syncIsOn();
+                    document.getElementById('sync-label-text').textContent = `Sync: ${syncIsOn() ? 'ON' : 'OFF'}`;
+                    
+                    syncToggle.addEventListener('change', (e) => {
+                        const wantsToTurnOn = e.target.checked;
+                        if (!IS_TEACHER) return;
+                        
+                        const pwd = prompt('Enter teacher password to change sync status:');
+                        if (pwd !== '2026') {
+                            alert('Incorrect password');
+                            e.target.checked = !wantsToTurnOn;
+                            return; 
+                        }
+                        
+                        localStorage.setItem('lesson_sync_on', wantsToTurnOn);
+                        document.getElementById('sync-label-text').textContent = `Sync: ${wantsToTurnOn ? 'ON' : 'OFF'}`;
+                        initFirebaseSync();
+                    });
+                }
+                
+                document.getElementById('change-role-room-btn').addEventListener('click', () => {
+                   // Go back to modal state
+                   if (_unsubSnap) { _unsubSnap(); _unsubSnap = null; }
+                   document.getElementById('setup-modal').style.display = 'flex';
+                   document.getElementById('app-container').style.opacity = '0';
+                   document.getElementById('app-container').style.pointerEvents = 'none';
+                });
+
+                loadProgress();
+                renderApp();
+                initFirebaseSync();
+            }
+
+            function setupModalListeners() {
+                const modal = document.getElementById('setup-modal');
+                const roleRadios = document.querySelectorAll('input[name="role"]');
+                const passwordContainer = document.getElementById('teacher-password-container');
+                const enterBtn = document.getElementById('open-lesson-btn');
+                const roomNameInput = document.getElementById('room-name');
+                const passwordInput = document.getElementById('teacher-password');
+                const passwordError = document.getElementById('password-error');
+                
+                roleRadios.forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        if (e.target.value === 'teacher') {
+                            passwordContainer.classList.remove('hidden');
+                        } else {
+                            passwordContainer.classList.add('hidden');
+                            passwordError.classList.add('hidden');
+                        }
+                    });
+                });
+
+                enterBtn.addEventListener('click', () => {
+                    const selectedRole = document.querySelector('input[name="role"]:checked').value;
+                    
+                    if (selectedRole === 'teacher' && passwordInput.value !== '2026') {
+                        passwordError.classList.remove('hidden');
+                        return;
+                    }
+
+                    passwordError.classList.add('hidden');
+                    IS_TEACHER = selectedRole === 'teacher';
+                    ROOM_ID = roomNameInput.value.trim().replace(/\s+/g, '-') || 'default';
+                    
+                    // Save to local storage for persistence
+                    localStorage.setItem('lesson_role', selectedRole);
+                    localStorage.setItem('lesson_room', ROOM_ID);
+
+                    modal.style.display = 'none';
+                    document.getElementById('app-container').style.opacity = '1';
+                    document.getElementById('app-container').style.pointerEvents = 'auto';
+
+                    initLessonApp();
+                });
+            }
+
+            setupModalListeners();
         });
     </script>
-
 </body>
 </html>
+
