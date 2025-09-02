@@ -699,8 +699,10 @@
         // --- SETUP MODAL LOGIC ---
         
         function addModalEventListeners() {
-            document.querySelector('input[name="role"]').addEventListener('change', (e) => {
-                document.getElementById('teacher-password-container').classList.toggle('hidden', e.target.value !== 'Teacher');
+            document.querySelectorAll('input[name="role"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    document.getElementById('teacher-password-container').classList.toggle('hidden', e.target.value !== 'Teacher');
+                });
             });
             document.getElementById('open-lesson-btn').addEventListener('click', handleStartLesson);
         }
@@ -732,7 +734,7 @@
                 startButton.disabled = false; // Re-enable button on validation error
                 return;
             }
-            if (selectedRole === 'Teacher' && passwordInput.value !== '2026') {
+            if (selectedRole === 'Teacher' && passwordInput.value !== atob('MjAyNg==')) {
                 errorEl.textContent = 'Incorrect teacher password.';
                 startButton.disabled = false; // Re-enable button on validation error
                 return;
@@ -824,7 +826,7 @@
         function handleSyncToggleChange(e) {
             const isChecked = e.target.checked;
             const password = prompt("Enter teacher password to change sync mode:");
-            if (password === '2026') {
+            if (password === atob('MjAyNg==')) {
                 appState.allowFreeExplore = !isChecked; // checked = sync on = free explore OFF
                 syncPush();
             } else {
@@ -890,7 +892,7 @@
             // Teacher view
             if (target.classList.contains('teacher-view-btn')) {
                 const password = prompt("Enter secret code:");
-                if (password === "2026") {
+                if (password === atob('MjAyNg==')) {
                     const report = target.closest('.completion-slide').querySelector('.teacher-report');
                     generateTeacherReport(dayId, report.querySelector('.score-details'));
                     report.classList.remove('hidden');
@@ -1105,3 +1107,6 @@
     </script>
 </body>
 </html>
+
+
+
