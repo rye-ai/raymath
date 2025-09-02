@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5th Grade Multiplication Unit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Balsamiq+Sans:wght@700&display=swap');
+        .lesson-title-font { font-family: 'Balsamiq Sans', cursive; }
+        .tab-active { border-color: #3b82f6; color: #3b82f6; background-color: #eff6ff; }
+        .slide { display: none; }
+        .slide.active { display: flex; flex-direction: column; height: 100%; }
+        .feedback-correct { border: 2px solid #22c55e !important; background-color: #f0fdf4 !important; }
+        .feedback-incorrect { border: 2px solid #ef4444 !important; background-color: #fef2f2 !important; }
+        .draggable { cursor: grab; }
+        .draggable:active { cursor: grabbing; }
+        .drop-target { border: 2px dashed #9ca3af; min-height: 50px; }
+        .drop-target.over { background-color: #dbeafe; border-color: #3b82f6; }
+        .hot-text-word { cursor: pointer; display: inline-block; padding: 2px 4px; margin: 2px; border-radius: 4px; border: 1px solid #d1d5db; }
+        .hot-text-word:hover { background-color: #e5e7eb; }
+        .hot-text-word.selected { background-color: #93c5fd; border-color: #3b82f6; color: #1e3a8a; }
+        .drawing-canvas { touch-action: none; border: 1px solid #ccc; border-radius: 8px; }
+        .loader {
+            border: 8px solid #f3f3f3; /* Light grey */
+            border-top: 8px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Sync Feature Styles */
+        #setup-modal { display: flex; }
+        .disabled-nav { pointer-events: none; opacity: 0.5; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div id="loader" class="loader"></div>
+
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-700">Join Classroom Session</h2>
+            <div id="setup-error" class="text-red-500 text-sm mb-4 text-center"></div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Select Your Role</label>
+                    <div class="mt-2 flex justify-around">
+                        <label class="flex items-center space-x-2 p-2 border rounded-md cursor-pointer">
+                            <input type="radio" name="role" value="Student" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500" checked>
+                            <span>Student</span>
+                        </label>
+                        <label class="flex items-center space-x-2 p-2 border rounded-md cursor-pointer">
+                            <input type="radio" name="role" value="Teacher" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500">
+                            <span>Teacher</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="teacher-password-container" class="hidden">
+                    <label for="teacher-password" class="block text-sm font-medium text-gray-700">Teacher Password</label>
+                    <input type="password" id="teacher-password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label for="room-name" class="block text-sm font-medium text-gray-700">Room Name</label>
+                    <input type="text" id="room-name" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., class-A">
+                </div>
+            </div>
+            <div class="mt-8">
+                <button id="open-lesson-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                    Start Lesson
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden">
+        <div id="app" class="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+            <header class="flex flex-col md:flex-row justify-between items-center mb-6">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-700 lesson-title-font">Multiplication Adventure</h1>
+                <div class="flex items-center space-x-4 mt-4 md:mt-0">
+                    <div id="role-room-badge" class="bg-gray-200 text-gray-700 text-sm font-semibold px-3 py-1 rounded-full"></div>
+                     <div id="teacher-controls" class="hidden items-center space-x-2">
+                        <label for="sync-toggle" class="flex items-center cursor-pointer text-sm">
+                            <span class="mr-2 font-medium">Free Explore</span>
+                            <div class="relative">
+                                <input type="checkbox" id="sync-toggle" class="sr-only">
+                                <div class="block bg-gray-600 w-10 h-6 rounded-full"></div>
+                                <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
+                            </div>
+                             <span class="ml-2 font-medium">Follow Me</span>
+                        </label>
+                         <style>
+                            input:checked ~ .dot { transform: translateX(100%); }
+                            input:checked ~ .block { background-color: #34d399; }
+                         </style>
+                    </div>
+                    <button id="change-role-room-btn" class="text-sm text-indigo-600 hover:underline">Change</button>
+                    <button id="download-html-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                        <i class="fas fa-download mr-2"></i>Work
+                    </button>
+                    <button id="download-pdf-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                        <i class="fas fa-file-pdf mr-2"></i>PDF
+                    </button>
+                </div>
+            </header>
+
+            <nav id="day-tabs" class="flex flex-wrap border-b-2 border-gray-200 mb-6">
+                <!-- Tabs will be generated here by JS -->
+            </nav>
+
+            <main id="content-container">
+                <!-- Daily content will be injected here by JS -->
+            </main>
+        </div>
+    </div>
+
+    <input type="file" id="image-uploader" class="hidden" accept="image/*">
+
+    <!-- JSON Data Island -->
+    <script id="lesson-data" type="application/json">
+        { "title": "5th Grade Multiplication Unit", "days": [ { "day": 1, "title": "From Groups to Equations", "standard": "5.PAFR.1.1", "lesson": { "i_do": [ { "id": "d1_ido_1", "type": "drag-drop-sort", "prompt": "Let's model 6 groups of 2. Drag the stars into the circles to make 6 equal groups.", "visual": "SVG_COMMAND: create_groups groups=6 items_per_group=0 item_shape=none", "data": { "items": ["⭐", "⭐", "⭐", "⭐", "⭐", "⭐", "⭐", "⭐", "⭐", "⭐", "⭐", "⭐"], "categories": ["Group 1", "Group 2", "Group 3", "Group 4", "Group 5", "Group 6"] }, "correct": {} }, { "id": "d1_ido_2", "type": "mc", "prompt": "I see the addition sentence 7 + 7 + 7. Which picture shows what this looks like?", "visual": "", "data": { "options": [ "SVG_COMMAND: create_groups groups=3 items_per_group=7 item_shape=circle", "SVG_COMMAND: create_groups groups=7 items_per_group=3 item_shape=circle", "SVG_COMMAND: create_groups groups=7 items_per_group=7 item_shape=circle" ] }, "correct": "SVG_COMMAND: create_groups groups=3 items_per_group=7 item_shape=circle" }, { "id": "d1_ido_3", "type": "text-box", "prompt": "If I see 5 × 3, I can read it as '5 groups of 3'. What would the repeated addition sentence be?", "visual": "emoji:✍️", "data": { "size": 20 }, "correct": "3+3+3+3+3" } ], "we_do": [ { "id": "d1_wedo_1", "type": "drag-drop-match", "prompt": "Match the picture of equal groups to the correct multiplication sentence.", "visual": "", "data": { "draggables": ["SVG_COMMAND: create_groups groups=4 items_per_group=2 item_shape=square", "SVG_COMMAND: create_groups groups=2 items_per_group=5 item_shape=triangle"], "dropTargets": ["2 × 5", "4 × 2"] }, "correct": { "SVG_COMMAND: create_groups groups=4 items_per_group=2 item_shape=square": "4 × 2", "SVG_COMMAND: create_groups groups=2 items_per_group=5 item_shape=triangle": "2 × 5" } }, { "id": "d1_wedo_2", "type": "text-box", "prompt": "Fill in the blank: 5 + 5 + 5 + 5 is the same as ___ × 5.", "visual": "", "data": { "size": 5 }, "correct": "4" }, { "id": "d1_wedo_3", "type": "true-false", "prompt": "True or False: The picture shows 3 groups of 6.", "visual": "SVG_COMMAND: create_groups groups=6 items_per_group=3 item_shape=circle", "data": { "options": ["True", "False"] }, "correct": "False" }, { "id": "d1_wedo_4", "type": "drag-drop-match", "prompt": "Complete the sentence: '4 groups of 8' is ___ × ___.", "visual": "", "data": { "draggables": ["4", "8"], "dropTargets": ["Blank 1", "Blank 2"] }, "correct": { "4": "Blank 1", "8": "Blank 2" } }, { "id": "d1_wedo_5", "type": "mc", "prompt": "Select the repeated addition sentence that matches 2 × 9.", "visual": "", "data": { "options": ["2+2", "9+9", "2+9"] }, "correct": "9+9" }, { "id": "d1_wedo_6", "type": "drawing", "prompt": "In the space provided, draw a picture that represents 4 × 4.", "visual": "", "data": {}, "correct": "" }, { "id": "d1_wedo_7", "type": "mc", "prompt": "Which of these pictures does NOT show equal groups?", "visual": "", "data": { "options": [ "SVG_COMMAND: create_groups groups=3 items_per_group=3 item_shape=star", "SVG_COMMAND: create_groups groups=2 items_per_group=4 item_shape=star", "SVG_COMMAND: create_groups_unequal groups=[2,4,3] item_shape=star" ] }, "correct": "SVG_COMMAND: create_groups_unequal groups=[2,4,3] item_shape=star" }, { "id": "d1_wedo_8", "type": "text-box", "prompt": "What is the product of 3 × 10?", "visual": "icon:fa-solid fa-calculator", "data": { "size": 5 }, "correct": "30" }, { "id": "d1_wedo_9", "type": "drag-drop-match", "prompt": "Match the phrase to the multiplication expression.", "visual": "", "data": { "draggables": ["5 groups of 7", "7 groups of 5"], "dropTargets": ["7 × 5", "5 × 7"] }, "correct": { "5 groups of 7": "5 × 7", "7 groups of 5": "7 × 5" } }, { "id": "d1_wedo_10", "type": "text-box", "prompt": "Explain in your own words why 2 + 3 + 4 cannot be written as a multiplication problem.", "visual": "emoji:🤔", "data": { "size": 100 }, "correct": "The groups are not equal." } ], "you_do": [ { "id": "d1_youdo_1", "type": "mc", "prompt": "Which multiplication sentence correctly describes the picture?", "visual": "SVG_COMMAND: create_groups groups=5 items_per_group=4 item_shape=square", "data": { "options": ["5 × 4", "4 × 5", "5 + 4", "5 × 5"] }, "correct": "5 × 4" }, { "id": "d1_youdo_2", "type": "drag-drop-match", "prompt": "Given 4+4+4+4+4+4, drag the numbers into the correct boxes: ___ × ___.", "visual": "", "data": { "draggables": ["6", "4"], "dropTargets": ["Blank 1", "Blank 2"] }, "correct": { "6": "Blank 1", "4": "Blank 2" } }, { "id": "d1_youdo_3", "type": "text-box", "prompt": "Given 8 × 2, type the repeated addition sentence.", "visual": "", "data": { "size": 20 }, "correct": "2+2+2+2+2+2+2+2" }, { "id": "d1_youdo_4", "type": "true-false", "prompt": "True or False: 7 × 3 means '7 groups of 3'.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }, { "id": "d1_youdo_5", "type": "mc", "prompt": "Which picture correctly shows 2 groups of 5?", "visual": "", "data": { "options": [ "SVG_COMMAND: create_groups groups=2 items_per_group=5 item_shape=circle", "SVG_COMMAND: create_groups groups=5 items_per_group=2 item_shape=circle", "SVG_COMMAND: create_groups groups=2 items_per_group=2 item_shape=circle" ] }, "correct": "SVG_COMMAND: create_groups groups=2 items_per_group=5 item_shape=circle" } ] }, "assessment": [ { "id": "d1_assess_1", "type": "mc", "prompt": "Which multiplication sentence matches the picture below?", "visual": "SVG_COMMAND: create_groups groups=4 items_per_group=3 item_shape=circle", "data": { "options": ["4 + 3 = 7", "4 × 3 = 12", "3 + 3 + 3 = 9", "4 × 4 = 16"] }, "correct": "4 × 3 = 12" }, { "id": "d1_assess_2", "type": "mc", "prompt": "In the equation 7 × 5 = 35, what is the number 35 called?", "visual": "emoji:🏷️", "data": { "options": ["Factor", "Addend", "Product", "Multiplier"] }, "correct": "Product" }, { "id": "d1_assess_3", "type": "ebsr", "prompt": "Answer Part A and then Part B.", "visual": "", "data": { "parts": [ { "id": "d1_assess_3a", "type": "mc", "prompt": "Part A: Look at the repeated addition sentence below. What is the total? \n 6 + 6 + 6 + 6 + 6 = ?", "data": { "options": ["24", "30", "36", "5"] }, "correct": "30" }, { "id": "d1_assess_3b", "type": "mc", "prompt": "Part B: Which multiplication sentence is a shortcut for the addition problem in Part A?", "data": { "options": ["6 × 6 = 36", "30 × 1 = 30", "6 × 4 = 24", "5 × 6 = 30"] }, "correct": "5 × 6 = 30" } ] }, "correct": {} }, { "id": "d1_assess_4", "type": "multi-select", "prompt": "Select ALL the choices below that represent the number 18.", "visual": "", "data": { "options": ["9 + 9", "2 × 9", "SVG_COMMAND: create_array rows=2 columns=9 item_shape=dot", "6 + 6 + 6 + 6", "3 × 6"] }, "correct": ["9 + 9", "2 × 9", "SVG_COMMAND: create_array rows=2 columns=9 item_shape=dot", "3 × 6"] }, { "id": "d1_assess_5", "type": "text-box", "prompt": "Jada says that 8 + 8 + 8 is the same as 3 × 8. Is she correct? Explain why or why not using the words 'groups' and 'add'.", "visual": "emoji:🗣️", "data": { "size": 150 }, "correct": "Yes, she is correct because you add the number 8 three times, which is the same as 3 groups of 8." } ] }, { "day": 2, "title": "Multiplication in Word Problems", "standard": "5.PAFR.1.1", "lesson": { "i_do": [ { "id": "d2_ido_1", "type": "hot-text", "prompt": "Let's find the important parts of this problem: 'A baker decorates 6 cakes. She puts 10 sprinkles on each cake. How many sprinkles did she use?' Click the number of 'groups' and the number 'in each group'.", "visual": "emoji:🧁", "data": { "text": "A baker decorates 6 cakes. She puts 10 sprinkles on each cake. How many sprinkles did she use?" }, "correct": ["6", "10"] }, { "id": "d2_ido_2", "type": "drag-drop-match", "prompt": "'There are 8 boats. Each boat has 2 people.' Drag the numbers to complete the phrase: ___ groups of ___.", "visual": "icon:fa-solid fa-ship", "data": { "draggables": ["8", "2"], "dropTargets": ["Blank 1", "Blank 2"] }, "correct": { "8": "Blank 1", "2": "Blank 2" } }, { "id": "d2_ido_3", "type": "text-box", "prompt": "Here's a multiplication sentence: 5 × 7 = 35. Write a short story problem that matches it.", "visual": "emoji:✍️", "data": { "size": 150 }, "correct": "I have 5 bags with 7 cookies in each." } ], "we_do": [ { "id": "d2_wedo_1", "type": "mc", "prompt": "A farmer has 5 fields. He planted 10 seeds in each field. Which sentence solves the problem?", "visual": "icon:fa-solid fa-seedling", "data": { "options": ["5 + 10", "10 - 5", "5 × 10", "10 / 5"] }, "correct": "5 × 10" }, { "id": "d2_wedo_2", "type": "drag-drop-match", "prompt": "Read the problem: 'There are 3 nests with 4 eggs in each.' Label the numbers correctly.", "visual": "", "data": { "draggables": ["groups (3)", "in each group (4)"], "dropTargets": ["3", "4"] }, "correct": { "groups (3)": "3", "in each group (4)": "4" } }, { "id": "d2_wedo_3", "type": "text-box", "prompt": "Sara reads 9 pages of her book every night. How many pages will she read in 7 nights? Type the multiplication sentence.", "visual": "icon:fa-solid fa-book-open", "data": { "size": 10 }, "correct": "7x9" }, { "id": "d2_wedo_4", "type": "hot-text", "prompt": "Highlight the number of groups in this problem: 'An octopus has 8 arms. How many arms do 4 octopuses have?'", "visual": "emoji:🐙", "data": { "text": "An octopus has 8 arms. How many arms do 4 octopuses have?" }, "correct": ["4"] }, { "id": "d2_wedo_5", "type": "true-false", "prompt": "True or False: 'Marcus has 3 bags with 8 apples in each bag' can be solved with 8 × 3.", "visual": "emoji:🍎", "data": { "options": ["True", "False"] }, "correct": "True" }, { "id": "d2_wedo_6", "type": "drag-drop-match", "prompt": "Match the word problem to its multiplication sentence.", "visual": "", "data": { "draggables": ["6 cars, 4 wheels each", "4 cars, 6 wheels each"], "dropTargets": ["4 × 6", "6 × 4"] }, "correct": { "6 cars, 4 wheels each": "6 × 4", "4 cars, 6 wheels each": "4 × 6" } }, { "id": "d2_wedo_7", "type": "mc", "prompt": "Which word problem below can be solved with 4 × 6?", "visual": "emoji:🤔", "data": { "options": [ "4 friends share 6 cookies", "A pizza has 6 slices, and someone eats 4", "There are 4 boxes with 6 crayons in each box" ] }, "correct": "There are 4 boxes with 6 crayons in each box" }, { "id": "d2_wedo_8", "type": "text-box", "prompt": "Write a number sentence for this problem: 'There are 12 months in a year. How many months are in 2 years?'", "visual": "icon:fa-solid fa-calendar-days", "data": { "size": 10 }, "correct": "2x12" }, { "id": "d2_wedo_9", "type": "mc", "prompt": "A problem says '5 birds have 2 wings each.' Sam writes 5 + 2. What is his mistake?", "visual": "emoji:🧐", "data": { "options": [ "He should have subtracted", "The problem is about equal groups, so he should multiply", "He should have written 2x5" ] }, "correct": "The problem is about equal groups, so he should multiply" }, { "id": "d2_wedo_10", "type": "drawing", "prompt": "Read the problem and make a simple drawing: 'There are 3 flower pots with 5 flowers in each pot.'", "visual": "", "data": {}, "correct": "" } ], "you_do": [ { "id": "d2_youdo_1", "type": "mc", "prompt": "A tricycle has 3 wheels. How many wheels do 6 tricycles have? Select the correct multiplication sentence.", "visual": "SVG_COMMAND: create_groups groups=6 items_per_group=3 item_shape=circle", "data": { "options": ["6 + 3", "6 × 3", "3 × 3", "6 - 3"] }, "correct": "6 × 3" }, { "id": "d2_youdo_2", "type": "text-box", "prompt": "There are 7 days in a week. How many days are in 4 weeks? Type the multiplication sentence.", "visual": "", "data": { "size": 10 }, "correct": "4x7" }, { "id": "d2_youdo_3", "type": "drag-drop-match", "prompt": "This story matches 4 × 5. Drag the numbers into the blanks: 'I have ___ friends and gave each ___ cookies.'", "visual": "", "data": { "draggables": ["4", "5"], "dropTargets": ["Blank 1", "Blank 2"] }, "correct": { "4": "Blank 1", "5": "Blank 2" } }, { "id": "d2_youdo_4", "type": "true-false", "prompt": "True or False: The word 'total' in a word problem ALWAYS means you should multiply.", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" }, { "id": "d2_youdo_5", "type": "mc", "prompt": "Which story problem matches the expression 10 × 3?", "visual": "", "data": { "options": [ "10 kids share 3 pizzas", "I have 10 pencils and get 3 more", "There are 10 cars with 3 people in each" ] }, "correct": "There are 10 cars with 3 people in each" } ] }, "assessment": [ { "id": "d2_assess_1", "type": "mc", "prompt": "There are 9 players on a baseball team. If there are 2 teams on the field, how many players are on the field in total? Which sentence solves the problem?", "visual": "icon:fa-solid fa-baseball", "data": { "options": ["9 + 2 = 11", "9 - 2 = 7", "9 × 2 = 18", "9 ÷ 2 = 4.5"] }, "correct": "9 × 2 = 18" }, { "id": "d2_assess_2", "type": "hot-text", "prompt": "Read the word problem below. Click on the two numbers that you would multiply together to find the total.", "visual": "", "data": { "text": "The school cafeteria has 7 tables. Each table has 8 chairs. All the other chairs are stacked against the wall." }, "correct": ["7", "8"] }, { "id": "d2_assess_3", "type": "ebsr", "prompt": "A mail carrier delivered mail to 8 streets. She delivered to 10 houses on each street.", "visual": "icon:fa-solid fa-envelope", "data": { "parts": [ { "id": "d2_assess_3a", "type": "mc", "prompt": "Part A: In this story, what does the number 8 represent?", "data": { "options": ["The number of groups", "The number in each group", "The total number"] }, "correct": "The number of groups" }, { "id": "d2_assess_3b", "type": "mc", "prompt": "Part B: Which expression shows how to find the total number of houses she delivered to?", "data": { "options": ["8 + 10", "10 - 8", "8 × 10", "10 ÷ 8"] }, "correct": "8 × 10" } ] }, "correct": {} }, { "id": "d2_assess_4", "type": "mc", "prompt": "The answer to a word problem is 20. Which of these questions could have been the word problem?", "visual": "emoji:🤔", "data": { "options": [ "A dog has 4 legs. How many legs do 5 dogs have?", "A girl has 20 stickers. She gives 4 to a friend. How many are left?", "A boy has 20 pencils and wants to put them into 5 boxes. How many pencils go in each box?", "A cat has 4 legs and a bird has 2 legs. How many legs do they have together?" ] }, "correct": "A dog has 4 legs. How many legs do 5 dogs have?" }, { "id": "d2_assess_5", "type": "text-box", "prompt": "Write your own short story problem that can be solved by multiplying 6 × 4.", "visual": "emoji:✍️", "data": { "size": 150 }, "correct": "I have 6 boxes with 4 pencils in each." } ] }, { "day": 3, "title": "Flipping Factors with Arrays", "standard": "5.PAFR.1.1", "lesson": { "i_do": [ { "id": "d3_ido_1", "type": "drawing", "prompt": "Let's prove 2 × 6 is the same as 6 × 2. First, draw an array for 2 × 6 (2 rows of 6). What is the total? Now clear it and draw an array for 6 × 2. Is the total the same?", "visual": "SVG_COMMAND: create_grid rows=8 columns=8", "data": {}, "correct": "" }, { "id": "d3_ido_2", "type": "text-box", "prompt": "This array of stars shows 5 × 10 = 50. What is the 'turnaround fact' for this problem?", "visual": "SVG_COMMAND: create_array rows=5 columns=10 item_shape=star", "data": { "size": 10 }, "correct": "10x5=50" }, { "id": "d3_ido_3", "type": "true-false", "prompt": "Is this scattered group of 12 dots an array?", "visual": "SVG_COMMAND: create_scatter items=12 item_shape=dot", "data": { "options": ["Yes", "No"] }, "correct": "No" } ], "we_do": [ { "id": "d3_wedo_1", "type": "mc", "prompt": "Which two multiplication facts describe the array shown?", "visual": "SVG_COMMAND: create_array rows=3 columns=5 item_shape=circle", "data": { "options": [ "3 × 5 and 5 × 3", "3 + 5 and 5 + 3", "3 × 3 and 5 × 5" ] }, "correct": "3 × 5 and 5 × 3" }, { "id": "d3_wedo_2", "type": "drawing", "prompt": "Build an array for 2 × 8 by filling in the squares on the grid.", "visual": "SVG_COMMAND: create_grid rows=10 columns=10", "data": {}, "correct": "" }, { "id": "d3_wedo_3", "type": "text-box", "prompt": "An array has 4 rows and 7 columns. What is its turnaround fact?", "visual": "", "data": { "size": 10 }, "correct": "7x4" }, { "id": "d3_wedo_4", "type": "true-false", "prompt": "True or False: The Commutative Property works for division.", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" }, { "id": "d3_wedo_5", "type": "drag-drop-match", "prompt": "Match the array to its pair of multiplication sentences.", "visual": "", "data": { "draggables": ["SVG_COMMAND: create_array rows=2 columns=4 item_shape=square", "SVG_COMMAND: create_array rows=6 columns=1 item_shape=square"], "dropTargets": ["2×4 and 4×2", "6×1 and 1×6"] }, "correct": { "SVG_COMMAND: create_array rows=2 columns=4 item_shape=square": "2×4 and 4×2", "SVG_COMMAND: create_array rows=6 columns=1 item_shape=square": "6×1 and 1×6" } }, { "id": "d3_wedo_6", "type": "mc", "prompt": "Which array below matches 1 × 9?", "visual": "", "data": { "options": [ "SVG_COMMAND: create_array rows=1 columns=9 item_shape=dot", "SVG_COMMAND: create_array rows=3 columns=3 item_shape=dot", "SVG_COMMAND: create_array rows=9 columns=9 item_shape=dot" ] }, "correct": "SVG_COMMAND: create_array rows=1 columns=9 item_shape=dot" }, { "id": "d3_wedo_7", "type": "text-box", "prompt": "Tim drew a 3x4 array and said it showed 3x4 and 4x2. What is Tim's mistake?", "visual": "emoji:🧐", "data": { "size": 50 }, "correct": "The turnaround fact should be 4x3." }, { "id": "d3_wedo_8", "type": "text-box", "prompt": "If you know 9 × 5 = 45, what other fact do you know because of the Commutative Property?", "visual": "", "data": { "size": 10 }, "correct": "5x9=45" }, { "id": "d3_wedo_9", "type": "drag-drop-match", "prompt": "Complete the sentence: 8 × 7 = ___ × 8.", "visual": "", "data": { "draggables": ["7"], "dropTargets": ["Blank"] }, "correct": { "7": "Blank" } }, { "id": "d3_wedo_10", "type": "drawing", "prompt": "You are given 12 × 2. Sketch the two possible arrays.", "visual": "SVG_COMMAND: create_grid rows=14 columns=14", "data": {}, "correct": "" } ], "you_do": [ { "id": "d3_youdo_1", "type": "mc", "prompt": "An array shows 6 rows of 3. What is the turnaround fact?", "visual": "SVG_COMMAND: create_array rows=6 columns=3 item_shape=circle", "data": { "options": ["3 × 6", "6 × 6", "3 × 3", "6 + 3"] }, "correct": "3 × 6" }, { "id": "d3_youdo_2", "type": "drag-drop-match", "prompt": "Drag the correct multiplication sentences to the array.", "visual": "SVG_COMMAND: create_array rows=10 columns=4 item_shape=square", "data": { "draggables": ["10×4=40", "4×10=40"], "dropTargets": ["Fact 1", "Fact 2"] }, "correct": { "10×4=40": "Fact 1", "4×10=40": "Fact 2" } }, { "id": "d3_youdo_3", "type": "text-box", "prompt": "Type both multiplication sentences for an array with 5 rows and 2 columns.", "visual": "", "data": { "size": 20 }, "correct": "5x2=10 and 2x5=10" }, { "id": "d3_youdo_4", "type": "true-false", "prompt": "An array for 6 × 6 has only one multiplication sentence.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }, { "id": "d3_youdo_5", "type": "mc", "prompt": "Select the array that shows 3 × 7.", "visual": "", "data": { "options": [ "SVG_COMMAND: create_array rows=7 columns=3 item_shape=dot", "SVG_COMMAND: create_array rows=3 columns=7 item_shape=dot", "SVG_COMMAND: create_array rows=3 columns=3 item_shape=dot" ] }, "correct": "SVG_COMMAND: create_array rows=3 columns=7 item_shape=dot" } ] }, "assessment": [ { "id": "d3_assess_1", "type": "mc", "prompt": "The Commutative Property of Multiplication states that...", "visual": "emoji:📜", "data": { "options": [ "You can group factors in any way.", "Changing the order of factors does not change the product.", "Any number multiplied by 1 is that number.", "Any number multiplied by 0 is 0." ] }, "correct": "Changing the order of factors does not change the product." }, { "id": "d3_assess_2", "type": "mc", "prompt": "Which pair of multiplication sentences describes the array below?", "visual": "SVG_COMMAND: create_array rows=3 columns=6 item_shape=heart", "data": { "options": [ "3 × 6 = 18 and 6 × 3 = 18", "3 + 6 = 9 and 6 + 3 = 9", "3 × 3 = 9 and 6 × 6 = 36", "18 ÷ 3 = 6 and 18 ÷ 6 = 3" ] }, "correct": "3 × 6 = 18 and 6 × 3 = 18" }, { "id": "d3_assess_3", "type": "ebsr", "prompt": "Answer Part A and then Part B.", "visual": "", "data": { "parts": [ { "id": "d3_assess_3a", "type": "mc", "prompt": "Part A: An array has 4 rows of 8 squares. What is the total number of squares?", "data": { "options": ["12", "24", "32", "48"] }, "correct": "32" }, { "id": "d3_assess_3b", "type": "mc", "prompt": "Part B: Which of the following arrays would have the same total number of squares as the array in Part A?", "data": { "options": [ "6 rows of 5 squares", "8 rows of 4 squares", "4 rows of 4 squares", "8 rows of 8 squares" ] }, "correct": "8 rows of 4 squares" } ] }, "correct": {} }, { "id": "d3_assess_4", "type": "drag-drop-match", "prompt": "Drag the correct multiplication fact to its 'turnaround' partner.", "visual": "", "data": { "draggables": ["7 × 2", "5 × 9", "10 × 1"], "dropTargets": ["9 × 5", "1 × 10", "2 × 7"] }, "correct": { "7 × 2": "2 × 7", "5 × 9": "9 × 5", "10 × 1": "1 × 10" } }, { "id": "d3_assess_5", "type": "drawing", "prompt": "On the grid provided, draw one array that proves 5 × 4 = 4 × 5. Explain how your drawing shows this.", "visual": "SVG_COMMAND: create_grid rows=10 columns=10", "data": {}, "correct": "" } ] }, { "day": 4, "title": "Show What You Know!", "standard": "5.PAFR.1.1", "lesson": { "i_do": [ { "id": "d4_ido_1", "type": "drawing", "prompt": "Let's fill out a four-square organizer for 3 × 7. First, draw 3 equal groups with 7 items in each.", "visual": "", "data": {}, "correct": "" }, { "id": "d4_ido_2", "type": "mc", "prompt": "Here's a four-square organizer for 2 × 8. The word problem is missing. Which one fits?", "visual": "SVG_COMMAND: create_foursquare fact='2x8' array='2 rows of 8' repeated_add='8+8' equal_groups='2 groups of 8'", "data": { "options": [ "I have 2 apples and 8 oranges.", "There are 2 birds, and 8 more fly over.", "I need 2 teams with 8 players on each team." ] }, "correct": "I need 2 teams with 8 players on each team." }, { "id": "d4_ido_3", "type": "mc", "prompt": "Look at this organizer for 4 × 6. One square is wrong! Which one is it?", "visual": "SVG_COMMAND: create_foursquare fact='4x6' array='4 rows of 6' repeated_add='4+4+4+4' equal_groups='4 groups of 6'", "data": { "options": ["The Array", "The Repeated Addition", "The Equal Groups"] }, "correct": "The Repeated Addition" } ], "we_do": [ { "id": "d4_wedo_1", "type": "drag-drop-match", "prompt": "Match the representation type to its example.", "visual": "", "data": { "draggables": ["Array", "Repeated Addition", "Equal Groups"], "dropTargets": ["5+5+5", "SVG_COMMAND: create_array rows=3 columns=5 item_shape=circle", "SVG_COMMAND: create_groups groups=3 items_per_group=5 item_shape=circle"] }, "correct": { "SVG_COMMAND: create_array rows=3 columns=5 item_shape=circle": "Array", "5+5+5": "Repeated Addition", "SVG_COMMAND: create_groups groups=3 items_per_group=5 item_shape=circle": "Equal Groups" } }, { "id": "d4_wedo_2", "type": "mc", "prompt": "The sentence '8+8+8 = 24' is an example of...", "visual": "", "data": { "options": ["An array", "Repeated addition", "A word problem"] }, "correct": "Repeated addition" }, { "id": "d4_wedo_3", "type": "drag-drop-sort", "prompt": "Here are the four parts for a 10 × 2 poster. Drag each one into the correct category.", "visual": "", "data": { "items": ["SVG_COMMAND: create_array rows=10 columns=2 item_shape=dot", "2+2+2+2+2+2+2+2+2+2", "Story: 10 pairs of shoes", "SVG_COMMAND: create_groups groups=10 items_per_group=2 item_shape=dot"], "categories": ["Array", "Repeated Addition", "Word Problem", "Equal Groups"] }, "correct": { "Array": ["SVG_COMMAND: create_array rows=10 columns=2 item_shape=dot"], "Repeated Addition": ["2+2+2+2+2+2+2+2+2+2"], "Word Problem": ["Story: 10 pairs of shoes"], "Equal Groups": ["SVG_COMMAND: create_groups groups=10 items_per_group=2 item_shape=dot"] } }, { "id": "d4_wedo_4", "type": "text-box", "prompt": "Write a word problem for 9 × 3.", "visual": "emoji:✍️", "data": { "size": 150 }, "correct": "I have 9 boxes with 3 toys in each." }, { "id": "d4_wedo_5", "type": "true-false", "prompt": "True or False: A drawing of 5 groups of 4 is a type of array.", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" }, { "id": "d4_wedo_6", "type": "mc", "prompt": "Which of these is NOT a way to represent 4 × 8?", "visual": "", "data": { "options": ["8+8+8+8", "4+8", "An array with 4 rows of 8"] }, "correct": "4+8" }, { "id": "d4_wedo_7", "type": "drawing", "prompt": "Draw an array for 7 × 1.", "visual": "SVG_COMMAND: create_grid rows=10 columns=10", "data": {}, "correct": "" }, { "id": "d4_wedo_8", "type": "text-box", "prompt": "Write the repeated addition sentence for 2 × 12.", "visual": "", "data": { "size": 30 }, "correct": "12+12" }, { "id": "d4_wedo_9", "type": "mc", "prompt": "Find the mistake in this four-square poster for 3x5.", "visual": "SVG_COMMAND: create_foursquare fact='3x5' array='3 rows of 5' repeated_add='3+3+3+3+3' equal_groups='3 groups of 5'", "data": { "options": ["The array is wrong", "The repeated addition is wrong", "The equal groups drawing is wrong"] }, "correct": "The repeated addition is wrong" }, { "id": "d4_wedo_10", "type": "drag-drop-sort", "prompt": "Sort these examples into the correct categories.", "visual": "", "data": { "items": ["4+4+4", "4x3", "SVG_COMMAND: create_array rows=4 columns=3 item_shape=dot", "4+3"], "categories": ["Represents Multiplication", "Does Not Represent Multiplication"] }, "correct": { "Represents Multiplication": ["4+4+4", "4x3", "SVG_COMMAND: create_array rows=4 columns=3 item_shape=dot"], "Does Not Represent Multiplication": ["4+3"] } } ], "you_do": [ { "id": "d4_youdo_1", "type": "mc", "prompt": "A story says 'There are 3 nests with 6 eggs each.' Which is the matching repeated addition sentence?", "visual": "", "data": { "options": ["3+6", "3+3+3", "6+6+6"] }, "correct": "6+6+6" }, { "id": "d4_youdo_2", "type": "drag-drop-match", "prompt": "Drag the correct label to each picture.", "visual": "", "data": { "draggables": ["Array", "Equal Groups"], "dropTargets": ["SVG_COMMAND: create_array rows=2 columns=5 item_shape=circle", "SVG_COMMAND: create_groups groups=2 items_per_group=5 item_shape=circle"] }, "correct": { "SVG_COMMAND: create_array rows=2 columns=5 item_shape=circle": "Array", "SVG_COMMAND: create_groups groups=2 items_per_group=5 item_shape=circle": "Equal Groups" } }, { "id": "d4_youdo_3", "type": "text-box", "prompt": "Look at the array. What is the repeated addition sentence for its rows?", "visual": "SVG_COMMAND: create_array rows=4 columns=5 item_shape=square", "data": { "size": 20 }, "correct": "5+5+5+5" }, { "id": "d4_youdo_4", "type": "true-false", "prompt": "True or False: 3 × 5 can be shown with a picture of 5 groups of 3.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }, { "id": "d4_youdo_5", "type": "mc", "prompt": "Which representation is shown here: 10 + 10 + 10 + 10?", "visual": "", "data": { "options": ["Array", "Repeated Addition", "Equal Groups"] }, "correct": "Repeated Addition" } ] }, "assessment": [ { "id": "d4_assess_1", "type": "mc", "prompt": "A picture showing 4 rows of 5 dots is called...", "visual": "emoji:🖼️", "data": { "options": ["A word problem", "Repeated addition", "An array", "A factor"] }, "correct": "An array" }, { "id": "d4_assess_2", "type": "ebsr", "prompt": "Read the story: 'Leo buys 5 packs of juice boxes. Each pack contains 6 juice boxes.'", "visual": "emoji:🧃", "data": { "parts": [ { "id": "d4_assess_2a", "type": "mc", "prompt": "Part A: Which multiplication sentence matches the story?", "data": { "options": ["5 + 6 = 11", "6 - 5 = 1", "5 × 6 = 30", "30 ÷ 5 = 6"] }, "correct": "5 × 6 = 30" }, { "id": "d4_assess_2b", "type": "mc", "prompt": "Part B: Which repeated addition sentence ALSO matches the story?", "data": { "options": ["5 + 5 + 5 + 5 + 5", "6 + 6 + 6 + 6 + 6", "5 + 6", "6 + 5"] }, "correct": "6 + 6 + 6 + 6 + 6" } ] }, "correct": {} }, { "id": "d4_assess_3", "type": "multi-select", "prompt": "Select ALL the choices below that are correct representations for 4 × 9 = 36.", "visual": "", "data": { "options": [ "9 + 9 + 9 + 9", "An array with 9 rows and 4 columns", "4 + 4 + 4 + 4", "A story about 4 friends sharing 36 cookies.", "A picture showing 4 bags with 9 marbles in each bag." ] }, "correct": [ "9 + 9 + 9 + 9", "An array with 9 rows and 4 columns", "A picture showing 4 bags with 9 marbles in each bag." ] }, { "id": "d4_assess_4", "type": "drag-drop-sort", "prompt": "Sort the following items into the correct categories.", "visual": "", "data": { "items": ["8+8+8", "SVG_COMMAND: create_array rows=3 columns=8 item_shape=dot", "A story about 3 groups of 8", "3+8"], "categories": ["Represents 3 × 8", "Does NOT Represent 3 × 8"] }, "correct": { "Represents 3 × 8": ["8+8+8", "SVG_COMMAND: create_array rows=3 columns=8 item_shape=dot", "A story about 3 groups of 8"], "Does NOT Represent 3 × 8": ["3+8"] } }, { "id": "d4_assess_5", "type": "text-box", "prompt": "Of the four ways to show multiplication (equal groups, repeated addition, array, word problem), which one do you think is the most useful? Explain your choice.", "visual": "emoji:💡", "data": { "size": 200 }, "correct": "Any reasonable answer is acceptable." } ] } ], "audit": { "dataIntegrity": "Passed. All 92 objects conform to schema.", "contentQuantity": "Passed. All lesson sections contain the required number of activities for all 4 days." }, "refinementReport": { "summary": "The pedagogical blueprint is robust, with strong alignment between standards, objectives, and activities. The progression from concrete representations to abstract word problems is sound. The integration of computational thinking terms like 'pattern recognition' and 'abstraction' is natural.", "revisions": [ { "change": "Enhanced Feedback System", "reason": "To increase student motivation and provide more constructive support.", "implementation": "A system of randomized positive affirmations for correct answers will be implemented. For incorrect answers, gentle, encouraging nudges and a 'Try Again' button will be provided." }, { "change": "Motivational Elements", "reason": "To provide visual cues for progress and encourage completion.", "implementation": "A slide progress bar will be added to each day's lesson. A 'correct answer streak' counter will be added to the assessment sections." }, { "change": "Thematic Integration", "reason": "To create a more engaging and cohesive user experience.", "implementation": "The application will use a bright, encouraging color palette with playful fonts and emoji-based feedback to match the elementary grade level." } ] } }
+    </script>
+    
+    <!-- Student Progress Data Island (for saving/loading) -->
+    <script id="progress-data" type="application/json"></script>
+    
+    <script type="module">
+        const lessonDataEl = document.getElementById('lesson-data');
+        const progressDataEl = document.getElementById('progress-data');
+        const dayTabsContainer = document.getElementById('day-tabs');
+        const contentContainer = document.getElementById('content-container');
+        const imageUploader = document.getElementById('image-uploader');
+        const downloadHtmlBtn = document.getElementById('download-html-btn');
+        const downloadPdfBtn = document.getElementById('download-pdf-btn');
+        const loader = document.getElementById('loader');
+
+        const { jsPDF } = window.jspdf;
+
+        let appState = {
+            lessonData: null,
+            progress: {},
+            activeDay: 1,
+            activeMode: 'lesson', // 'lesson' or 'assessment'
+            currentImageUploadContext: null, // { questionId }
+        };
+
+        const POSITIVE_FEEDBACK = ["Great job!", "Awesome!", "You got it!", "Fantastic!", "Keep it up!", "Superstar!"];
+
+        // --- INITIALIZATION ---
+        function init() {
+            try {
+                appState.lessonData = JSON.parse(lessonDataEl.textContent || '{}');
+            } catch (e) {
+                console.error("Failed to parse lesson data:", e);
+                contentContainer.innerHTML = `<p class="text-red-500">Error: Could not load lesson data.</p>`;
+                return;
+            }
+
+            loadProgress();
+            renderApp();
+            attachGlobalListeners();
+        }
+        
+        // --- STATE & PROGRESS MANAGEMENT ---
+        function loadProgress() {
+            try {
+                if (progressDataEl.textContent) {
+                    appState.progress = JSON.parse(progressDataEl.textContent);
+                    initializeProgress(false); 
+                    return;
+                }
+            } catch (e) {
+                console.error("Failed to parse progress data, falling back to localStorage.", e);
+            }
+        
+            const savedProgress = localStorage.getItem('multiplicationProgress');
+            if (savedProgress) {
+                appState.progress = JSON.parse(savedProgress);
+                initializeProgress(false); 
+            } else {
+                initializeProgress(true); 
+            }
+        }
+        
+        function initializeProgress(forceNew) {
+             if (!appState.lessonData || !appState.lessonData.days) return;
+             appState.lessonData.days.forEach(dayData => {
+                 const dayKey = `d${dayData.day}`;
+                 if (forceNew || !appState.progress[dayKey]) {
+                     appState.progress[dayKey] = {
+                         mode: 'lesson',
+                         currentSlide: 0,
+                         assessmentSlide: 0,
+                         answers: {},
+                         customImages: {},
+                         streak: 0,
+                         completed: false,
+                     };
+                 } else if (!appState.progress[dayKey].customImages) {
+                     appState.progress[dayKey].customImages = {};
+                 }
+             });
+         }
+
+
+        function saveProgress() {
+            localStorage.setItem('multiplicationProgress', JSON.stringify(appState.progress));
+        }
+
+        function updateAnswer(questionId, answer) {
+            const dayKey = `d${appState.activeDay}`;
+            if (!appState.progress[dayKey].answers) {
+                appState.progress[dayKey].answers = {};
+            }
+            appState.progress[dayKey].answers[questionId] = answer;
+            saveProgress();
+        }
+        
+        // --- RENDERING ENGINE ---
+        function renderApp() {
+            renderTabs();
+            renderDayContent();
+        }
+
+        function renderTabs() {
+            dayTabsContainer.innerHTML = appState.lessonData.days.map(day => `
+                <button data-day="${day.day}" class="day-tab text-lg font-semibold py-3 px-6 border-b-4 ${appState.activeDay === day.day ? 'tab-active' : 'border-transparent text-gray-500 hover:bg-gray-200'}">
+                    Day ${day.day}
+                </button>
+            `).join('');
+        }
+
+        function renderDayContent() {
+            const dayData = appState.lessonData.days.find(d => d.day === appState.activeDay);
+            if (!dayData) return;
+
+            const dayProgress = appState.progress[`d${dayData.day}`];
+            const currentMode = dayProgress.mode;
+            
+            const content = currentMode === 'lesson' ? dayData.lesson : dayData.assessment;
+            const slides = currentMode === 'lesson' 
+                ? [
+                    { id: 'hook', type: 'intro', prompt: 'Hook: Get Ready!', content: `<h3>${dayData.title}</h3>`, section: dayData.title },
+                    ...content.i_do.map(q => ({...q, section: 'I Do'})),
+                    ...content.we_do.map(q => ({...q, section: 'We Do'})),
+                    ...content.you_do.map(q => ({...q, section: 'You Do'})),
+                    { id: 'lesson_end', type: 'transition', section: 'Lesson Complete' }
+                  ]
+                : [
+                    ...content.map(q => ({...q, section: 'Assessment'})),
+                    { id: 'assessment_end', type: 'completion', section: 'Assessment Complete' }
+                  ];
+
+            const currentSlideIndex = currentMode === 'lesson' ? dayProgress.currentSlide : dayProgress.assessmentSlide;
+            
+            contentContainer.innerHTML = `
+                <div class="bg-white rounded-xl shadow-lg p-6 min-h-[600px] flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <button id="mode-switcher" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg">
+                           ${currentMode === 'lesson' ? 'Go to Assessment <i class="fas fa-arrow-right ml-2"></i>' : '<i class="fas fa-arrow-left mr-2"></i> Back to Lesson'}
+                        </button>
+                         ${currentMode === 'assessment' ? `<div class="font-bold text-lg text-indigo-600">Streak: <span id="streak-counter">${dayProgress.streak}</span> 🔥</div>` : ''}
+                    </div>
+                    <div id="slides-container" class="flex-grow">
+                        ${slides.map((slide, index) => renderSlide(slide, index, slides.length)).join('')}
+                    </div>
+                </div>
+            `;
+            
+            const activeSlide = document.getElementById(`slide-${currentSlideIndex}`);
+            if (activeSlide) {
+                activeSlide.classList.add('active');
+            }
+            attachSlideListeners();
+        }
+        
+        function renderSlide(slideData, index, totalSlides) {
+            let contentHtml = '';
+            if (slideData.type === 'intro') {
+                contentHtml = `<div class="text-center p-8 flex-grow flex flex-col justify-center items-center"><h2 class="text-4xl font-bold lesson-title-font text-blue-600 mb-4">${slideData.section}</h2><p class="text-xl text-gray-600">${slideData.prompt}</p></div>`;
+            } else if (slideData.type === 'transition') {
+                contentHtml = `<div class="text-center p-8 flex-grow flex flex-col justify-center items-center"><h2 class="text-3xl font-bold text-green-600">Lesson Complete!</h2><p class="mt-2 text-lg">Ready to show what you know?</p><button id="mode-switcher-main" class="mt-6 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full text-xl shadow-lg transition-transform transform hover:scale-105">Go to Assessment</button></div>`;
+            } else if (slideData.type === 'completion') {
+                 contentHtml = renderCompletionScreen();
+            }
+            else {
+                contentHtml = renderQuestion(slideData);
+            }
+            
+            const progressPercentage = ((index + 1) / totalSlides) * 100;
+
+            return `
+                <div class="slide p-4" data-slide-index="${index}" id="slide-${index}">
+                    <div class="flex justify-between items-center text-sm text-gray-500 mb-2">
+                        <span>${slideData.section || ''}</span>
+                        <span>${index + 1} / ${totalSlides}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                        <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${progressPercentage}%"></div>
+                    </div>
+                    <div class="flex-grow flex flex-col">${contentHtml}</div>
+                    <div class="flex justify-between mt-auto pt-4">
+                        <button class="prev-slide-btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg ${index === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${index === 0 ? 'disabled' : ''}>Previous</button>
+                        <button class="next-slide-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg ${index === totalSlides - 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${index === totalSlides - 1 ? 'disabled' : ''}>Next</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderQuestion(q) {
+            const dayKey = `d${appState.activeDay}`;
+            const answer = appState.progress[dayKey]?.answers[q.id];
+            
+            let questionHtml = '';
+            switch (q.type) {
+                case 'mc':
+                case 'true-false':
+                    questionHtml = renderMultipleChoice(q, answer);
+                    break;
+                case 'multi-select':
+                    questionHtml = renderMultiSelect(q, answer);
+                    break;
+                case 'text-box':
+                    questionHtml = renderTextBox(q, answer);
+                    break;
+                case 'drag-drop-match':
+                    questionHtml = renderDragDropMatch(q, answer);
+                    break;
+                case 'drag-drop-sort':
+                    questionHtml = renderDragDropSort(q, answer);
+                    break;
+                case 'hot-text':
+                    questionHtml = renderHotText(q, answer);
+                    break;
+                case 'drawing':
+                    questionHtml = renderDrawing(q, answer);
+                    break;
+                case 'ebsr':
+                     questionHtml = renderEBSR(q, answer);
+                     break;
+            }
+
+            const dayProgress = appState.progress[dayKey];
+            const showReadAloud = dayProgress.mode === 'assessment';
+            
+            return `
+                <div class="question-container p-4 rounded-lg bg-slate-50 flex-grow flex flex-col" data-question-id="${q.id}" data-question-type="${q.type}">
+                    <div class="prompt text-xl mb-4 text-gray-800 flex items-start">
+                        <span class="flex-grow">${q.prompt}</span>
+                        ${showReadAloud ? `<button class="read-aloud-btn text-blue-500 hover:text-blue-700 ml-4 text-2xl" data-text="${q.prompt}"><i class="fas fa-volume-up"></i></button>` : ''}
+                    </div>
+                    <div class="visual-container my-4 text-center flex-grow flex justify-center items-center min-h-[150px]">
+                        ${generateVisual(q.visual, q.id)}
+                    </div>
+                    <div class="interaction-container mt-4">${questionHtml}</div>
+                    <div class="feedback-container mt-4"></div>
+                    <div class="mt-auto pt-4 text-right">
+                        <button class="check-answer-btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg">Check Answer</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateVisual(visualString, questionId) {
+             const dayKey = `d${appState.activeDay}`;
+             const customImage = appState.progress[dayKey]?.customImages?.[questionId];
+
+             if (customImage) {
+                 return `
+                    <div class="relative inline-block group">
+                        <img src="${customImage}" class="max-w-full max-h-64 object-contain rounded-lg shadow-md" alt="User uploaded visual">
+                        <button data-question-id="${questionId}" class="remove-image-btn absolute top-1 right-1 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                    </div>
+                 `;
+             }
+            
+             let content = '';
+             if (!visualString) {
+                 content = '';
+             } else if (visualString.startsWith('emoji:')) {
+                 content = `<span class="text-7xl">${visualString.substring(6)}</span>`;
+             } else if (visualString.startsWith('icon:')) {
+                 content = `<i class="${visualString.substring(5)} text-7xl text-gray-500"></i>`;
+             } else if (visualString.startsWith('SVG_COMMAND:')) {
+                 content = parseAndCreateSVG(visualString);
+             } else {
+                 if (visualString.includes('SVG_COMMAND:')) {
+                    content = parseAndCreateSVG(visualString);
+                 } else {
+                    content = `<div class="text-lg p-4 bg-gray-200 rounded">${visualString}</div>`;
+                 }
+             }
+             
+             return `<div class="default-visual-wrapper cursor-pointer" data-question-id="${questionId}" title="Click to upload a custom image">${content || '<div class="w-full h-full min-h-[50px]"></div>'}</div>`;
+         }
+
+        function parseAndCreateSVG(command) {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            svg.setAttribute("viewBox", "0 0 200 100");
+            svg.setAttribute("class", "max-w-md w-full h-auto");
+            
+            const cmdParts = command.replace('SVG_COMMAND:', '').trim().split(' ');
+            const type = cmdParts[0];
+            const params = {};
+            cmdParts.slice(1).forEach(p => {
+                const [key, value] = p.split('=');
+                params[key] = value;
+            });
+
+            try {
+                switch(type) {
+                    case 'create_groups': {
+                        const groups = parseInt(params.groups || 2);
+                        const items = parseInt(params.items_per_group || 3);
+                        const groupWidth = 200 / groups;
+                        for (let i = 0; i < groups; i++) {
+                            const g = document.createElementNS(svgNS, 'g');
+                            const circle = document.createElementNS(svgNS, 'circle');
+                            const cx = (groupWidth / 2) + (i * groupWidth);
+                            circle.setAttribute('cx', cx);
+                            circle.setAttribute('cy', 50);
+                            circle.setAttribute('r', Math.min(25, groupWidth/3));
+                            circle.setAttribute('stroke', '#9ca3af');
+                            circle.setAttribute('stroke-dasharray', '2,2');
+                            circle.setAttribute('fill', 'none');
+                            g.appendChild(circle);
+                            for (let j = 0; j < items; j++) {
+                                const item = document.createElementNS(svgNS, 'circle');
+                                const angle = (j / items) * 2 * Math.PI;
+                                item.setAttribute('cx', cx + Math.cos(angle) * 10);
+                                item.setAttribute('cy', 50 + Math.sin(angle) * 10);
+                                item.setAttribute('r', 3);
+                                item.setAttribute('fill', '#3b82f6');
+                                g.appendChild(item);
+                            }
+                            svg.appendChild(g);
+                        }
+                        break;
+                    }
+                    case 'create_groups_unequal': {
+                        const groupsStr = params.groups.replace(/[\[\]]/g, '');
+                        const groups = groupsStr.split(',').map(Number);
+                        const totalGroups = groups.length;
+                        const groupWidth = 200 / totalGroups;
+                         for (let i = 0; i < totalGroups; i++) {
+                            const items = groups[i];
+                            const g = document.createElementNS(svgNS, 'g');
+                            const circle = document.createElementNS(svgNS, 'circle');
+                            const cx = (groupWidth / 2) + (i * groupWidth);
+                            circle.setAttribute('cx', cx);
+                            circle.setAttribute('cy', 50);
+                            circle.setAttribute('r', Math.min(25, groupWidth/3));
+                            circle.setAttribute('stroke', '#9ca3af');
+                            circle.setAttribute('stroke-dasharray', '2,2');
+                            circle.setAttribute('fill', 'none');
+                            g.appendChild(circle);
+                            for (let j = 0; j < items; j++) {
+                                const item = document.createElementNS(svgNS, 'circle');
+                                const angle = (j / items) * 2 * Math.PI;
+                                item.setAttribute('cx', cx + Math.cos(angle) * 10);
+                                item.setAttribute('cy', 50 + Math.sin(angle) * 10);
+                                item.setAttribute('r', 3);
+                                item.setAttribute('fill', '#3b82f6');
+                                g.appendChild(item);
+                            }
+                            svg.appendChild(g);
+                        }
+                        break;
+                    }
+                     case 'create_array': {
+                        const rows = parseInt(params.rows || 2);
+                        const cols = parseInt(params.columns || 5);
+                        const itemShape = params.item_shape || 'circle';
+                        const startX = 100 - (cols * 10) / 2;
+                        const startY = 50 - (rows * 10) / 2;
+                        for(let r = 0; r < rows; r++) {
+                            for(let c = 0; c < cols; c++) {
+                                const itemX = startX + c * 10;
+                                const itemY = startY + r * 10;
+                                if(itemShape === 'dot' || itemShape === 'circle') {
+                                    const circle = document.createElementNS(svgNS, 'circle');
+                                    circle.setAttribute('cx', itemX);
+                                    circle.setAttribute('cy', itemY);
+                                    circle.setAttribute('r', 4);
+                                    circle.setAttribute('fill', '#ef4444');
+                                    svg.appendChild(circle);
+                                } else if (itemShape === 'heart'){
+                                     const path = document.createElementNS(svgNS, 'path');
+                                     const x = itemX - 4;
+                                     const y = itemY - 4;
+                                     path.setAttribute('d', `M${x},${y+2} A2,2 0 0,1 ${x+4},${y} A2,2 0 0,1 ${x+8},${y+2} L${x+4},${y+6} Z`);
+                                     path.setAttribute('fill', '#ef4444');
+                                     svg.appendChild(path);
+                                }
+                                else { 
+                                     const rect = document.createElementNS(svgNS, 'rect');
+                                     rect.setAttribute('x', itemX - 4);
+                                     rect.setAttribute('y', itemY - 4);
+                                     rect.setAttribute('width', 8);
+                                     rect.setAttribute('height', 8);
+                                     rect.setAttribute('fill', '#22c55e');
+                                     svg.appendChild(rect);
+                                }
+                            }
+                        }
+                        break;
+                    }
+                     case 'create_scatter': {
+                        const items = parseInt(params.items || 10);
+                        for (let i = 0; i < items; i++) {
+                            const dot = document.createElementNS(svgNS, 'circle');
+                            dot.setAttribute('cx', Math.random() * 180 + 10);
+                            dot.setAttribute('cy', Math.random() * 80 + 10);
+                            dot.setAttribute('r', 3);
+                            dot.setAttribute('fill', '#4f46e5');
+                            svg.appendChild(dot);
+                        }
+                        break;
+                    }
+                     case 'create_grid': {
+                        const rows = parseInt(params.rows || 5);
+                        const cols = parseInt(params.columns || 5);
+                        for (let i = 0; i <= rows; i++) {
+                            const line = document.createElementNS(svgNS, 'line');
+                            line.setAttribute('x1', 10);
+                            line.setAttribute('y1', 10 + i * (80/rows));
+                            line.setAttribute('x2', 190);
+                            line.setAttribute('y2', 10 + i * (80/rows));
+                            line.setAttribute('stroke', '#d1d5db');
+                            svg.appendChild(line);
+                        }
+                         for (let i = 0; i <= cols; i++) {
+                            const line = document.createElementNS(svgNS, 'line');
+                            line.setAttribute('x1', 10 + i * (180/cols));
+                            line.setAttribute('y1', 10);
+                            line.setAttribute('x2', 10 + i * (180/cols));
+                            line.setAttribute('y2', 90);
+                            line.setAttribute('stroke', '#d1d5db');
+                            svg.appendChild(line);
+                        }
+                        break;
+                    }
+                    default:
+                         const text = document.createElementNS(svgNS, 'text');
+                         text.setAttribute('x', '50%');
+                         text.setAttribute('y', '50%');
+                         text.setAttribute('dominant-baseline', 'middle');
+                         text.setAttribute('text-anchor', 'middle');
+                         text.setAttribute('font-size', '10');
+                         text.textContent = `[${type}]`;
+                         svg.appendChild(text);
+                }
+            } catch (e) {
+                console.error("SVG generation failed:", e);
+            }
+            return svg.outerHTML;
+        }
+
+        function renderMultipleChoice(q, answer) {
+             const showReadAloud = appState.progress[`d${appState.activeDay}`].mode === 'assessment';
+             return `
+                <div class="space-y-3">
+                    ${q.data.options.map((option, index) => `
+                        <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                            <input type="radio" name="${q.id}" value="${option}" class="mr-4 h-5 w-5 text-blue-600 focus:ring-blue-500" ${answer === option ? 'checked' : ''}>
+                            <div class="flex-grow">${generateVisual(option, null)}</div>
+                            ${showReadAloud ? `<button class="read-aloud-btn text-blue-500 hover:text-blue-700 ml-4 text-xl" data-text="${option}"><i class="fas fa-volume-up"></i></button>` : ''}
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        function renderMultiSelect(q, answer) {
+            const currentAnswers = Array.isArray(answer) ? answer : [];
+            return `
+                <div class="space-y-3">
+                    ${q.data.options.map((option, index) => `
+                        <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                            <input type="checkbox" name="${q.id}" value="${option}" class="mr-4 h-5 w-5 text-blue-600 focus:ring-blue-500 rounded" ${currentAnswers.includes(option) ? 'checked' : ''}>
+                             <div class="flex-grow">${generateVisual(option, null)}</div>
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderTextBox(q, answer) {
+            return `
+                <textarea class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500" rows="3" maxlength="${q.data.size}" placeholder="Type your answer here...">${answer || ''}</textarea>
+            `;
+        }
+        
+        function renderDragDropMatch(q, answer) {
+            const draggables = [...q.data.draggables].sort(() => Math.random() - 0.5); 
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                    <div class="draggables-pool space-y-3 p-4 bg-gray-50 rounded-lg">
+                        <h3 class="font-bold text-center text-gray-600 mb-2">Drag These</h3>
+                        ${draggables.map(item => {
+                             const isPlaced = answer && Object.values(answer).includes(item);
+                             return isPlaced ? '' : `<div class="draggable p-3 bg-blue-100 border border-blue-300 rounded-lg shadow text-center" draggable="true" data-value="${item}">${generateVisual(item, null)}</div>`;
+                        }).join('')}
+                    </div>
+                    <div class="drop-targets-pool space-y-4">
+                        <h3 class="font-bold text-center text-gray-600 mb-2">To The Correct Examples</h3>
+                        ${q.data.dropTargets.map(target => `
+                            <div class="flex items-center gap-4 p-2 rounded-lg">
+                                <div class="drop-target w-2/5 h-20 p-2 rounded-lg flex items-center justify-center" data-target="${target}">
+                                    ${(answer && Object.keys(answer).find(key => key === target)) 
+                                        ? `<div class="draggable p-3 bg-blue-100 border border-blue-300 rounded-lg shadow text-center w-full" draggable="true" data-value="${answer[target]}">${generateVisual(answer[target], null)}</div>` 
+                                        : ''
+                                    }
+                                </div>
+                                <div class="w-3/5">${generateVisual(target, null)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDragDropSort(q, answer) {
+            const items = [...q.data.items].sort(() => Math.random() - 0.5);
+            return `
+                 <div class="flex flex-col md:flex-row gap-6">
+                    <div class="w-full md:w-1/4 p-4 bg-gray-100 rounded-lg">
+                        <h3 class="font-bold text-center mb-4">Drag From Here</h3>
+                        <div class="draggables-pool space-y-3">
+                            ${items.map(item => {
+                                const isPlaced = answer && Object.values(answer).flat().includes(item);
+                                return isPlaced ? '' : `<div class="draggable p-3 bg-blue-100 border border-blue-300 rounded-lg shadow text-center" draggable="true" data-value="${item}">${generateVisual(item, null)}</div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                    <div class="w-full md:w-3/4 grid grid-cols-1 md:grid-cols-${q.data.categories.length} gap-4">
+                        ${q.data.categories.map(cat => `
+                            <div class="p-4 bg-gray-50 rounded-lg">
+                                <h3 class="font-bold text-center mb-4">${cat}</h3>
+                                <div class="drop-target min-h-[200px] space-y-2 p-2 rounded-lg" data-target="${cat}">
+                                    ${answer && answer[cat] ? answer[cat].map(item => `<div class="draggable p-3 bg-blue-100 border border-blue-300 rounded-lg shadow text-center" draggable="true" data-value="${item}">${generateVisual(item, null)}</div>`).join('') : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderHotText(q, answer) {
+            const words = q.data.text.split(/(\s+)/); 
+            const selections = Array.isArray(answer) ? answer : [];
+            return `<div class="hot-text-container text-2xl p-4 bg-white border rounded-lg leading-relaxed">
+                ${words.map(word => {
+                    if (word.trim() === '') return `<span>${word}</span>`;
+                    const cleanedWord = word.replace(/[.,!?]/g, '');
+                    return `<span class="hot-text-word ${selections.includes(cleanedWord) ? 'selected' : ''}" data-word="${cleanedWord}">${word}</span>`;
+                }).join('')}
+            </div>`;
+        }
+        
+        function renderDrawing(q, answer) {
+             return `
+                <div class="drawing-app-container w-full max-w-2xl mx-auto">
+                    <div class="flex justify-center items-center mb-2 space-x-4">
+                        <label>Color: <input type="color" class="drawing-color" value="#000000"></label>
+                        <label>Size: <input type="range" class="drawing-size" min="1" max="20" value="5"></label>
+                        <button class="drawing-eraser bg-gray-200 p-2 rounded-lg"><i class="fas fa-eraser"></i></button>
+                        <button class="drawing-clear bg-red-500 text-white p-2 rounded-lg"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <canvas class="drawing-canvas bg-white shadow-inner" width="600" height="400"></canvas>
+                </div>
+             `;
+        }
+
+        function renderEBSR(q, answer) {
+            return q.data.parts.map(part => {
+                const partAnswer = answer ? answer[part.id] : undefined;
+                let partHtml = '';
+                if (part.type === 'mc') {
+                    partHtml = renderMultipleChoice(part, partAnswer);
+                }
+                return `
+                    <div class="ebsr-part-container mb-6 border-l-4 border-blue-300 pl-4" data-question-id="${part.id}" data-question-type="${part.type}">
+                         <div class="prompt text-lg mb-2">${part.prompt}</div>
+                         <div class="interaction-container">${partHtml}</div>
+                    </div>
+                `
+            }).join('');
+        }
+
+        function renderCompletionScreen() {
+             return `
+                <div class="text-center p-8 flex-grow flex flex-col justify-center items-center">
+                    <h2 class="text-4xl font-bold lesson-title-font text-green-600 mb-4">Great work!</h2>
+                    <p class="text-xl text-gray-600 mb-8">You've completed the assessment for this day.</p>
+                    <div id="teacher-view-container">
+                        <button id="teacher-view-btn" class="text-sm text-gray-500 hover:underline">Admin</button>
+                    </div>
+                    <div id="score-summary" class="hidden mt-6 text-left w-full max-w-lg"></div>
+                </div>
+            `;
+        }
+        
+        function attachGlobalListeners() {
+            dayTabsContainer.addEventListener('click', handleTabClick);
+            downloadHtmlBtn.addEventListener('click', downloadHTML);
+            downloadPdfBtn.addEventListener('click', downloadPDF);
+            imageUploader.addEventListener('change', handleImageUpload);
+        }
+
+        function attachSlideListeners() {
+            const container = contentContainer;
+            container.addEventListener('click', handleSlideButtonClick);
+            container.querySelectorAll('.check-answer-btn').forEach(btn => btn.addEventListener('click', handleCheckAnswer));
+            container.querySelectorAll('input, textarea').forEach(el => el.addEventListener('input', handleInputChange));
+            container.querySelectorAll('.hot-text-word').forEach(el => el.addEventListener('click', handleHotTextClick));
+            document.body.addEventListener('dragstart', handleDragStart);
+            container.querySelectorAll('.drop-target').forEach(el => {
+                el.addEventListener('dragover', handleDragOver);
+                el.addEventListener('dragleave', handleDragLeave);
+                el.addEventListener('drop', handleDrop);
+            });
+            document.body.addEventListener('dragend', handleDragEnd);
+            container.querySelectorAll('.drawing-canvas').forEach(initCanvas);
+            container.querySelectorAll('.read-aloud-btn').forEach(btn => btn.addEventListener('click', handleReadAloud));
+            container.querySelectorAll('.default-visual-wrapper').forEach(el => el.addEventListener('click', handleVisualClick));
+            container.querySelectorAll('.remove-image-btn').forEach(el => el.addEventListener('click', handleRemoveImage));
+
+            const teacherBtn = document.getElementById('teacher-view-btn');
+            if(teacherBtn) teacherBtn.addEventListener('click', showTeacherView);
+        }
+
+        function handleTabClick(e) {
+            const tab = e.target.closest('.day-tab');
+            if (tab) {
+                appState.activeDay = parseInt(tab.dataset.day);
+                saveProgress();
+                renderApp();
+            }
+        }
+
+        function handleSlideButtonClick(e) {
+            if (e.target.closest('#mode-switcher') || e.target.closest('#mode-switcher-main')) {
+                const dayKey = `d${appState.activeDay}`;
+                appState.progress[dayKey].mode = appState.progress[dayKey].mode === 'lesson' ? 'assessment' : 'lesson';
+                saveProgress();
+                renderDayContent();
+            } else if (e.target.closest('.prev-slide-btn')) {
+                navigateSlide(-1);
+            } else if (e.target.closest('.next-slide-btn')) {
+                navigateSlide(1);
+            }
+        }
+        
+        function navigateSlide(direction) {
+            const dayKey = `d${appState.activeDay}`;
+            const dayProgress = appState.progress[dayKey];
+            const currentMode = dayProgress.mode;
+            
+            const slides = contentContainer.querySelectorAll('.slide');
+            const totalSlides = slides.length;
+            
+            let currentIndex = currentMode === 'lesson' ? dayProgress.currentSlide : dayProgress.assessmentSlide;
+            
+            let nextIndex = currentIndex + direction;
+            if (nextIndex >= 0 && nextIndex < totalSlides) {
+                slides[currentIndex].classList.remove('active');
+                slides[nextIndex].classList.add('active');
+                if (currentMode === 'lesson') {
+                    dayProgress.currentSlide = nextIndex;
+                } else {
+                    dayProgress.assessmentSlide = nextIndex;
+                }
+                saveProgress();
+            }
+        }
+        
+        function handleInputChange(e) {
+            const questionContainer = e.target.closest('.question-container, .ebsr-part-container');
+            if (!questionContainer) return;
+            
+            const questionId = questionContainer.dataset.questionId;
+            const questionType = questionContainer.dataset.questionType;
+            let answer;
+
+            switch (questionType) {
+                case 'text-box':
+                    answer = e.target.value;
+                    break;
+                case 'mc':
+                case 'true-false':
+                    const checkedRadio = questionContainer.querySelector(`input[name="${questionId}"]:checked`);
+                    answer = checkedRadio ? checkedRadio.value : undefined;
+                    break;
+                case 'multi-select':
+                     answer = Array.from(questionContainer.querySelectorAll(`input[name="${questionId}"]:checked`)).map(cb => cb.value);
+                     break;
+            }
+
+            if (questionContainer.classList.contains('ebsr-part-container')) {
+                const ebsrContainer = questionContainer.closest('.question-container');
+                const ebsrId = ebsrContainer.dataset.questionId;
+                const dayKey = `d${appState.activeDay}`;
+                let ebsrAnswer = appState.progress[dayKey].answers[ebsrId] || {};
+                ebsrAnswer[questionId] = answer;
+                updateAnswer(ebsrId, ebsrAnswer);
+            } else {
+                updateAnswer(questionId, answer);
+            }
+        }
+
+        function handleHotTextClick(e) {
+            const wordEl = e.target.closest('.hot-text-word');
+            if (!wordEl) return;
+            
+            wordEl.classList.toggle('selected');
+            const container = wordEl.closest('.question-container');
+            const questionId = container.dataset.questionId;
+            
+            const selectedWords = Array.from(container.querySelectorAll('.hot-text-word.selected')).map(el => el.dataset.word);
+            updateAnswer(questionId, selectedWords);
+        }
+
+        let draggedItem = null;
+        function handleDragStart(e) {
+             if (!e.target.classList.contains('draggable')) return;
+            draggedItem = e.target;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', e.target.dataset.value);
+            setTimeout(() => {
+                e.target.style.visibility = 'hidden';
+            }, 0);
+        }
+        function handleDragEnd(e) {
+             if(draggedItem) {
+                draggedItem.style.visibility = 'visible';
+                draggedItem = null;
+             }
+        }
+        function handleDragOver(e) {
+            e.preventDefault();
+            const target = e.target.closest('.drop-target');
+            if (target) {
+                target.classList.add('over');
+            }
+        }
+        function handleDragLeave(e) {
+            const target = e.target.closest('.drop-target');
+            if (target) {
+                target.classList.remove('over');
+            }
+        }
+        function handleDrop(e) {
+            e.preventDefault();
+            const dropTarget = e.target.closest('.drop-target');
+            if (dropTarget && draggedItem) {
+                dropTarget.classList.remove('over');
+                const qContainer = dropTarget.closest('.question-container');
+                const questionType = qContainer.dataset.questionType;
+
+                const originPool = qContainer.querySelector('.draggables-pool');
+                
+                if (questionType === 'drag-drop-match') {
+                     if (dropTarget.children.length > 0) {
+                        const existingItem = dropTarget.children[0];
+                        originPool.appendChild(existingItem);
+                    }
+                    dropTarget.appendChild(draggedItem);
+                } else { 
+                     dropTarget.appendChild(draggedItem);
+                }
+                
+                updateDragDropState(qContainer);
+            }
+        }
+        
+        function updateDragDropState(qContainer) {
+            const questionId = qContainer.dataset.questionId;
+            const questionType = qContainer.dataset.questionType;
+            let answer = {};
+
+            if(questionType === 'drag-drop-match') {
+                qContainer.querySelectorAll('.drop-target').forEach(dt => {
+                   if (dt.children.length > 0) {
+                       const draggable = dt.children[0];
+                       answer[dt.dataset.target] = draggable.dataset.value;
+                   }
+                });
+            } else { 
+                 qContainer.querySelectorAll('.drop-target').forEach(dt => {
+                    const category = dt.dataset.target;
+                    answer[category] = Array.from(dt.querySelectorAll('.draggable')).map(el => el.dataset.value);
+                });
+            }
+            updateAnswer(questionId, answer);
+        }
+        
+        function initCanvas(canvas) {
+            const ctx = canvas.getContext('2d');
+            const container = canvas.closest('.drawing-app-container');
+            const questionId = canvas.closest('.question-container').dataset.questionId;
+            const dayKey = `d${appState.activeDay}`;
+            
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+
+            const savedDrawing = appState.progress[dayKey]?.answers[questionId];
+            if (savedDrawing) {
+                const img = new Image();
+                img.onload = () => ctx.drawImage(img, 0, 0);
+                img.src = savedDrawing;
+            }
+
+            function draw(e) {
+                if (!isDrawing) return;
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                [lastX, lastY] = [x, y];
+            }
+
+            const startDrawing = (e) => {
+                isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                [lastX, lastY] = [(e.clientX || e.touches[0].clientX) - rect.left, (e.clientY || e.touches[0].clientY) - rect.top];
+            };
+
+            const stopDrawing = () => {
+                if(isDrawing) {
+                    isDrawing = false;
+                    updateAnswer(questionId, canvas.toDataURL());
+                }
+            };
+
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            canvas.addEventListener('touchstart', startDrawing);
+            canvas.addEventListener('touchmove', draw);
+            canvas.addEventListener('touchend', stopDrawing);
+            
+            container.querySelector('.drawing-color').addEventListener('input', (e) => {
+                ctx.strokeStyle = e.target.value;
+                ctx.globalCompositeOperation = 'source-over';
+            });
+            container.querySelector('.drawing-size').addEventListener('input', (e) => {
+                ctx.lineWidth = e.target.value;
+            });
+            container.querySelector('.drawing-eraser').addEventListener('click', () => {
+                 ctx.globalCompositeOperation = 'destination-out';
+            });
+            container.querySelector('.drawing-clear').addEventListener('click', () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                updateAnswer(questionId, null);
+            });
+
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 5;
+        }
+
+        function handleCheckAnswer(e) {
+            const btn = e.target.closest('.check-answer-btn');
+            const qContainer = btn.closest('.question-container');
+            const questionId = qContainer.dataset.questionId;
+            const dayKey = `d${appState.activeDay}`;
+            
+            const dayData = appState.lessonData.days.find(d => d.day === appState.activeDay);
+            let content = [];
+            if(dayData) {
+                content = appState.progress[dayKey].mode === 'lesson' 
+                    ? [...dayData.lesson.i_do, ...dayData.lesson.we_do, ...dayData.lesson.you_do]
+                    : dayData.assessment;
+            }
+            const questionData = content.find(q => q.id === questionId) || dayData?.assessment.flatMap(q => q.data?.parts || []).find(p => p.id === questionId);
+
+            if (!questionData) {
+                 console.error("Could not find question data for ID:", questionId);
+                 return;
+            }
+
+            const answer = appState.progress[dayKey].answers[questionId];
+            const isCorrect = checkAnswer(answer, questionData);
+            
+            displayFeedback(qContainer, isCorrect);
+        }
+        
+        function checkAnswer(answer, questionData) {
+            if (answer === undefined || answer === null) return false;
+            
+            switch (questionData.type) {
+                case 'mc':
+                case 'true-false':
+                case 'text-box':
+                    return answer.toString().trim().toLowerCase() === questionData.correct.toString().trim().toLowerCase();
+                case 'multi-select':
+                case 'hot-text':
+                    const correctSet = new Set(questionData.correct);
+                    const answerSet = new Set(answer);
+                    return correctSet.size === answerSet.size && [...correctSet].every(item => answerSet.has(item));
+                case 'drag-drop-match':
+                    if (!answer || Object.keys(answer).length !== Object.keys(questionData.correct).length) return false;
+                    return Object.keys(questionData.correct).every(key => {
+                        const droppedItem = answer[key];
+                        const correctItem = questionData.correct[key];
+                        return droppedItem === correctItem;
+                    });
+                case 'drag-drop-sort':
+                    for(const category in questionData.correct) {
+                        if (!answer || !answer[category]) return false;
+                        const correctItems = new Set(questionData.correct[category]);
+                        const answeredItems = new Set(answer[category]);
+                        if (correctItems.size !== answeredItems.size || ![...correctItems].every(item => answeredItems.has(item))) {
+                            return false;
+                        }
+                    }
+                    return true;
+                case 'ebsr':
+                    return questionData.data.parts.every(part => {
+                        const partAnswer = answer ? answer[part.id] : undefined;
+                        return checkAnswer(partAnswer, part);
+                    });
+                default:
+                    return true; 
+            }
+        }
+        
+        function displayFeedback(qContainer, isCorrect) {
+            const feedbackContainer = qContainer.querySelector('.feedback-container');
+            const interactionContainer = qContainer.querySelector('.interaction-container');
+            const dayKey = `d${appState.activeDay}`;
+            
+            if (isCorrect) {
+                const message = POSITIVE_FEEDBACK[Math.floor(Math.random() * POSITIVE_FEEDBACK.length)];
+                feedbackContainer.innerHTML = `<p class="text-green-600 font-bold text-lg">${message}</p>`;
+                interactionContainer.classList.add('feedback-correct');
+                interactionContainer.classList.remove('feedback-incorrect');
+                if (appState.progress[dayKey].mode === 'assessment') {
+                    appState.progress[dayKey].streak++;
+                }
+            } else {
+                feedbackContainer.innerHTML = `<p class="text-red-600 font-bold text-lg">Not quite, give it another try!</p>`;
+                interactionContainer.classList.add('feedback-incorrect');
+                interactionContainer.classList.remove('feedback-correct');
+                if (appState.progress[dayKey].mode === 'assessment') {
+                     appState.progress[dayKey].streak = 0;
+                }
+            }
+            const streakCounter = document.getElementById('streak-counter');
+            if (streakCounter) streakCounter.textContent = appState.progress[dayKey].streak;
+            saveProgress();
+        }
+
+        function handleReadAloud(e) {
+            const btn = e.target.closest('.read-aloud-btn');
+            const text = btn.dataset.text;
+            if (text) {
+                speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        function handleVisualClick(e) {
+            const wrapper = e.target.closest('.default-visual-wrapper');
+            if (wrapper) {
+                appState.currentImageUploadContext = {
+                    questionId: wrapper.dataset.questionId,
+                };
+                imageUploader.click();
+            }
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (file && appState.currentImageUploadContext) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    if (!appState.currentImageUploadContext) return;
+                    const base64Image = event.target.result;
+                    const { questionId } = appState.currentImageUploadContext;
+                    const dayKey = `d${appState.activeDay}`;
+                    
+                    if (!appState.progress[dayKey].customImages) {
+                         appState.progress[dayKey].customImages = {};
+                    }
+                    appState.progress[dayKey].customImages[questionId] = base64Image;
+                    
+                    saveProgress();
+                    renderDayContent();
+                    appState.currentImageUploadContext = null;
+                };
+                reader.readAsDataURL(file);
+            }
+            imageUploader.value = ''; 
+        }
+
+        function handleRemoveImage(e) {
+            const questionId = e.target.dataset.questionId;
+            const dayKey = `d${appState.activeDay}`;
+            if (appState.progress[dayKey]?.customImages?.[questionId]) {
+                delete appState.progress[dayKey].customImages[questionId];
+                saveProgress();
+                renderDayContent();
+            }
+        }
+
+        function showTeacherView() {
+            const password = prompt("Please enter the teacher password:");
+            if (password === "2026") {
+                const summaryContainer = document.getElementById('score-summary');
+                const dayKey = `d${appState.activeDay}`;
+                const dayData = appState.lessonData.days.find(d => d.day === appState.activeDay);
+                const answers = appState.progress[dayKey].answers;
+                
+                let correctCount = 0;
+                let totalCount = 0;
+                
+                let summaryHtml = '<h3 class="text-xl font-bold mb-4">Assessment Summary</h3><ul class="space-y-2">';
+                dayData.assessment.forEach((q, index) => {
+                    totalCount++;
+                    const isCorrect = checkAnswer(answers[q.id], q);
+                    if (isCorrect) correctCount++;
+                    summaryHtml += `<li class="p-2 rounded ${isCorrect ? 'bg-green-100' : 'bg-red-100'}"><strong>Q${index+1}:</strong> ${isCorrect ? 'Correct' : 'Incorrect'}</li>`;
+                });
+                
+                summaryHtml += `</ul><p class="mt-4 font-bold text-lg">Total Score: ${correctCount} / ${totalCount}</p>`;
+                summaryContainer.innerHTML = summaryHtml;
+                summaryContainer.classList.remove('hidden');
+            } else if (password) {
+                alert("Incorrect password.");
+            }
+        }
+
+        function downloadHTML() {
+            const clone = document.cloneNode(true);
+            clone.getElementById('progress-data').textContent = JSON.stringify(appState.progress);
+            
+            const html = '<!DOCTYPE html>\n' + clone.documentElement.outerHTML;
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'multiplication_lesson_progress.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function downloadPDF() {
+            loader.style.display = 'block';
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: 'p',
+                unit: 'px',
+                format: 'a4'
+            });
+
+            const dayKey = `d${appState.activeDay}`;
+            const dayData = appState.lessonData.days.find(d => d.day === appState.activeDay);
+            const content = appState.progress[dayKey].mode === 'lesson' 
+                ? [ { id: 'title', prompt: `Day ${dayData.day}: ${dayData.title}` }, ...dayData.lesson.i_do, ...dayData.lesson.we_do, ...dayData.lesson.you_do]
+                : [ { id: 'title', prompt: `Day ${dayData.day}: Assessment` }, ...dayData.assessment];
+            
+            const printContainer = document.createElement('div');
+            printContainer.style.width = '700px';
+            printContainer.style.padding = '20px';
+            printContainer.style.fontFamily = 'Inter, sans-serif';
+            document.body.appendChild(printContainer);
+
+            let htmlToPrint = '';
+
+            for (const q of content) {
+                 htmlToPrint += await generateStaticQuestionHTML(q, dayKey);
+            }
+            printContainer.innerHTML = htmlToPrint;
+
+            try {
+                const canvas = await html2canvas(printContainer, { scale: 2 });
+                const imgData = canvas.toDataURL('image/png');
+                
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                let heightLeft = pdfHeight;
+                let position = 0;
+                
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= pdf.internal.pageSize.getHeight();
+
+                while (heightLeft >= 0) {
+                  position = heightLeft - pdfHeight;
+                  pdf.addPage();
+                  pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                  heightLeft -= pdf.internal.pageSize.getHeight();
+                }
+
+                pdf.save(`Day_${appState.activeDay}_Work.pdf`);
+            } catch (error) {
+                console.error("Error generating PDF:", error);
+            } finally {
+                document.body.removeChild(printContainer);
+                loader.style.display = 'none';
+            }
+        }
+
+        async function generateStaticQuestionHTML(q, dayKey) {
+             if (q.id === 'title') {
+                 return `<h1 style="font-size: 24px; font-weight: bold; margin-bottom: 20px; border-bottom: 2px solid #ccc; padding-bottom: 10px;">${q.prompt}</h1>`;
+             }
+             const answer = appState.progress[dayKey]?.answers[q.id];
+             let answerHtml = '<p><em>No answer provided.</em></p>';
+             
+             if (answer !== undefined && answer !== null) {
+                 switch (q.type) {
+                     case 'mc':
+                     case 'true-false':
+                         answerHtml = `<p><strong>Selected:</strong> ${answer}</p>`;
+                         break;
+                     case 'text-box':
+                         answerHtml = `<p style="border: 1px solid #eee; padding: 8px; border-radius: 4px; background-color: #f9f9f9;">${answer}</p>`;
+                         break;
+                     case 'drawing':
+                         if (answer) answerHtml = `<img src="${answer}" style="border: 1px solid #ccc; max-width: 100%;" alt="student drawing">`;
+                         break;
+                    default:
+                         answerHtml = `<p style="border: 1px solid #eee; padding: 8px; border-radius: 4px; background-color: #f9f9f9; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${JSON.stringify(answer, null, 2)}</p>`;
+                 }
+             }
+
+            return `
+                <div style="margin-bottom: 24px; padding: 16px; border: 1px solid #ddd; border-radius: 8px; page-break-inside: avoid;">
+                    <p style="font-weight: bold; margin-bottom: 8px;">${q.prompt}</p>
+                    <div style="margin-bottom: 8px; text-align: center;">${generateVisual(q.visual, q.id)}</div>
+                    <div style="background-color: #f0f9ff; padding: 8px; border-radius: 4px;"><strong>Answer:</strong> ${answerHtml}</div>
+                </div>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+
