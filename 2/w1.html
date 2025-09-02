@@ -79,8 +79,8 @@
             
             <p id="setup-error" class="text-red-500 text-sm mb-4 h-5"></p>
 
-            <button id="open-lesson-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                Connecting...
+            <button id="open-lesson-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition transform hover:scale-105">
+                Start Lesson
             </button>
         </div>
     </div>
@@ -293,6 +293,7 @@
         let roomName, userRole;
         let firestoreUnsubscribe = null;
         let _isApplyingRemote = false; // Flag to prevent sync loops
+        let firebaseConnectionPromise = null; // To hold the connection promise
         
         // Application State
         let appState = {
@@ -316,31 +317,28 @@
         
         document.addEventListener('DOMContentLoaded', init);
 
-        async function init() {
+        function init() {
             addModalEventListeners();
-            const startButton = document.getElementById('open-lesson-btn');
-            try {
-                await connectToFirebase();
-                
-                startButton.disabled = false;
-                startButton.textContent = 'Start Lesson';
-                
+            firebaseConnectionPromise = connectToFirebase(); 
+            
+            // The .then() ensures the promise has resolved before calling startLesson
+            firebaseConnectionPromise.then(() => {
                 const savedRole = localStorage.getItem('lessonRole');
                 const savedRoom = localStorage.getItem('lessonRoom');
 
-                if (savedRole && savedRoom) {
+                if (savedRole && savedRoom && document.getElementById('app-container').classList.contains('hidden')) {
                     userRole = savedRole;
                     roomName = savedRoom;
-                    startLesson();
-                } else {
-                    showSetupModal();
+                    startLesson(); // This is fine, connection is already ready.
                 }
-            } catch (error) {
+            }).catch(error => {
+                // If connection fails, disable the start button and show an error.
                 console.error("Firebase connection failed:", error);
+                const startButton = document.getElementById('open-lesson-btn');
                 startButton.textContent = 'Connection Failed';
-                const errorEl = document.getElementById('setup-error');
-                errorEl.textContent = 'Could not connect to the classroom service.';
-            }
+                startButton.disabled = true;
+                document.getElementById('setup-error').textContent = 'Could not connect to the classroom service.';
+            });
         }
 
         function connectToFirebase() {
@@ -379,14 +377,25 @@
             });
         }
         
-        function startLesson() {
+        async function startLesson() {
+             // --- Immediate UI actions ---
             hideSetupModal();
             document.getElementById('app-container').classList.remove('hidden');
             loadProgress();
             buildFullUI();
             addEventListeners();
-            initializeSync();
-            renderApp();
+            renderApp(); // Render the UI without sync first
+
+            // --- Deferred sync initialization ---
+            try {
+                await firebaseConnectionPromise; // Wait here for the connection
+                initializeSync(); // Then initialize sync features
+            } catch (error) {
+                console.error("Sync initialization failed:", error);
+                // Optionally, show a non-blocking error to the user
+                const syncControls = document.getElementById('sync-controls');
+                if(syncControls) syncControls.innerHTML = '<span class="text-red-500 text-sm">Offline Mode: Sync failed.</span>';
+            }
         }
 
         function buildFullUI() {
@@ -706,6 +715,9 @@
         }
 
         function handleStartLesson() {
+            const startButton = document.getElementById('open-lesson-btn');
+            startButton.disabled = true; // Prevent double-clicks immediately
+
             const roomInput = document.getElementById('room-name');
             const roleInput = document.querySelector('input[name="role"]:checked');
             const passwordInput = document.getElementById('teacher-password');
@@ -717,10 +729,12 @@
 
             if (!enteredRoom) {
                 errorEl.textContent = 'Please enter a room name.';
+                startButton.disabled = false; // Re-enable button on validation error
                 return;
             }
             if (selectedRole === 'Teacher' && passwordInput.value !== '2026') {
                 errorEl.textContent = 'Incorrect teacher password.';
+                startButton.disabled = false; // Re-enable button on validation error
                 return;
             }
 
@@ -729,7 +743,7 @@
             localStorage.setItem('lessonRole', userRole);
             localStorage.setItem('lessonRoom', roomName);
 
-            startLesson();
+            startLesson(); // This is an async function, but we don't await it here to make the UI transition immediate.
         }
 
         // --- FIREBASE & SYNC LOGIC ---
@@ -1091,4 +1105,3 @@
     </script>
 </body>
 </html>
-
