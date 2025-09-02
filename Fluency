@@ -19,7 +19,7 @@
     <main>
         <div class="lesson-grid">
             <!-- Edit these 4 cards for your lessons -->
-            <div class="card" data-lesson-src="practice/as/as.html">
+            <div class="card" data-lesson-src="practice/as1.html">
                 <div class="card-icon">💻</div>
                 <h3>Math Fluency Practice</h3>
                
