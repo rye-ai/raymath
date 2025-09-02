@@ -173,13 +173,7 @@
         // --- App State ---
         let IS_TEACHER = false;
         let ROOM_ID = 'default';
-
-        // SYNC: Helper to check if sync is currently active
-        function syncIsOn() {
-            const syncState = localStorage.getItem('lesson_sync_on');
-            // Default to ON if no setting exists
-            return syncState === null ? true : syncState === 'true';
-        }
+        let ALLOW_FREE_EXPLORE = false; // SYNC: Global flag for student navigation
 
         // SYNC: Firebase configuration
         const firebaseConfig = {
@@ -390,7 +384,7 @@
             
             // --- SYNC: CORE FUNCTIONS ---
             function applyStudentNavPolicy() {
-              const shouldDisable = !IS_TEACHER && syncIsOn();
+              const shouldDisable = !IS_TEACHER && !ALLOW_FREE_EXPLORE;
               const activeDayContainer = document.getElementById(appState.currentDay);
               if (activeDayContainer) {
                   const prevBtn = activeDayContainer.querySelector('.prev-btn');
@@ -407,13 +401,14 @@
             }
 
             async function syncPush() {
-              if (!IS_TEACHER || !syncIsOn() || !_roomRef || _isApplyingRemote) return;
+              if (!IS_TEACHER || !_roomRef || _isApplyingRemote) return;
               try {
                 const currentDayState = appState[appState.currentDay];
                 const stateToPush = {
                   day: appState.currentDay,
                   view: currentDayState.view,
                   slide: currentDayState.view === 'lesson' ? currentDayState.lessonSlideIndex : currentDayState.assessmentSlideIndex,
+                  allowFreeExplore: ALLOW_FREE_EXPLORE, // SYNC: Send the navigation lock state
                   updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 await _roomRef.set(stateToPush, { merge: true });
@@ -427,12 +422,6 @@
                     _unsubSnap();
                     _unsubSnap = null;
                 }
-
-                if (!syncIsOn()) {
-                    console.log("SYNC: Sync is off. Skipping Firebase connection.");
-                    applyStudentNavPolicy();
-                    return;
-                }
                 
                 try {
                     _auth = firebase.auth();
@@ -443,18 +432,28 @@
 
                     _roomRef = _db.collection('rooms').doc(ROOM_ID);
 
-                    if (IS_TEACHER) {
-                        await syncPush(); // SYNC: Initial seed on teacher load
-                    }
-
                     _unsubSnap = _roomRef.onSnapshot((doc) => {
-                        if (!syncIsOn() || IS_TEACHER || doc.metadata.hasPendingWrites) {
+                        const data = doc.data();
+                        if (!data) { // If no doc, teacher needs to create it
+                           if (IS_TEACHER) syncPush();
+                           return;
+                        }
+
+                        const prevAllowFreeExplore = ALLOW_FREE_EXPLORE;
+                        ALLOW_FREE_EXPLORE = !!data.allowFreeExplore;
+                        
+                        // Update toggle UI if state changes
+                        if (IS_TEACHER && prevAllowFreeExplore !== ALLOW_FREE_EXPLORE) {
+                            document.getElementById('sync-toggle').checked = !ALLOW_FREE_EXPLORE;
+                            document.getElementById('sync-label-text').textContent = `Sync: ${!ALLOW_FREE_EXPLORE ? 'ON' : 'OFF'}`;
+                        }
+
+                        applyStudentNavPolicy();
+                        
+                        if (IS_TEACHER || ALLOW_FREE_EXPLORE || doc.metadata.hasPendingWrites) {
                             return;
                         }
                         
-                        const data = doc.data();
-                        if (!data) return;
-
                         _isApplyingRemote = true;
                         
                         const remoteDay = data.day || 'day1';
@@ -475,7 +474,6 @@
                 } catch (err) {
                     console.error("SYNC: Firebase initialization failed.", err);
                 }
-                applyStudentNavPolicy();
             }
 
             // --- SVG & DYNAMIC ELEMENT GENERATION (Original logic is kept intact) ---
@@ -1103,23 +1101,24 @@
                 if (!IS_TEACHER) {
                     syncLabel.style.display = 'none';
                 } else {
-                    syncToggle.checked = syncIsOn();
-                    document.getElementById('sync-label-text').textContent = `Sync: ${syncIsOn() ? 'ON' : 'OFF'}`;
+                    // SYNC: Initialize toggle state based on ALLOW_FREE_EXPLORE
+                    syncToggle.checked = !ALLOW_FREE_EXPLORE;
+                    document.getElementById('sync-label-text').textContent = `Sync: ${!ALLOW_FREE_EXPLORE ? 'ON' : 'OFF'}`;
                     
                     syncToggle.addEventListener('change', (e) => {
-                        const wantsToTurnOn = e.target.checked;
+                        const isNowOn = e.target.checked;
                         if (!IS_TEACHER) return;
                         
                         const pwd = prompt('Enter teacher password to change sync status:');
                         if (pwd !== '2026') {
                             alert('Incorrect password');
-                            e.target.checked = !wantsToTurnOn;
+                            e.target.checked = !isNowOn; // Revert checkbox
                             return; 
                         }
                         
-                        localStorage.setItem('lesson_sync_on', wantsToTurnOn);
-                        document.getElementById('sync-label-text').textContent = `Sync: ${wantsToTurnOn ? 'ON' : 'OFF'}`;
-                        initFirebaseSync();
+                        ALLOW_FREE_EXPLORE = !isNowOn;
+                        document.getElementById('sync-label-text').textContent = `Sync: ${isNowOn ? 'ON' : 'OFF'}`;
+                        syncPush(); // Push the new allowFreeExplore state to students
                     });
                 }
                 
@@ -1145,6 +1144,13 @@
                 const passwordInput = document.getElementById('teacher-password');
                 const passwordError = document.getElementById('password-error');
                 
+                // Pre-fill from local storage if available
+                roomNameInput.value = localStorage.getItem('lesson_room') || 'default';
+                const savedRole = localStorage.getItem('lesson_role');
+                if (savedRole) {
+                    document.querySelector(`input[name="role"][value="${savedRole}"]`).checked = true;
+                }
+
                 roleRadios.forEach(radio => {
                     radio.addEventListener('change', (e) => {
                         if (e.target.value === 'teacher') {
