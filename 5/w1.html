@@ -105,8 +105,8 @@
                              <span class="ml-2 font-medium">Follow Me</span>
                         </label>
                          <style>
-                            input:checked ~ .dot { transform: translateX(100%); }
-                            input:checked ~ .block { background-color: #34d399; }
+                            input:checked ~ .dot { transform: translateX(100%); background-color: #10b981; }
+                            input:checked ~ .block { background-color: #a7f3d0; }
                          </style>
                     </div>
                     <button id="change-role-room-btn" class="text-sm text-indigo-600 hover:underline">Change</button>
@@ -140,6 +140,7 @@
     <script id="progress-data" type="application/json"></script>
     
     <script type="module">
+        // --- DOM ELEMENT REFERENCES ---
         const lessonDataEl = document.getElementById('lesson-data');
         const progressDataEl = document.getElementById('progress-data');
         const dayTabsContainer = document.getElementById('day-tabs');
@@ -148,19 +149,50 @@
         const downloadHtmlBtn = document.getElementById('download-html-btn');
         const downloadPdfBtn = document.getElementById('download-pdf-btn');
         const loader = document.getElementById('loader');
+        const appContainer = document.getElementById('app-container');
+        // Setup Modal Elements
+        const setupModal = document.getElementById('setup-modal');
+        const openLessonBtn = document.getElementById('open-lesson-btn');
+        const roleRadios = document.querySelectorAll('input[name="role"]');
+        const teacherPasswordContainer = document.getElementById('teacher-password-container');
+        const teacherPasswordField = document.getElementById('teacher-password');
+        const roomNameField = document.getElementById('room-name');
+        const setupError = document.getElementById('setup-error');
+        // Header UI Elements
+        const roleRoomBadge = document.getElementById('role-room-badge');
+        const changeRoleRoomBtn = document.getElementById('change-role-room-btn');
+        const teacherControls = document.getElementById('teacher-controls');
+        const syncToggle = document.getElementById('sync-toggle');
 
+        // --- APP STATE & CONFIG ---
         const { jsPDF } = window.jspdf;
-
         let appState = {
             lessonData: null,
             progress: {},
             activeDay: 1,
-            activeMode: 'lesson', // 'lesson' or 'assessment'
-            currentImageUploadContext: null, // { questionId }
+            activeMode: 'lesson',
+            currentImageUploadContext: null,
         };
+        let session = { role: 'Student', room: '' };
+        let unsubscribeFromRoom = () => {};
+        let _isApplyingRemote = false;
 
         const POSITIVE_FEEDBACK = ["Great job!", "Awesome!", "You got it!", "Fantastic!", "Keep it up!", "Superstar!"];
+        const TEACHER_PASSWORD = "2026";
 
+        // --- FIREBASE SETUP ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+            authDomain: "lesson-sync-a223a.firebaseapp.com",
+            projectId: "lesson-sync-a223a",
+            storageBucket: "lesson-sync-a223a.firebasestorage.app",
+            messagingSenderId: "906128715071",
+            appId: "1:906128715071:web:347ea08f4d864fde02778a"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        
         // --- INITIALIZATION ---
         function init() {
             try {
@@ -170,12 +202,13 @@
                 contentContainer.innerHTML = `<p class="text-red-500">Error: Could not load lesson data.</p>`;
                 return;
             }
-
-            loadProgress();
-            renderApp();
-            attachGlobalListeners();
+            initSetupModal();
         }
-        
+
+        // ... (rest of the script remains the same, starting from STATE & PROGRESS MANAGEMENT)
+        // NOTE: The entire script from the previous turn is inserted here, but for brevity, only the changed parts are shown.
+        // The following is the complete, correct script logic.
+
         // --- STATE & PROGRESS MANAGEMENT ---
         function loadProgress() {
             try {
@@ -287,6 +320,7 @@
                 activeSlide.classList.add('active');
             }
             attachSlideListeners();
+            updateNavLock();
         }
         
         function renderSlide(slideData, index, totalSlides) {
@@ -723,6 +757,7 @@
             downloadHtmlBtn.addEventListener('click', downloadHTML);
             downloadPdfBtn.addEventListener('click', downloadPDF);
             imageUploader.addEventListener('change', handleImageUpload);
+            changeRoleRoomBtn.addEventListener('click', handleChangeRoleRoom);
         }
 
         function attachSlideListeners() {
@@ -753,6 +788,7 @@
                 appState.activeDay = parseInt(tab.dataset.day);
                 saveProgress();
                 renderApp();
+                syncPush();
             }
         }
 
@@ -762,6 +798,7 @@
                 appState.progress[dayKey].mode = appState.progress[dayKey].mode === 'lesson' ? 'assessment' : 'lesson';
                 saveProgress();
                 renderDayContent();
+                syncPush();
             } else if (e.target.closest('.prev-slide-btn')) {
                 navigateSlide(-1);
             } else if (e.target.closest('.next-slide-btn')) {
@@ -789,6 +826,7 @@
                     dayProgress.assessmentSlide = nextIndex;
                 }
                 saveProgress();
+                syncPush();
             }
         }
         
@@ -1262,6 +1300,179 @@
             `;
         }
 
+        // --- SYNC & SETUP MODAL LOGIC ---
+        function initSetupModal() {
+            roleRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    const selectedRole = document.querySelector('input[name="role"]:checked').value;
+                    if (selectedRole === 'Teacher') {
+                        teacherPasswordContainer.classList.remove('hidden');
+                    } else {
+                        teacherPasswordContainer.classList.add('hidden');
+                    }
+                });
+            });
+
+            openLessonBtn.addEventListener('click', handleOpenLesson);
+            
+            const savedRole = localStorage.getItem('lessonRole');
+            const savedRoom = localStorage.getItem('lessonRoom');
+            if(savedRole && savedRoom) {
+                session.role = savedRole;
+                session.room = savedRoom;
+                document.querySelector(`input[name="role"][value="${savedRole}"]`).checked = true;
+                roomNameField.value = savedRoom;
+                handleOpenLesson();
+            }
+        }
+
+        async function handleOpenLesson() {
+            const role = document.querySelector('input[name="role"]:checked').value;
+            const room = roomNameField.value.trim();
+            setupError.textContent = '';
+
+            if (!room) {
+                setupError.textContent = 'Please enter a room name.';
+                return;
+            }
+
+            if (role === 'Teacher') {
+                if (teacherPasswordField.value !== TEACHER_PASSWORD) {
+                    setupError.textContent = 'Incorrect teacher password.';
+                    return;
+                }
+            }
+
+            session.role = role;
+            session.room = room;
+            localStorage.setItem('lessonRole', role);
+            localStorage.setItem('lessonRoom', room);
+
+            loader.style.display = 'block';
+            await initFirebaseSync();
+            loader.style.display = 'none';
+            
+            setupModal.style.display = 'none';
+            appContainer.classList.remove('hidden');
+            
+            loadProgress();
+            renderApp();
+            attachGlobalListeners();
+            updateHeaderUI();
+        }
+        
+        function updateHeaderUI() {
+            roleRoomBadge.textContent = `${session.role} • room: ${session.room}`;
+            if (session.role === 'Teacher') {
+                teacherControls.classList.remove('hidden');
+                syncToggle.addEventListener('change', handleSyncToggleChange);
+            } else {
+                teacherControls.classList.add('hidden');
+            }
+        }
+        
+        function handleChangeRoleRoom() {
+            if (unsubscribeFromRoom) unsubscribeFromRoom();
+            localStorage.removeItem('lessonRole');
+            localStorage.removeItem('lessonRoom');
+            appContainer.classList.add('hidden');
+            setupModal.style.display = 'flex';
+        }
+
+        async function initFirebaseSync() {
+            if (auth.currentUser) {
+                await auth.signOut();
+            }
+            try {
+                await auth.signInAnonymously();
+                if (session.role === 'Student') {
+                    subscribeToRoom();
+                } else { // Teacher
+                    syncPush(true); // Initial push
+                }
+            } catch (error) {
+                console.error("Firebase sign-in error:", error);
+                setupError.textContent = "Could not connect to sync service.";
+            }
+        }
+        
+        function subscribeToRoom() {
+            unsubscribeFromRoom = db.collection('rooms').doc(session.room)
+                .onSnapshot(doc => {
+                    if (!doc.exists) return;
+                    const data = doc.data();
+                    _isApplyingRemote = true;
+
+                    const freeExplore = data.allowFreeExplore;
+                    if (session.role === 'Student') {
+                        // First, set the explore mode
+                        if (freeExplore) {
+                             document.body.classList.remove('disabled-nav');
+                        } else {
+                             document.body.classList.add('disabled-nav');
+                        }
+                        
+                        // If not in free explore, sync view
+                        if (!freeExplore) {
+                             const dayKey = `d${data.day}`;
+                             appState.activeDay = data.day;
+                             appState.progress[dayKey].mode = data.view;
+                             if(data.view === 'lesson') {
+                                 appState.progress[dayKey].currentSlide = data.slide;
+                             } else {
+                                 appState.progress[dayKey].assessmentSlide = data.slide;
+                             }
+                             renderApp();
+                        }
+                    }
+                     // For teacher, just update the toggle state
+                     syncToggle.checked = !freeExplore;
+                    _isApplyingRemote = false;
+                });
+        }
+        
+        function handleSyncToggleChange() {
+            const password = prompt("Enter teacher password to change sync mode:");
+            if (password === TEACHER_PASSWORD) {
+                syncPush();
+            } else {
+                alert("Incorrect password.");
+                // Revert the visual state of the toggle
+                syncToggle.checked = !syncToggle.checked;
+            }
+        }
+
+        function syncPush(isInitial = false) {
+            if (session.role !== 'Teacher' || _isApplyingRemote) return;
+            
+            const dayKey = `d${appState.activeDay}`;
+            const currentMode = appState.progress[dayKey].mode;
+            const currentSlide = currentMode === 'lesson' ? appState.progress[dayKey].currentSlide : appState.progress[dayKey].assessmentSlide;
+            const allowFreeExplore = !syncToggle.checked;
+
+            const stateToPush = {
+                day: appState.activeDay,
+                slide: currentSlide,
+                view: currentMode,
+                allowFreeExplore,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            db.collection('rooms').doc(session.room).set(stateToPush, { merge: true })
+                .catch(err => console.error("Error pushing state:", err));
+        }
+
+        function updateNavLock() {
+            const freeExplore = !syncToggle.checked;
+            if (session.role === 'Student' && !freeExplore) {
+                document.body.classList.add('disabled-nav');
+            } else {
+                 document.body.classList.remove('disabled-nav');
+            }
+        }
+
+
+        // --- START THE APP ---
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
