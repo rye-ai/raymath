@@ -1,7 +1,7 @@
 <html lang="en"><head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale-1.0">
-  <title>Interactive Lesson: Numbers 1-5</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Lesson: Numbers 6-10</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Firebase CDN (compat builds for simple drop-in) -->
@@ -57,7 +57,7 @@
         </div>
         <div class="text-left">
            <label for="room-name" class="font-bold text-gray-600">Room Name:</label>
-           <input type="text" id="room-name" class="w-full p-2 border border-gray-300 rounded-md mt-1" placeholder="e.g., class-a">
+           <input type="text" id="room-name" class="w-full p-2 border border-gray-300 rounded-md mt-1" placeholder="e.g., class-b">
         </div>
         <button id="open-lesson-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg button-pop text-xl">
           Start Lesson
@@ -117,131 +117,83 @@
 
   <!-- The whole app (lesson + UI + Firestore sync) -->
   <script>
-/* ================== LESSON DATA (your original) ================== */
+/* ================== LESSON DATA (Numbers 6-10) ================== */
 const lessonData = {
   days: [
     {
-      title: "Day 1: 🐿️ 1 & 2",
+      title: "Day 1: 🐞 6 & 7",
       slides: [
-        { type: 'title', title: "The Adventure Begins with 1 and 2!", text: "Let's learn our first numbers with a friendly squirrel!" },
-        { type: 'hook', title: 'Hook: Forest Friends', text: 'How many squirrels do you see? Count with me: ONE! How many bunnies? ONE, TWO!' },
-        { type: 'instruction', title: 'I Do: Meet the Numbers', text: 'This is 1. It stands tall. This is 2. It has a curve. Let\'s trace them in the air!' },
-        { type: 'drag-drop-sort', title: 'I Do 1/3: Sorting Fun', instruction: 'Watch me sort the pictures. One apple goes in the "1" box.', items: [{id: 'd1ido1i1', content: '🍎', count: 1}, {id: 'd1ido1i2', content: '⚽⚽', count: 2}], targets: [{id: 'd1ido1t1', label: '1', accepts: 1}, {id: 'd1ido1t2', label: '2', accepts: 2}]},
-        { type: 'multiple-choice', title: 'I Do 2/3: Finding Two', question: 'I need to find the picture with two things. Let\'s count... one, two birds! This is it.', options: [{content: '🌸', correct: false}, {content: '🐦🐦', correct: true}, {content: '🐱🐱🐱', correct: false}]},
-        { type: 'multiple-choice', title: 'I Do 3/3: Counting One', question: 'I need to find just ONE bear. This picture has one bear.', options: [{content: '🐻', correct: true}, {content: '🐻🐻', correct: false}]},
-        ...Array(5).fill(0).map((_, i) => ({ type: 'drag-drop-sort', title: `We Do ${i+1}/10: Feed the Squirrel`, instruction: `The squirrel needs 1 acorn. Can you help drag it to him?`, items: [{id: `d1wdo${i}i1`, content: '🌰', count: 1}], targets: [{id: `d1wdo${i}t1`, label: '🐿️', accepts: 1}]})),
-        ...Array(5).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `We Do ${i+6}/10: Circle the Group`, question: 'Let\'s find the group that shows 2.', options: [{content: '🍓', correct: false}, {content: '🍓🍓', correct: true}]})),
-        { type: 'drag-drop-sort', title: 'You Do 1/5: Your Turn to Sort!', instruction: 'Drag the pictures to the right number box.', items: [{id: 'd1ydo1i1', content: '🚗', count: 1}, {id: 'd1ydo1i2', content: '👟👟', count: 2}, {id: 'd1ydo1i3', content: '☀️', count: 1}, {id: 'd1ydo1i4', content: '🧤🧤', count: 2}], targets: [{id: 'd1ydo1t1', label: '1', accepts: 1}, {id: 'd1ydo1t2', label: '2', accepts: 2}], isPractice: true},
-        { type: 'drag-drop-sort', title: 'You Do 2/5: Match the Dots', instruction: 'Match the number to the correct dots.', items: [{id: 'd1ydo2i1', content: '1', count: 1}, {id: 'd1ydo2i2', content: '2', count: 2}], targets: [{id: 'd1ydo2t1', label: '⚫', accepts: 1}, {id: 'd1ydo2t2', label: '⚫⚫', accepts: 2}], isPractice: true},
-        { type: 'multiple-choice', title: 'You Do 3/5: Pick the Group', question: 'Find the picture that shows 2.', options: [{content: '🎈', correct: false}, {content: '🎈🎈', correct: true}, {content: '🎈🎈🎈', correct: false}], isPractice: true},
-        { type: 'multiple-choice', title: 'You Do 4/5: Pick the Number', question: 'How many are there?', group: '⭐', options: [{content: '1', correct: true}, {content: '2', correct: false}], isPractice: true},
-        { type: 'true-false', title: 'You Do 5/5: Is this right?', question: 'Is this a match?', itemContent: '🚗', numeral: 2, correct: false, isPractice: true},
+        { type: 'title', title: "Exploring Six and Seven!", text: "Let's count with ladybugs and rainbows!" },
+        { type: 'hook', title: 'Hook: Insect Legs', text: 'How many legs does an insect have? Let\'s count: 1, 2, 3, 4, 5, 6! Six legs!' },
+        { type: 'instruction', title: 'I Do: Meet 6 and 7', text: 'This is 6, a curve with a loop. This is 7, across the sky and down from heaven!' },
+        { type: 'drag-drop-sort', title: 'I Do 1/3: Sorting Dots', instruction: 'I see 6 dots on this ladybug. It goes in the "6" box.', items: [{id: 'd1ido1i1', content: '🐞(6 spots)', count: 6}, {id: 'd1ido1i2', content: '🐞(7 spots)', count: 7}], targets: [{id: 'd1ido1t1', label: '6', accepts: 6}, {id: 'd1ido1t2', label: '7', accepts: 7}]},
+        { type: 'multiple-choice', title: 'I Do 2/3: Rainbow Colors', question: 'A rainbow has 7 colors. Which group has 7?', options: [{content: '🔴🟠🟡🟢🔵🟣', correct: false}, {content: '🔴🟠🟡🟢🔵 indigo 🟣', correct: true}]},
+        { type: 'short-answer', title: 'I Do 3/3: Counting Crayons', question: 'I will count the crayons... 1, 2, 3, 4, 5, 6. I will type 6.', itemContent: '🖍️'.repeat(6), correctAnswer: '6'},
+        { type: 'drag-drop-sort', title: 'You Do 1/5: Sort the Fruit', instruction: 'Drag the fruit to the correct number basket.', items: [{id: 'd1ydo1i1', content: '🍓'.repeat(6), count: 6}, {id: 'd1ydo1i2', content: '🍌'.repeat(7), count: 7}], targets: [{id: 'd1ydo1t1', label: '6', accepts: 6}, {id: 'd1ydo1t2', label: '7', accepts: 7}], isPractice: true},
+        { type: 'multiple-choice', title: 'You Do 2/5: Find the Group of 7', question: 'Which picture shows 7 stars?', options: [{content: '⭐'.repeat(5), correct: false}, {content: '⭐'.repeat(6), correct: false}, {content: '⭐'.repeat(7), correct: true}], isPractice: true},
+        { type: 'true-false', title: 'You Do 3/5: Is it 6?', question: 'Is this a group of 6?', itemContent: '🎈'.repeat(7), numeral: 6, correct: false, isPractice: true},
+        { type: 'short-answer', title: 'You Do 4/5: How Many?', question: 'Count the items and type the number.', itemContent: '🚗'.repeat(7), correctAnswer: '7', isPractice: true},
+        { type: 'drawing', title: 'You Do 5/5: Draw 6 Circles', instruction: 'Practice drawing 6 circles in the box.', isPractice: true},
         { type: 'practice-center-gate', dayIndex: 0 }
       ],
       practiceCenter: [
-        { type: 'drag-drop-sort', title: 'Practice 1/20', instruction: 'Sort the items.', items: [{id: 'd1p1i1', content: '⭐', count: 1}, {id: 'd1p1i2', content: '⭐⭐', count: 2}], targets: [{id: 'd1p1t1', label: '1', accepts: 1}, {id: 'd1p1t2', label: '2', accepts: 2}], isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 2/20', question: 'Which picture matches the number 2?', options: [{content: '🙂', correct: false}, {content: '🙂🙂', correct: true}], isPractice: true },
-        { type: 'true-false', title: 'Practice 3/20', question: 'Is this a match?', itemContent: '🐸', numeral: 1, correct: true, isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 4/20', question: 'How many are there?', group: '⚽⚽', options: [{content: '1', correct: false}, {content: '2', correct: true}], isPractice: true },
-        { type: 'drag-drop-sort', title: 'Practice 5/20', instruction: 'Sort the items.', items: [{id: 'd1p5i1', content: '🧢', count: 1}, {id: 'd1p5i2', content: '🧢🧢', count: 2}], targets: [{id: 'd1p5t1', label: '1', accepts: 1}, {id: 'd1p5t2', label: '2', accepts: 2}], isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 6/20', question: 'Which picture matches the number 1?', options: [{content: '📱', correct: true}, {content: '📱📱', correct: false}], isPractice: true },
-        { type: 'true-false', title: 'Practice 7/20', question: 'Is this a match?', itemContent: '🔑🔑', numeral: 2, correct: true, isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 8/20', question: 'How many are there?', group: '🔑', options: [{content: '1', correct: true}, {content: '2', correct: false}], isPractice: true },
-        { type: 'drag-drop-sort', title: 'Practice 9/20', instruction: 'Sort the items.', items: [{id: 'd1p9i1', content: '📦', count: 1}, {id: 'd1p9i2', content: '📦📦', count: 2}], targets: [{id: 'd1p9t1', label: '1', accepts: 1}, {id: 'd1p9t2', label: '2', accepts: 2}], isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 10/20', question: 'Which picture matches the number 2?', options: [{content: '🎁', correct: false}, {content: '🎁🎁', correct: true}], isPractice: true },
-        { type: 'true-false', title: 'Practice 11/20', question: 'Is this a match?', itemContent: '🎈🎈', numeral: 1, correct: false, isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 12/20', question: 'How many are there?', group: '🎈', options: [{content: '1', correct: true}, {content: '2', correct: false}], isPractice: true },
-        { type: 'drag-drop-sort', title: 'Practice 13/20', instruction: 'Sort the items.', items: [{id: 'd1p13i1', content: '💡', count: 1}, {id: 'd1p13i2', content: '💡💡', count: 2}], targets: [{id: 'd1p13t1', label: '1', accepts: 1}, {id: 'd1p13t2', label: '2', accepts: 2}], isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 14/20', question: 'Which picture matches the number 1?', options: [{content: '📚', correct: true}, {content: '📚📚', correct: false}], isPractice: true },
-        { type: 'true-false', title: 'Practice 15/20', question: 'Is this a match?', itemContent: '✏️', numeral: 2, correct: false, isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 16/20', question: 'How many are there?', group: '✏️✏️', options: [{content: '1', correct: false}, {content: '2', correct: true}], isPractice: true },
-        { type: 'drag-drop-sort', title: 'Practice 17/20', instruction: 'Sort the items.', items: [{id: 'd1p17i1', content: '✂️', count: 1}, {id: 'd1p17i2', content: '✂️✂️', count: 2}], targets: [{id: 'd1p17t1', label: '1', accepts: 1}, {id: 'd1p17t2', label: '2', accepts: 2}], isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 18/20', question: 'Which picture matches the number 2?', options: [{content: '🖇️', correct: false}, {content: '🖇️🖇️', correct: true}], isPractice: true },
-        { type: 'true-false', title: 'Practice 19/20', question: 'Is this a match?', itemContent: '📌', numeral: 1, correct: true, isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 20/20', question: 'How many are there?', group: '📌📌', options: [{content: '1', correct: false}, {content: '2', correct: true}], isPractice: true },
+        { type: 'multiple-choice', title: 'Practice 1/10', question: 'Find the group of 6.', options: [{content: '🐞'.repeat(6), correct: true}, {content: '🐞'.repeat(7), correct: false}], isPractice: true},
+        { type: 'short-answer', title: 'Practice 2/10', question: 'How many days in a week?', itemContent: '🗓️', correctAnswer: '7', isPractice: true}
       ]
     },
     {
-      title: "Day 2: 🐻 No. 3",
+      title: "Day 2: 🐙 8 & 9",
       slides: [
-        { type: 'title', title: "The Trio of Number 3!", text: "A friendly bear is here to help us learn the number 3!" },
-        { type: 'hook', title: 'Hook: Three Little Pigs', text: 'In the story, how many pigs were there? Let\'s count them: 1, 2, 3!' },
-        { type: 'instruction', title: 'I Do: Meet Number 3', text: 'This is 3. It has two big curves. Let\'s trace it in the air: around and around again!' },
-        { type: 'drag-drop-sort', title: 'I Do 1/3: Three Eggs', instruction: 'Each bird needs one egg. I will drag ONE, TWO, THREE eggs.', items: [{id: 'd2ido1i1', content: '🥚', count: 1}, {id: 'd2ido1i2', content: '🥚', count: 1}, {id: 'd2ido1i3', content: '🥚', count: 1}], targets: [{id: 'd2ido1t1', label: '🐦', accepts: 1}, {id: 'd2ido1t2', label: '🐦', accepts: 1}, {id: 'd2ido1t3', label: '🐦', accepts: 1}]},
-        { type: 'multiple-choice', title: 'I Do 2/3: Find the Group', question: 'I need to find the group of three. One, two, three hearts! This is it!', options: [{content: '⭐', correct: false}, {content: '⭐⭐', correct: false}, {content: '❤️❤️❤️', correct: true}]},
-        { type: 'drag-drop-sort', title: 'I Do 3/3: Sorting Numbers', instruction: 'This group has three ladybugs. It goes in the "3" box.', items: [{id: 'd2ido3i1', content: '🐞🐞🐞', count: 3}], targets: [{id: 'd2ido3t1', label: '1', accepts: 1}, {id: 'd2ido3t2', label: '2', accepts: 2}, {id: 'd2ido3t3', label: '3', accepts: 3}]},
-        ...Array(5).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `We Do ${i+1}/10: Find the Number`, question: 'Can you find the number 3?', options: [{content: '1', correct: false}, {content: '2', correct: false}, {content: '3', correct: true}]})),
-        ...Array(5).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `We Do ${i+6}/10: Find the Group`, question: 'Which group has 3 berries?', options: [{content: '🍓🍓', correct: false}, {content: '🍓🍓🍓', correct: true}]})),
-        { type: 'drag-drop-sort', title: 'You Do 1/5: Train Cars', instruction: 'Drag the correct number of passengers to each car.', items: [{id: 'd2ydo1i1', content: '🙂', count: 1}, {id: 'd2ydo1i2', content: '🙂🙂', count: 2}, {id: 'd2ydo1i3', content: '🙂🙂🙂', count: 3}], targets: [{id: 'd2ydo1t1', label: 'Car 1', accepts: 1}, {id: 'd2ydo1t2', label: 'Car 2', accepts: 2}, {id: 'd2ydo1t3', label: 'Car 3', accepts: 3}], isPractice: true},
-        { type: 'multiple-choice', title: 'You Do 2/5: Select the Group', question: 'See the number 3. Which group has 3?', options: [{content: '🚗🚗', correct: false}, {content: '🚗🚗🚗', correct: true}, {content: '🚗', correct: false}], isPractice: true},
-        { type: 'multiple-choice', title: 'You Do 3/5: Select the Numeral', question: 'How many are there?', group: '🚦🚦🚦', options: [{content: '1', correct: false}, {content: '2', correct: false}, {content: '3', correct: true}], isPractice: true},
-        { type: 'drag-drop-sort', title: 'You Do 4/5: Match Dots', instruction: 'Match the numerals to the dot patterns.', items: [{id: 'd2ydo4i1', content: '1', count: 1}, {id: 'd2ydo4i2', content: '2', count: 2}, {id: 'd2ydo4i3', content: '3', count: 3}], targets: [{id: 'd2ydo4t1', label: '⚫', accepts: 1}, {id: 'd2ydo4t2', label: '⚫⚫', accepts: 2}, {id: 'd2ydo4t3', label: '⚫⚫⚫', accepts: 3}], isPractice: true},
-        { type: 'short-answer', title: 'You Do 5/5: How Many Fish?', question: 'Count the fish and type the number.', itemContent: '🐟🐟🐟', correctAnswer: '3', isPractice: true},
+        { type: 'title', title: "Eight and Nine are Mighty Fine!", text: "An octopus and a cat will help us learn 8 and 9!" },
+        { type: 'hook', title: 'Hook: Octopus Arms', text: 'An octopus has 8 arms! Can you count them all?' },
+        { type: 'instruction', title: 'I Do: Meet 8 and 9', text: 'To make an 8, make an "S" and do not wait, go back up and close the gate! For 9, a circle and a line.' },
+        { type: 'multiple-choice', title: 'I Do 1/3: Counting Legs', question: 'A spider has 8 legs. Which is the spider?', options: [{content: '🐜(6 legs)', correct: false}, {content: '🕷️(8 legs)', correct: true}]},
+        { type: 'drag-drop-sort', title: 'I Do 2/3: Sorting Numbers', instruction: 'This group has nine. It goes in the "9" box.', items: [{id: 'd2ido3i1', content: '🐱'.repeat(9), count: 9}], targets: [{id: 'd2ido3t1', label: '8', accepts: 8}, {id: 'd2ido3t2', label: '9', accepts: 9}]},
+        { type: 'short-answer', title: 'I Do 3/3: How Many?', question: 'I will count... 1, 2, 3, 4, 5, 6, 7, 8. The answer is 8.', itemContent: '🐙'.repeat(8), correctAnswer: '8'},
+        { type: 'drag-drop-sort', title: 'You Do 1/5: Sort the Toys', instruction: 'Put the toys in the correct box.', items: [{id: 'd2ydo1i1', content: '⚽'.repeat(8), count: 8}, {id: 'd2ydo1i2', content: '🚂'.repeat(9), count: 9}], targets: [{id: 'd2ydo1t1', label: '8', accepts: 8}, {id: 'd2ydo1t2', label: '9', accepts: 9}], isPractice: true},
+        { type: 'multiple-choice', title: 'You Do 2/5: Select the Group of 9', question: 'Which box has 9 crayons?', options: [{content: '🖍️'.repeat(8), correct: false}, {content: '🖍️'.repeat(9), correct: true}], isPractice: true},
+        { type: 'drawing', title: 'You Do 3/5: Write the Number 8', instruction: 'Practice writing the number 8.', isPractice: true},
+        { type: 'true-false', title: 'You Do 4/5: Is this 9?', question: 'Does this show 9?', itemContent: '💎'.repeat(8), numeral: 9, correct: false, isPractice: true},
+        { type: 'short-answer', title: 'You Do 5/5: How many planets?', question: 'Count the planets and type the number.', itemContent: '🪐'.repeat(8), correctAnswer: '8', isPractice: true},
         { type: 'practice-center-gate', dayIndex: 1 }
       ],
       practiceCenter: [
-        ...Array(10).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `Practice ${i+1}/20`, question: 'Which group has 3?', options: [{content: '🐻', correct: false}, {content: '🐻🐻', correct: false}, {content: '🐻🐻🐻', correct: true}], isPractice: true })),
-        ...Array(10).fill(0).map((_, i) => ({ type: 'short-answer', title: `Practice ${i+11}/20`, question: 'How many honey pots?', itemContent: '🍯🍯🍯', correctAnswer: '3', isPractice: true }))
+        { type: 'multiple-choice', title: 'Practice 1/10', question: 'Find the group of 9.', options: [{content: '⭐'.repeat(8), correct: false}, {content: '⭐'.repeat(9), correct: true}], isPractice: true},
+        { type: 'short-answer', title: 'Practice 2/10', question: 'How many arms?', itemContent: '🐙', correctAnswer: '8', isPractice: true}
       ]
     },
     {
-      title: "Day 3: 🐛 4 & 5",
+      title: "Day 3: 🌟 No. 10",
       slides: [
-        { type: 'title', title: "Fantastic Fours and Fives!", text: "A cute caterpillar will teach us about numbers 4 and 5!" },
-        { type: 'hook', title: 'Hook: Fingers and Wheels', text: 'A car has 4 wheels. Your hand has 5 fingers! Let\'s count them!' },
-        { type: 'instruction', title: 'I Do: Meet 4 and 5', text: 'This is 4. Down, across, and a line from top to bottom. This is 5. He has a hat, a neck, and a big round belly!' },
-        { type: 'drag-drop-sort', title: 'I Do 1/3: Five Fingernails', instruction: 'This hand needs five fingernails. Let\'s count them as we drag them on.', items: Array(5).fill(0).map((_,i)=>({id:`d3ido1i${i}`, content:'💅', count:1})), targets: Array(5).fill(0).map((_,i)=>({id:`d3ido1t${i}`, label:'핑거', accepts:1}))},
-        { type: 'drag-drop-sequence', title: 'I Do 2/3: Number Order', instruction: 'These numbers are mixed up! I will put them in the right order: 1, 2, 3, 4, 5.', items: [{id: 'd3ido2i1', content: '3'}, {id: 'd3ido2i2', content: '1'}, {id: 'd3ido2i3', content: '5'}, {id: 'd3ido2i4', content: '2'}, {id: 'd3ido2i5', content: '4'}], correctSequence: ['1', '2', '3', '4', '5']},
-        { type: 'multiple-choice', title: 'I Do 3/3: Find the Group of 4', question: 'I need to find the group of four. I\'ll count carefully... one, two, three, four! This is it!', options: [{content: '🔴🔴🔴', correct: false}, {content: '🔵🔵🔵🔵', correct: true}, {content: '🟢🟢🟢🟢🟢', correct: false}]},
-        ...Array(5).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `We Do ${i+1}/10: Build a Caterpillar`, question: 'The caterpillar needs 4 body segments. Which group has 4?', options: [{content: '🐛', correct: false}, {content: '🐛🐛🐛', correct: false}, {content: '🐛🐛🐛🐛', correct: true}]})),
-        ...Array(5).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `We Do ${i+6}/10: Hungry Caterpillar`, question: 'Click on the leaf that has 5 holes.', options: [{content: '🍃(3 holes)', correct: false}, {content: '🍃(5 holes)', correct: true}]})),
-        { type: 'drag-drop-sort', title: 'You Do 1/5: Wheels on the Car', instruction: 'Put 4 wheels on the car.', items: Array(4).fill(0).map((_,i)=>({id:`d3ydo1i${i}`, content:'⚫', count:1})), targets: [{id: 'd3ydo1t1', label: '🚗', accepts: 1},{id: 'd3ydo1t2', label: '', accepts: 1},{id: 'd3ydo1t3', label: '', accepts: 1},{id: 'd3ydo1t4', label: '', accepts: 1}], isPractice: true},
-        { type: 'drag-drop-sort', title: 'You Do 2/5: Sort 4 and 5', instruction: 'Sort the groups of objects into the correct bins.', items: [{id: 'd3ydo2i1', content: '⭐'.repeat(4), count: 4}, {id: 'd3ydo2i2', content: '⭐'.repeat(5), count: 5}], targets: [{id: 'd3ydo2t1', label: '4', accepts: 4}, {id: 'd3ydo2t2', label: '5', accepts: 5}], isPractice: true},
-        { type: 'multiple-choice', title: 'You Do 3/5: Select the Group', question: 'Find the group that matches the number 5.', options: [{content: '🌸'.repeat(3), correct: false}, {content: '🌸'.repeat(4), correct: false}, {content: '🌸'.repeat(5), correct: true}], isPractice: true},
-        { type: 'short-answer', title: 'You Do 4/5: How Many?', question: 'Count the items and type the number.', itemContent: '🍦'.repeat(4), correctAnswer: '4', isPractice: true},
-        { type: 'drag-drop-sequence', title: 'You Do 5/5: Order the Numbers', instruction: 'Put the numbers in the correct order.', items: [{id: 'd3ydo5i1', content: '3'}, {id: 'd3ydo5i2', content: '1'}, {id: 'd3ydo5i3', content: '5'}, {id: 'd3ydo5i4', content: '2'}, {id: 'd3ydo5i5', content: '4'}], correctSequence: ['1', '2', '3', '4', '5'], isPractice: true},
+        { type: 'title', title: "Terrific Ten!", text: "We made it to the amazing number 10!" },
+        { type: 'hook', title: 'Hook: Fingers and Toes', text: 'How many fingers do you have? Let\'s count! How many toes? 10 fingers and 10 toes!' },
+        { type: 'instruction', title: 'I Do: Meet Number 10', text: 'Number 10 is special! It\'s made of two numbers we know: a 1 and a 0!' },
+        { type: 'drag-drop-sort', title: 'I Do 1/3: Bowling Pins', instruction: 'Let\'s set up 10 bowling pins.', items: Array(10).fill(0).map((_,i)=>({id:`d3ido1i${i}`, content:'🎳', count:1})), targets: Array(10).fill(0).map((_,i)=>({id:`d3ido1t${i}`, label:'', accepts:1}))},
+        { type: 'multiple-choice', title: 'I Do 2/3: Find the Group of 10', question: 'I need to find the group of ten. I\'ll count carefully... one... ten!', options: [{content: '🔴'.repeat(9), correct: false}, {content: '🔵'.repeat(10), correct: true}]},
+        { type: 'drag-drop-sequence', title: 'You Do 1/5: Number Order 1-10', instruction: 'Put all the numbers in the correct order.', items: [{id:'s1',content:'3'},{id:'s2',content:'8'},{id:'s3',content:'1'},{id:'s4',content:'6'},{id:'s5',content:'10'},{id:'s6',content:'2'},{id:'s7',content:'5'},{id:'s8',content:'9'},{id:'s9',content:'4'},{id:'s10',content:'7'}], correctSequence: ['1','2','3','4','5','6','7','8','9','10'], isPractice: true},
+        { type: 'short-answer', title: 'You Do 2/5: How Many?', question: 'Count the stars.', itemContent: '🌟'.repeat(10), correctAnswer: '10', isPractice: true},
+        { type: 'drawing', title: 'You Do 3/5: Write 10', instruction: 'Your turn! Practice writing the number 10.', isPractice: true},
+        { type: 'multiple-choice', title: 'You Do 4/5: Which is 10?', question: 'Select the group that shows 10.', options: [{content: '🎁'.repeat(8), correct: false}, {content: '🎁'.repeat(9), correct: false}, {content: '🎁'.repeat(10), correct: true}], isPractice: true},
+        { type: 'true-false', title: 'You Do 5/5: Is this 10?', question: 'Does this match the number 10?', itemContent: '🧁'.repeat(9), numeral: 10, correct: false, isPractice: true},
         { type: 'practice-center-gate', dayIndex: 2 }
       ],
       practiceCenter: [
-        ...Array(10).fill(0).map((_, i) => ({ type: 'drag-drop-sequence', title: `Practice ${i+1}/20`, instruction: 'Put the numbers in order.', items: [{id: `d3p${i}i1`, content: '3'}, {id: `d3p${i}i2`, content: '1'}, {id: `d3p${i}i3`, content: '5'}, {id: `d3p${i}i4`, content: '2'}, {id: `d3p${i}i5`, content: '4'}], correctSequence: ['1', '2', '3', '4', '5'], isPractice: true })),
-        ...Array(10).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `Practice ${i+11}/20`, question: 'Which group has 4?', options: [{content: '🦋🦋', correct: false}, {content: '🦋🦋🦋🦋', correct: true}, {content: '🦋🦋🦋', correct: false}], isPractice: true }))
+          // Add more practice questions for 10
       ]
     },
     {
-      title: "Day 4: 🦊 Review",
+      title: "Day 4: 🚀 Review",
       slides: [
-        { type: 'title', title: "Number Heroes Review!", text: "Let's show the clever fox everything we've learned about numbers 1-5!" },
-        { type: 'hook', title: 'Hook: Number Flash!', text: 'Let\'s play a game. I\'ll show a number, you shout it out! Ready?' },
-        { type: 'instruction', title: 'I Do: How to Write', text: 'Watch me write the numbers. Remember the rhymes! "Number 1 is like a stick..."' },
-        { type: 'drawing', title: 'I Do 1/3: Writing the Number 3', instruction: 'I will draw the number 3. Around and around again!'},
-        { type: 'drag-drop-sequence', title: 'I Do 2/3: Train Order', instruction: 'A train needs its cars in order. I will put them from 1 to 5.', items: [{id: 'd4ido2i1', content: '3'}, {id: 'd4ido2i2', content: '1'}, {id: 'd4ido2i3', content: '5'}, {id: 'd4ido2i4', content: '2'}, {id: 'd4ido2i5', content: '4'}], correctSequence: ['1', '2', '3', '4', '5']},
-        { type: 'drag-drop-sort', title: 'I Do 3/3: Matching', instruction: 'I need to connect the number to the right group. The number 1 matches the one sun.', items: [{id: 'd4ido3i1', content: '1', count: 1}], targets: [{id: 'd4ido3t1', label: '☀️', accepts: 1}]},
-        ...Array(5).fill(0).map((_, i) => ({ type: 'drawing', title: `We Do ${i+1}/10: Let's Write`, instruction: `Let's practice writing the number ${i+1} together.`})),
-        ...Array(5).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `We Do ${i+6}/10: Quick Count!`, question: `How many dots?`, group: '⚫'.repeat(i+1), options: [{content: `${i+1}`, correct: true}, {content: `${i+2}`, correct: false}]})),
-        { type: 'drawing', title: 'You Do 1/5: Practice Writing 4', instruction: 'Your turn! Practice writing the number 4.', isPractice: true},
-        { type: 'drawing', title: 'You Do 2/5: Practice Writing 5', instruction: 'Now try the number 5.', isPractice: true},
-        { type: 'drag-drop-sort', title: 'You Do 3/5: Match All Dots', instruction: 'Match all five numerals to their dot patterns.', items: [{id: 'd4ydo3i1', content: '1', count: 1}, {id: 'd4ydo3i2', content: '2', count: 2}, {id: 'd4ydo3i3', content: '3', count: 3}, {id: 'd4ydo3i4', content: '4', count: 4}, {id: 'd4ydo3i5', content: '5', count: 5}], targets: [{id: 'd4ydo3t1', label: '⚫', accepts: 1}, {id: 'd4ydo3t2', label: '⚫⚫', accepts: 2}, {id: 'd4ydo3t3', label: '⚫⚫⚫', accepts: 3}, {id: 'd4ydo3t4', label: '⚫⚫⚫⚫', accepts: 4}, {id: 'd4ydo3t5', label: '⚫⚫⚫⚫⚫', accepts: 5}], isPractice: true},
-        { type: 'drag-drop-sequence', title: 'You Do 4/5: Puzzle Time!', instruction: 'Put the puzzle pieces in order to see the picture.', items: [{id: 'd4ydo4i1', content: '3'}, {id: 'd4ydo4i2', content: '1'}, {id: 'd4ydo4i3', content: '5'}, {id: 'd4ydo4i4', content: '2'}, {id: 'd4ydo4i5', content: '4'}], correctSequence: ['1', '2', '3', '4', '5'], isPractice: true},
-        { type: 'drag-drop-sort', title: 'You Do 5/5: Final Sort!', instruction: 'Sort all the pictures into the correct bins.', items: [{id: 'd4ydo5i1', content: '🦊', count: 1}, {id: 'd4ydo5i2', content: '🦊🦊', count: 2}, {id: 'd4ydo5i3', content: '🦊🦊🦊', count: 3}, {id: 'd4ydo5i4', content: '🦊🦊🦊🦊', count: 4}, {id: 'd4ydo5i5', content: '🦊🦊🦊🦊🦊', count: 5}], targets: [{id: 'd4ydo5t1', label: '1', accepts: 1}, {id: 'd4ydo5t2', label: '2', accepts: 2}, {id: 'd4ydo5t3', label: '3', accepts: 3}, {id: 'd4ydo5t4', label: '4', accepts: 4}, {id: 'd4ydo5t5', label: '5', accepts: 5}], isPractice: true},
+        { type: 'title', title: "Number Review 6-10!", text: "Let's show what we know about numbers 6, 7, 8, 9, and 10!" },
+        { type: 'drag-drop-sequence', title: 'You Do 1/5: Puzzle Time!', instruction: 'Put the puzzle pieces in order to see the picture.', items: [{id: 'd4ydo4i1', content: '8'}, {id: 'd4ydo4i2', content: '6'}, {id: 'd4ydo4i3', content: '10'}, {id: 'd4ydo4i4', content: '7'}, {id: 'd4ydo4i5', content: '9'}], correctSequence: ['6', '7', '8', '9', '10'], isPractice: true},
+        { type: 'drag-drop-sort', title: 'You Do 2/5: Final Sort!', instruction: 'Sort all the pictures into the correct bins.', items: [{id: 'd4ydo5i1', content: '🚀'.repeat(6), count: 6}, {id: 'd4ydo5i2', content: '🚀'.repeat(7), count: 7}, {id: 'd4ydo5i3', content: '🚀'.repeat(8), count: 8}, {id: 'd4ydo5i4', content: '🚀'.repeat(9), count: 9}, {id: 'd4ydo5i5', content: '🚀'.repeat(10), count: 10}], targets: [{id: 'd4ydo5t1', label: '6', accepts: 6}, {id: 'd4ydo5t2', label: '7', accepts: 7}, {id: 'd4ydo5t3', label: '8', accepts: 8}, {id: 'd4ydo5t4', label: '9', accepts: 9}, {id: 'd4ydo5t5', label: '10', accepts: 10}], isPractice: true},
+        { type: 'drawing', title: 'You Do 3/5: Write any number', instruction: 'Write your favorite number between 6 and 10.', isPractice: true},
+        { type: 'short-answer', title: 'You Do 4/5: How Many?', question: 'Count the aliens.', itemContent: '👽'.repeat(9), correctAnswer: '9', isPractice: true},
+        { type: 'multiple-choice', title: 'You Do 5/5: Which has more?', group: '🔵'.repeat(8) + ' vs ' + '🔵'.repeat(10), options: [{content: '8', correct: false}, {content: '10', correct: true}], isPractice: true },
         { type: 'practice-center-gate', dayIndex: 3 }
       ],
       practiceCenter: [
-        ...[1,2,3,4,5].map((num, i) => ({ type: 'drawing', title: `Practice ${i+1}/20`, instruction: `Practice writing the number ${num}.`, isPractice: true })),
-        { type: 'drag-drop-sequence', title: 'Practice 6/20', instruction: 'Put the numbers in order.', items: [{id: 'd4p6i1', content: '3'}, {id: 'd4p6i2', content: '1'}, {id: 'd4p6i3', content: '5'}, {id: 'd4p6i4', content: '2'}, {id: 'd4p6i5', content: '4'}], correctSequence: ['1', '2', '3', '4', '5'], isPractice: true},
-        { type: 'multiple-choice', title: 'Practice 7/20', question: 'How many?', group: '🍎'.repeat(3), options: [{content: '3', correct: true}, {content: '4', correct: false}], isPractice: true },
-        { type: 'short-answer', title: 'Practice 8/20', question: 'Type the number.', itemContent: '🚗'.repeat(5), correctAnswer: '5', isPractice: true},
-        { type: 'true-false', title: 'Practice 9/20', question: 'Is this a match?', itemContent: '⭐'.repeat(4), numeral: 4, correct: true, isPractice: true },
-        { type: 'drag-drop-sort', title: 'Practice 10/20', instruction: 'Sort the items.', items: [{id: 'd4p10i1', content: 'A', count: 1}, {id: 'd4p10i2', content: 'BB', count: 2}], targets: [{id: 'd4p10t1', label: '1', accepts: 1}, {id: 'd4p10t2', label: '2', accepts: 2}], isPractice: true },
-        { type: 'multiple-choice', title: 'Practice 11/20', question: 'Which has more?', group: '🔴🔴 vs 🔴🔴🔴', options: [{content: '🔴🔴', correct: false}, {content: '🔴🔴🔴', correct: true}], isPractice: true },
-        { type: 'drawing', title: 'Practice 12/20', instruction: 'Draw 2 circles.', isPractice: true},
-        { type: 'short-answer', title: 'Practice 13/20', question: 'Type the number.', itemContent: '🙂'.repeat(1), correctAnswer: '1', isPractice: true},
-        { type: 'true-false', title: 'Practice 14/20', question: 'Is this a match?', itemContent: '🧁'.repeat(5), numeral: 2, correct: false, isPractice: true },
-        { type: 'drag-drop-sequence', title: 'Practice 15/20', instruction: 'Put the numbers in order.', items: [{id: 'd4p15i1', content: '3'}, {id: 'd4p15i2', content: '1'}, {id: 'd4p15i3', content: '5'}, {id: 'd4p15i4', content: '2'}, {id: 'd4p15i5', content: '4'}], correctSequence: ['1', '2', '3', '4', '5'], isPractice: true},
-        { type: 'multiple-choice', title: 'Practice 16/20', question: 'How many?', group: '🎈'.repeat(4), options: [{content: '3', correct: false}, {content: '4', correct: true}], isPractice: true },
-        { type: 'short-answer', title: 'Practice 17/20', question: 'Type the number.', itemContent: '⭐'.repeat(2), correctAnswer: '2', isPractice: true},
-        { type: 'true-false', title: 'Practice 18/20', question: 'Is this a match?', itemContent: '🎁'.repeat(3), numeral: 3, correct: true, isPractice: true },
-        { type: 'drawing', title: 'Practice 19/20', instruction: 'Draw 5 stars.', isPractice: true},
-        { type: 'multiple-choice', title: 'Practice 20/20', question: 'Which has less?', group: '🔵🔵🔵🔵 vs 🔵🔵', options: [{content: '🔵🔵🔵🔵', correct: false}, {content: '🔵🔵', correct: true}], isPractice: true },
+         // Add review practice questions
       ]
     }
   ]
@@ -399,15 +351,29 @@ function initTabs() {
     const tab = document.createElement('button');
     tab.textContent = day.title;
     tab.className = `tab font-bold py-2 px-4 rounded-lg flex-shrink-0 ${index === appState.currentDay ? 'active-tab' : 'bg-gray-200 hover:bg-gray-300'}`;
-    if (!appState.isTeacher) tab.classList.add('disabled-nav');
+    
+    // Set initial visual state
+    if (!appState.isTeacher && !appState.allowFreeExplore) {
+        tab.classList.add('disabled-nav');
+    }
+
     tab.onclick = () => {
-      if (!appState.isTeacher) return;
+      // FIX: Re-evaluate the condition on every click, not from a stale closure.
+      const isCurrentlyDisabled = !appState.isTeacher && !appState.allowFreeExplore;
+      if (isCurrentlyDisabled) {
+        return;
+      }
+
+      // If allowed to click, proceed.
       appState.view = 'lesson';
       appState.currentDay = index;
       appState.currentSlide = 0;
-      initTabs();
+      initTabs(); // Redraw tabs to update the 'active' state
       showSlide(appState.currentDay, appState.currentSlide);
-      syncPush();
+      
+      if (appState.isTeacher) {
+        syncPush();
+      }
     };
     dayTabsContainer.appendChild(tab);
   });
@@ -430,7 +396,15 @@ function goToPracticeCenter(dayIndex) {
 }
 
 function showSlide(dayIndex, slideIndex) {
-  const slideSet = appState.view === 'practice' ? lessonData.days[dayIndex].practiceCenter : lessonData.days[dayIndex].slides;
+  const slideSet = appState.view === 'practice' && lessonData.days[dayIndex].practiceCenter.length > 0
+    ? lessonData.days[dayIndex].practiceCenter
+    : lessonData.days[dayIndex].slides;
+  
+  if (!slideSet || !slideSet[slideIndex]) {
+      console.error("Slide data not found for day:", dayIndex, "slide:", slideIndex, "view:", appState.view);
+      lessonContainer.innerHTML = `<div class="text-center text-red-500 font-bold">Oops! Could not load this slide.</div>`;
+      return;
+  }
   const slideData = slideSet[slideIndex];
 
   lessonContainer.innerHTML = `<div class="slide-content"></div>`;
@@ -755,7 +729,7 @@ function renderShortAnswer(slideData) {
     <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
     <p class="text-lg mb-4">${slideData.question}</p>
     <div class="text-8xl text-center mb-4 break-all">${slideData.itemContent}</div>
-    <input type="text" id="short-answer-input" class="block w-40 mx-auto text-center text-4xl p-2 border-4 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500" maxlength="1" inputmode="numeric" pattern="[0-9]*">
+    <input type="text" id="short-answer-input" class="block w-40 mx-auto text-center text-4xl p-2 border-4 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500" maxlength="2" inputmode="numeric" pattern="[0-9]*">
     ${slideData.isPractice ? '<div class="text-center mt-6"><button class="check-answer-btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg button-pop">Did I get it?</button></div>' : ''}
   `;
 }
@@ -869,7 +843,9 @@ function updateStudentNavControls() {
 
 
 function updateSlideCounter() {
-  const slideSet = appState.view === 'practice' ? lessonData.days[appState.currentDay].practiceCenter : lessonData.days[appState.currentDay].slides;
+  const slideSet = appState.view === 'practice' && lessonData.days[appState.currentDay].practiceCenter.length > 0
+    ? lessonData.days[appState.currentDay].practiceCenter
+    : lessonData.days[appState.currentDay].slides;
   const mode = appState.view === 'practice' ? "Practice" : "Lesson";
   slideCounter.textContent = `${mode} ${appState.currentSlide + 1} / ${slideSet.length}`;
 }
@@ -935,7 +911,7 @@ function downloadWork() {
     }
     const blob = new Blob([modifiedHtml], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'my-number-lesson.html';
+    const a = document.createElement('a'); a.href = url; a.download = 'my-number-lesson-6-10.html';
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
@@ -953,7 +929,13 @@ function initFirebaseSync() {
             messagingSenderId: "906128715071",
             appId: "1:906128715071:web:347ea08f4d864fde02778a"
         };
-        _app = firebase.initializeApp(firebaseConfig);
+        // Check if Firebase is already initialized
+        if (!firebase.apps.length) {
+            _app = firebase.initializeApp(firebaseConfig);
+        } else {
+            _app = firebase.app();
+        }
+
         _auth = firebase.auth();
         _db = firebase.firestore();
 
@@ -1021,4 +1003,7 @@ function disconnectFirebase() {
   </script>
 
 </body></html>
+
+
+
 
