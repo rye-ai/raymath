@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Explorers: Mental Math Subtraction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Firebase SDKs (Compat Version) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        
+        /* Slide transitions */
+        .slide { display: none; }
+        .slide.active { display: flex; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* Draggable styles */
+        .draggable { cursor: grab; }
+        .draggable:active { cursor: grabbing; }
+        .drop-target { border: 2px dashed #ccc; }
+        .drop-target.drag-over { border-color: #3b82f6; background-color: #bfdbfe; }
+        
+        /* Feedback styles */
+        .feedback { display: none; }
+        .feedback.show { display: block; }
+        .correct-answer { border: 3px solid #22c55e !important; }
+        .incorrect-answer { border: 3px solid #ef4444 !important; }
+
+        /* Print-friendly styles for PDF export */
+        .print-friendly { background: white; color: black; }
+        .print-friendly button, .print-friendly .hide-on-print { display: none !important; }
+        .print-friendly .slide { display: block !important; page-break-inside: avoid; border: 1px solid #ccc; margin-bottom: 20px; }
+        .print-friendly .assessment-slide { display: block !important; page-break-inside: avoid; }
+        
+        /* Sync styles */
+        .disabled-nav { pointer-events: none; opacity: 0.5; }
+        #setup-modal { backdrop-filter: blur(8px); }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-60">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md text-center">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Welcome to Math Explorers!</h2>
+            <p class="mb-6 text-gray-600">Please select your role to begin the session.</p>
+            
+            <div class="mb-4">
+                <label for="room-name" class="block text-sm font-medium text-gray-700 mb-1 text-left">Room Name</label>
+                <input type="text" id="room-name" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., class-a">
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2 text-left">Your Role</label>
+                <div class="flex justify-center space-x-4">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="role" value="Student" class="form-radio h-5 w-5 text-blue-600" checked>
+                        <span class="text-gray-700">Student 🎓</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="role" value="Teacher" class="form-radio h-5 w-5 text-blue-600">
+                        <span class="text-gray-700">Teacher 👩‍🏫</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div id="teacher-password-container" class="mb-4 hidden">
+                <label for="teacher-password" class="block text-sm font-medium text-gray-700 mb-1 text-left">Teacher Password</label>
+                <input type="password" id="teacher-password" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Enter teacher code">
+            </div>
+            
+            <p id="setup-error" class="text-red-500 text-sm mb-4 h-5"></p>
+
+            <button id="open-lesson-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Connecting...
+            </button>
+        </div>
+    </div>
+
+    <div id="app-container" class="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 hidden">
+        
+        <!-- Header -->
+        <header class="bg-white rounded-xl shadow-md p-4 mb-6">
+            <div class="flex justify-between items-center flex-wrap">
+                 <h1 class="text-3xl md:text-4xl font-bold text-center text-blue-600 flex-grow">Math Explorers: Mental Subtraction</h1>
+                 <div id="sync-controls" class="flex items-center gap-4">
+                    <span id="role-room-badge" class="bg-gray-200 text-gray-700 text-sm font-semibold px-3 py-1 rounded-full"></span>
+                    <label id="sync-toggle-label" class="flex items-center cursor-pointer hidden">
+                        <span class="mr-2 font-medium text-gray-700">Sync On</span>
+                        <input type="checkbox" id="sync-toggle" class="h-6 w-12 rounded-full appearance-none bg-red-400 checked:bg-green-500 transition-all duration-300 before:content-[''] before:absolute before:w-5 before:h-5 before:rounded-full before:bg-white before:shadow-md before:translate-x-1 before:translate-y-0.5 checked:before:translate-x-6">
+                    </label>
+                    <button id="change-role-room-btn" class="text-sm text-blue-600 hover:underline">Change</button>
+                </div>
+            </div>
+            <p class="text-center text-gray-500 mt-1">A 4-Day Journey to Master Subtraction within 20</p>
+            <div class="flex justify-center space-x-2 mt-4">
+                <button id="download-work-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow transition">
+                    💾 Download Work
+                </button>
+                <button id="download-pdf-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow transition">
+                    📄 Export as PDF
+                </button>
+            </div>
+        </header>
+
+        <!-- Day Tabs Navigation -->
+        <nav id="day-tabs" class="flex justify-center bg-white rounded-t-lg shadow-sm">
+            <button data-tab="day1" class="day-tab flex-1 py-3 px-4 text-center font-semibold text-gray-600 border-b-4 border-transparent hover:bg-gray-50">Day 1</button>
+            <button data-tab="day2" class="day-tab flex-1 py-3 px-4 text-center font-semibold text-gray-600 border-b-4 border-transparent hover:bg-gray-50">Day 2</button>
+            <button data-tab="day3" class="day-tab flex-1 py-3 px-4 text-center font-semibold text-gray-600 border-b-4 border-transparent hover:bg-gray-50">Day 3</button>
+            <button data-tab="day4" class="day-tab flex-1 py-3 px-4 text-center font-semibold text-gray-600 border-b-4 border-transparent hover:bg-gray-50">Day 4</button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main id="content-area" class="bg-white p-6 rounded-b-xl shadow-lg min-h-[60vh]">
+            <!-- Day Content will be injected here -->
+        </main>
+
+    </div>
+    
+    <!-- Student progress data is injected here for saving -->
+    <script id="progress-data" type="application/json"></script>
+
+    <script type="module">
+        // --- Firebase Config ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+            authDomain: "lesson-sync-a223a.firebaseapp.com",
+            projectId: "lesson-sync-a223a",
+            storageBucket: "lesson-sync-a223a.firebasestorage.app",
+            messagingSenderId: "906128715071",
+            appId: "1:906128715071:web:347ea08f4d864fde02778a"
+        };
+        
+        // Data for all lessons and assessments
+        const lessonData = {
+            day1: {
+                title: "Making Ten to Subtract",
+                standard: "2.PAFR.1.5 - Add and subtract number combinations flexibly and accurately within 20.",
+                lesson: [
+                    { id: 'd1_hook', type: 'instruction', prompt: "Hook: Crossing the Ten Bridge", visual: "A simple bridge with the number '10' on it.", content: "Math Explorers, we've found a bridge! The toll to cross is always getting back to the number 10. Let's say we have 14 explorer coins and we need to pay a toll of 6 coins. How can we use our special 'Ten Bridge' to figure this out easily?" },
+                    { id: 'd1_demo', type: 'instruction', prompt: "Demonstration: Decomposition", visual: "", content: "The 'Making Ten' strategy helps us solve tricky subtraction problems by splitting them into two easier steps. This uses a skill called **decomposition**. For 14 - 6, we first do 14 - 4 to get to 10. We broke 6 into 4 and 2. Now we just have to subtract the leftover 2 from 10, which is 8! So, 14 - 6 = 8." },
+                    // I Do
+                    {"id":"d1_ido_1","type":"mc","prompt":"I Do: Solve 13 - 5. First, how much do we subtract from 13 to get to 10?","visual":"ten_frame: dot_count=13, dot_color=blue","data":{"options":["2","3","4","5"]},"correct":"3"},
+                    {"id":"d1_ido_2","type":"text-box","prompt":"I Do: We broke the 5 into 3 and what other number?","visual":"number_bond: whole=5, part1=3, part2=?","data":{"size":2},"correct":"2"},
+                    {"id":"d1_ido_3","type":"mc","prompt":"I Do: Now we have 10 - 2. What is the final answer to 13 - 5?","visual":"","data":{"options":["7","8","9","10"]},"correct":"8"},
+                    // We Do
+                    {"id":"d1_wedo_1","type":"true-false","prompt":"We Do: To solve 12 - 4, the first step is 12 - 2.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d1_wedo_2","type":"mc","prompt":"We Do: For 12 - 4, we decompose 4 into...","visual":"number_bond: whole=4, part1=?, part2=?","data":{"options":["1 and 3","2 and 2","4 and 0"]},"correct":"2 and 2"},
+                    {"id":"d1_wedo_3","type":"text-box","prompt":"We Do: What is 10 - 2?","visual":"","data":{"size":2},"correct":"8"},
+                    {"id":"d1_wedo_4","type":"mc","prompt":"We Do: Solve 15 - 7. How much to get to 10?","visual":"ten_frame: dot_count=15, dot_color=red","data":{"options":["5","6","7"]},"correct":"5"},
+                    {"id":"d1_wedo_5","type":"mc","prompt":"We Do: We break 7 into 5 and...","visual":"number_bond: whole=7, part1=5, part2=?","data":{"options":["1","2","3"]},"correct":"2"},
+                    {"id":"d1_wedo_6","type":"text-box","prompt":"We Do: What is 10 - 2? So, 15 - 7 is...","visual":"","data":{"size":2},"correct":"8"},
+                    {"id":"d1_wedo_7","type":"true-false","prompt":"We Do: To solve 16 - 9, we can first do 16 - 6.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d1_wedo_8","type":"mc","prompt":"We Do: For 16 - 9, we decompose 9 into...","visual":"number_bond: whole=9, part1=?, part2=?","data":{"options":["6 and 3","5 and 4","7 and 2"]},"correct":"6 and 3"},
+                    {"id":"d1_wedo_9","type":"text-box","prompt":"We Do: What is 10 - 3?","visual":"","data":{"size":2},"correct":"7"},
+                    {"id":"d1_wedo_10","type":"mc","prompt":"We Do: So, what is the final answer to 16 - 9?","visual":"","data":{"options":["6","7","8"]},"correct":"7"},
+                    // You Do
+                    {"id":"d1_youdo_1","type":"text-box","prompt":"You Do: Solve 14 - 8. First step: 14 - __ = 10.","visual":"ten_frame: dot_count=14, dot_color=green","data":{"size":2},"correct":"4"},
+                    {"id":"d1_youdo_2","type":"mc","prompt":"You Do: You broke 8 into 4 and...","visual":"number_bond: whole=8, part1=4, part2=?","data":{"options":["3","4","5"]},"correct":"4"},
+                    {"id":"d1_youdo_3","type":"text-box","prompt":"You Do: Final step: 10 - 4 = __.","visual":"","data":{"size":2},"correct":"6"},
+                    {"id":"d1_youdo_4","type":"true-false","prompt":"You Do: To solve 11 - 5, you would first do 11 - 1 to get to 10.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d1_youdo_5","type":"text-box","prompt":"You Do: Use the whole strategy to solve 12 - 5. What is the answer?","visual":"","data":{"size":2},"correct":"7"}
+                ],
+                assessment: [
+                    {"id":"d1_a_1","type":"mc","prompt":"To solve 15 - 8 using the 'Making Ten' strategy, what is the FIRST step?","visual":"","data":{"options":["15 - 5","15 - 8","10 - 3","8 - 5"]},"correct":"15 - 5"},
+                    {"id":"d1_a_2","type":"ebsr","prompt":"Part A: Is 12 - 7 = 5? Part B: Which steps correctly show the 'Making Ten' strategy for 12 - 7?","visual":"","data":{"partA_options":["Yes","No"],"partB_options":["12 - 2, then 10 - 5","12 - 7, then 7 - 2","12 - 5, then 10 - 2"]},"correct":{"partA":"Yes","partB":"12 - 2, then 10 - 5"}},
+                    {"id":"d1_a_3","type":"multi-select","prompt":"Which two steps are needed to solve 14 - 6?","visual":"","data":{"options":["Break 6 into 4 and 2","14 - 4 = 10","10 - 6 = 4","10 - 2 = 8"]},"correct":["Break 6 into 4 and 2","10 - 2 = 8"]},
+                    {"id":"d1_a_4","type":"text-box","prompt":"Zara tried to solve 13 - 6. She first did 13 - 3 = 10. Then she did 10 - 6 = 4. What did she do wrong?","visual":"","data":{"size":100},"correct":"She should have subtracted 3 from 10, not 6."},
+                    {"id":"d1_a_5","type":"drag-drop-match","prompt":"Match the problem to the correct number bond for decomposition.","visual":"","data":{"draggables":["12 - 5","16 - 8"],"dropTargets":["Break 5 into 2 and 3","Break 8 into 6 and 2"]},"correct":{"12 - 5":"Break 5 into 2 and 3","16 - 8":"Break 8 into 6 and 2"}}
+                ]
+            },
+            day2: {
+                title: "Using Doubles to Subtract",
+                standard: "2.PAFR.1.5 - Add and subtract number combinations flexibly and accurately within 20.",
+                lesson: [
+                    { id: 'd2_hook', type: 'instruction', prompt: "Hook: Finding Double Secrets", visual: "A ladybug with 7 spots on each wing.", content: "Explorers, look at this bug! It's a perfect double. We know 7 + 7 = 14. What if a bird came and ate the 7 spots off one wing? How many would be left? (14 - 7 = 7). That's easy because we know our doubles!" },
+                    { id: 'd2_demo', type: 'instruction', prompt: "Demonstration: Pattern Recognition", visual: "", content: "If you know your addition doubles, you already know half of the subtraction problem! For 17 - 8, we can think... 'I know 8 + 8 = 16.' Since 17 is just one more than 16, the answer to 17 - 8 must be one more than 8. It's 9! This is a great example of **pattern recognition**." },
+                    // I Do
+                    {"id":"d2_ido_1","type":"mc","prompt":"I Do: To solve 12 - 6, what doubles fact helps me?","visual":"doubles_blocks: block_count=6, block_color=orange","data":{"options":["5 + 5 = 10","6 + 6 = 12","7 + 7 = 14"]},"correct":"6 + 6 = 12"},
+                    {"id":"d2_ido_2","type":"text-box","prompt":"I Do: Since I know 6 + 6 = 12, what is 12 - 6?","visual":"","data":{"size":2},"correct":"6"},
+                    {"id":"d2_ido_3","type":"mc","prompt":"I Do: To solve 15 - 7, I first think of a doubles fact. Which one is closest?","visual":"near_doubles_blocks: base_count=7, extra_count=1, block_color=purple","data":{"options":["6 + 6 = 12","7 + 7 = 14","8 + 8 = 16"]},"correct":"7 + 7 = 14"},
+                    // We Do
+                    {"id":"d2_wedo_1","type":"mc","prompt":"We Do: What doubles fact helps solve 16 - 8?","visual":"","data":{"options":["7 + 7 = 14","8 + 8 = 16","9 + 9 = 18"]},"correct":"8 + 8 = 16"},
+                    {"id":"d2_wedo_2","type":"text-box","prompt":"We Do: So, 16 - 8 = __.","visual":"","data":{"size":2},"correct":"8"},
+                    {"id":"d2_wedo_3","type":"true-false","prompt":"We Do: The doubles fact 5 + 5 = 10 can help you solve 11 - 5.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d2_wedo_4","type":"mc","prompt":"We Do: For 11 - 5, we know 5 + 5 = 10. Since 11 is one more than 10, the answer is...","visual":"near_doubles_blocks: base_count=5, extra_count=1, block_color=blue","data":{"options":["one less than 5","one more than 5"]},"correct":"one more than 5"},
+                    {"id":"d2_wedo_5","type":"text-box","prompt":"We Do: So, 11 - 5 = __.","visual":"","data":{"size":2},"correct":"6"},
+                    {"id":"d2_wedo_6","type":"mc","prompt":"We Do: Which doubles fact helps you solve 13 - 7?","visual":"","data":{"options":["6 + 6 = 12","7 + 7 = 14"]},"correct":"6 + 6 = 12"},
+                    {"id":"d2_wedo_7","type":"text-box","prompt":"We Do: I know 6 + 6 = 12. 13 is one more, so 13 - 7 must be...","visual":"","data":{"size":2},"correct":"6"},
+                    {"id":"d2_wedo_8","type":"true-false","prompt":"We Do: The doubles fact 9 + 9 = 18 helps solve 18 - 9.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d2_wedo_9","type":"text-box","prompt":"We Do: So, 18 - 9 = __.","visual":"doubles_blocks: block_count=9, block_color=green","data":{"size":2},"correct":"9"},
+                    {"id":"d2_wedo_10","type":"text-box","prompt":"We Do: Use a near doubles fact to solve 15 - 8. The answer is...","visual":"","data":{"size":2},"correct":"7"},
+                    // You Do
+                    {"id":"d2_youdo_1","type":"mc","prompt":"You Do: What is 14 - 7?","visual":"doubles_blocks: block_count=7, block_color=red","data":{"options":["6","7","8"]},"correct":"7"},
+                    {"id":"d2_youdo_2","type":"mc","prompt":"You Do: The problem 17 - 8 is a 'near doubles' problem. Which doubles fact is most helpful?","visual":"","data":{"options":["7 + 7 = 14","8 + 8 = 16","9 + 9 = 18"]},"correct":"8 + 8 = 16"},
+                    {"id":"d2_youdo_3","type":"text-box","prompt":"You Do: Knowing that 8 + 8 = 16, what is 17 - 8?","visual":"","data":{"size":2},"correct":"9"},
+                    {"id":"d2_youdo_4","type":"true-false","prompt":"You Do: To solve 13 - 6, I can use the fact 6 + 6 = 12.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d2_youdo_5","type":"text-box","prompt":"You Do: Solve 13 - 6.","visual":"","data":{"size":2},"correct":"7"}
+                ],
+                assessment: [
+                    {"id":"d2_a_1","type":"mc","prompt":"Which doubles fact is most helpful for solving 13 - 6?","visual":"","data":{"options":["5 + 5 = 10","6 + 6 = 12","7 + 7 = 14"]},"correct":"6 + 6 = 12"},
+                    {"id":"d2_a_2","type":"ebsr","prompt":"Part A: Is the answer to 17 - 9 equal to 8? Part B: Which fact proves this?","visual":"","data":{"partA_options":["Yes","No"],"partB_options":["Because 8 + 8 = 16.","Because 9 + 9 = 18.","Because 17 is an odd number."]},"correct":{"partA":"Yes","partB":"Because 9 + 9 = 18."}},
+                    {"id":"d2_a_3","type":"multi-select","prompt":"Which of the following problems can be solved easily using a doubles fact (doubles or near doubles)?","visual":"","data":{"options":["12 - 6","15 - 4","17 - 8","10 - 2"]},"correct":["12 - 6","17 - 8"]},
+                    {"id":"d2_a_4","type":"text-box","prompt":"Leo says, 'To solve 16 - 7, I know 8+8=16, so the answer is 8.' Explain Leo's mistake.","visual":"","data":{"size":100},"correct":"He used the wrong doubles fact. He should use 7+7=14 to see the answer is 9."},
+                    {"id":"d2_a_5","type":"drag-drop-sort","prompt":"Sort the problems based on the doubles fact that helps solve them.","visual":"","data":{"items":["14 - 7","15 - 7","12 - 6","13 - 6"],"categories":["Uses 6 + 6 = 12","Uses 7 + 7 = 14"]},"correct":{"Uses 6 + 6 = 12":["12 - 6","13 - 6"],"Uses 7 + 7 = 14":["14 - 7","15 - 7"]}}
+                ]
+            },
+            day3: {
+                title: "Subtracting in Chunks (Using a Number Line)",
+                standard: "2.PAFR.1.5 - Add and subtract number combinations flexibly and accurately within 20.",
+                lesson: [
+                    { id: 'd3_hook', type: 'instruction', prompt: "Hook: Leaping Along the Number Path", visual: "A cartoon path with numbered stones from 0 to 20.", content: "Imagine you're an explorer on a path with numbered stones. Subtraction is like taking steps backward toward your camp. You can take one big leap or a few smaller hops to get there. A number line is our map for this journey!" },
+                    { id: 'd3_demo', type: 'instruction', prompt: "Demonstration: Algorithm", visual: "", content: "A number line is a great tool for subtraction. The set of steps we use is like an **algorithm**. Step 1: Find your starting number. Step 2: Leap backward that many spaces. Step 3: Where you land is your answer! For 18 - 5, we start at 18, leap back 5, and land on 13." },
+                    // I Do
+                    {"id":"d3_ido_1","type":"mc","prompt":"I Do: To solve 17 - 5 on a number line, where do I start?","visual":"number_line: start_num=0, end_num=20, jumps=[]","data":{"options":["0","5","17","20"]},"correct":"17"},
+                    {"id":"d3_ido_2","type":"true-false","prompt":"I Do: My hops should go to the left (backward).","visual":"number_line: start_num=0, end_num=20, jumps=[{start:17, size:0, label:''}]","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d3_ido_3","type":"text-box","prompt":"I Do: I start at 17 and take one big hop back of 5. Where do I land?","visual":"number_line: start_num=0, end_num=20, jumps=[{start:17, size:-5, label:'-5'}]","data":{"size":2},"correct":"12"},
+                    // We Do
+                    {"id":"d3_wedo_1","type":"text-box","prompt":"We Do: Solve 19 - 6. Where do we start on the number line?","visual":"","data":{"size":2},"correct":"19"},
+                    {"id":"d3_wedo_2","type":"text-box","prompt":"We Do: How many spaces do we hop back?","visual":"","data":{"size":2},"correct":"6"},
+                    {"id":"d3_wedo_3","type":"text-box","prompt":"We Do: Where do we land? 19 - 6 = __.","visual":"number_line: start_num=0, end_num=20, jumps=[{start:19, size:-6, label:'-6'}]","data":{"size":2},"correct":"13"},
+                    {"id":"d3_wedo_4","type":"true-false","prompt":"We Do: To solve 14 - 8, we can do one hop of 8.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d3_wedo_5","type":"mc","prompt":"We Do: We can also break it down. To solve 14 - 8, we could do a hop of 4 to get to 10, then another hop of...","visual":"","data":{"options":["2","3","4"]},"correct":"4"},
+                    {"id":"d3_wedo_6","type":"text-box","prompt":"We Do: What is 14 - 8?","visual":"number_line: start_num=0, end_num=20, jumps=[{start:14, size:-4, label:'-4'}, {start:10, size:-4, label:'-4'}]","data":{"size":2},"correct":"6"},
+                    {"id":"d3_wedo_7","type":"mc","prompt":"We Do: Where is the starting point for 20 - 9?","visual":"","data":{"options":["9","11","20"]},"correct":"20"},
+                    {"id":"d3_wedo_8","type":"text-box","prompt":"We Do: Where do you land after hopping back 9 from 20?","visual":"number_line: start_num=0, end_num=20, jumps=[{start:20, size:-9, label:'-9'}]","data":{"size":2},"correct":"11"},
+                    {"id":"d3_wedo_9","type":"true-false","prompt":"We Do: A hop to the right means we are adding.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d3_wedo_10","type":"text-box","prompt":"We Do: Solve 16 - 5 on your own number line. What is the answer?","visual":"","data":{"size":2},"correct":"11"},
+                    // You Do
+                    {"id":"d3_youdo_1","type":"mc","prompt":"You Do: What is the starting point for 15 - 7?","visual":"","data":{"options":["7","8","15"]},"correct":"15"},
+                    {"id":"d3_youdo_2","type":"text-box","prompt":"You Do: Draw one hop back of 7 from 15. Where do you land?","visual":"number_line: start_num=0, end_num=20, jumps=[{start:15, size:-7, label:''}]","data":{"size":2},"correct":"8"},
+                    {"id":"d3_youdo_3","type":"true-false","prompt":"You Do: To solve 12 - 3, you should hop to the left.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d3_youdo_4","type":"text-box","prompt":"You Do: What is 12 - 3?","visual":"number_line: start_num=0, end_num=20, jumps=[{start:12, size:-3, label:'-3'}]","data":{"size":2},"correct":"9"},
+                    {"id":"d3_youdo_5","type":"text-box","prompt":"You Do: Solve 20 - 5 using a number line hop. The answer is __.","visual":"","data":{"size":2},"correct":"15"}
+                ],
+                assessment: [
+                    {"id":"d3_a_1","type":"mc","prompt":"When solving 19 - 8 on a number line, which direction do you jump?","visual":"","data":{"options":["Up","Down","Left","Right"]},"correct":"Left"},
+                    {"id":"d3_a_2","type":"ebsr","prompt":"Part A: What is 16 - 9? Part B: Which number line shows the correct way to solve this?","visual":"","data":{"partA_options":["7","8","9"],"partB_options":["Start at 16, jump right 9","Start at 9, jump right 16","Start at 16, jump left 9"]},"correct":{"partA":"7","partB":"Start at 16, jump left 9"}},
+                    {"id":"d3_a_3","type":"multi-select","prompt":"To solve 15 - 8, you could take one big hop of 8. What are other ways to hop back?","visual":"","data":{"options":["A hop of 5, then a hop of 3","A hop of 8, then a hop of 5","A hop of 4, then a hop of 4","A hop to 10, then a hop to 8"]},"correct":["A hop of 5, then a hop of 3","A hop of 4, then a hop of 4"]},
+                    {"id":"d3_a_4","type":"text-box","prompt":"Describe the algorithm, or steps, for subtracting on a number line. Step 1: Start on the bigger number. Step 2: ...","visual":"","data":{"size":100},"correct":"Hop backward the amount you are subtracting."},
+                    {"id":"d3_a_5","type":"drag-drop-match","prompt":"Match the problem to its landing spot on the number line.","visual":"number_line: start_num=0, end_num=20, jumps=[]","data":{"draggables":["18 - 5","20 - 9","15 - 6"],"dropTargets":["13","11","9"]},"correct":{"18 - 5":"13","20 - 9":"11","15 - 6":"9"}}
+                ]
+            },
+            day4: {
+                title: "Relating Addition and Subtraction (Fact Families)",
+                standard: "2.PAFR.1.5 - Add and subtract number combinations flexibly and accurately within 20.",
+                lesson: [
+                    { id: 'd4_hook', type: 'instruction', prompt: "Hook: The Fact Family Treasure", visual: "A cartoon house with three windows.", content: "Families share a special connection. Numbers can have families, too! The numbers in a fact family are always related. If you know the numbers 6, 8, and 14 are a family, you know all their addition and subtraction facts!" },
+                    { id: 'd4_demo', type: 'instruction', prompt: "Demonstration: Abstraction", visual: "", content: "Thinking about addition can be a super-fast way to solve subtraction. This is a type of **abstraction**. If you see 15 - 9 = ?, you can think, 'What do I add to 9 to get 15?' You know that 9 + 6 = 15, so the missing number must be 6!" },
+                    // I Do
+                    {"id":"d4_ido_1","type":"mc","prompt":"I Do: The problem is 11 - 7 = ?. What is the related addition question I should ask myself?","visual":"part_part_whole_mat: whole_val=11, part1_val=7, part2_val=?","data":{"options":["11 + 7 = ?","7 + ? = 11","11 + ? = 7"]},"correct":"7 + ? = 11"},
+                    {"id":"d4_ido_2","type":"text-box","prompt":"I Do: I know that 7 + __ = 11.","visual":"","data":{"size":2},"correct":"4"},
+                    {"id":"d4_ido_3","type":"mc","prompt":"I Do: So, the answer to 11 - 7 must be...","visual":"fact_family_house: roof_num=11, window1_num=7, window2_num=4","data":{"options":["3","4","5"]},"correct":"4"},
+                    // We Do
+                    {"id":"d4_wedo_1","type":"mc","prompt":"We Do: Which addition fact helps you solve 13 - 8?","visual":"","data":{"options":["13 + 8 = ?","8 + ? = 13","? + 13 = 8"]},"correct":"8 + ? = 13"},
+                    {"id":"d4_wedo_2","type":"text-box","prompt":"We Do: 8 + __ = 13.","visual":"","data":{"size":2},"correct":"5"},
+                    {"id":"d4_wedo_3","type":"mc","prompt":"We Do: So, 13 - 8 = __.","visual":"","data":{"options":["4","5","6"]},"correct":"5"},
+                    {"id":"d4_wedo_4","type":"true-false","prompt":"We Do: To solve 20 - 10, you can think 10 + 10 = 20.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d4_wedo_5","type":"text-box","prompt":"We Do: What is 20 - 10?","visual":"","data":{"size":2},"correct":"10"},
+                    {"id":"d4_wedo_6","type":"mc","prompt":"We Do: What are the three numbers in the fact family for 9 + 7 = 16?","visual":"fact_family_house: roof_num=16, window1_num=9, window2_num=7","data":{"options":["7, 8, 16","9, 7, 16","9, 7, 15"]},"correct":"9, 7, 16"},
+                    {"id":"d4_wedo_7","type":"mc","prompt":"We Do: Using that fact family, what is 16 - 7?","visual":"","data":{"options":["8","9","10"]},"correct":"9"},
+                    {"id":"d4_wedo_8","type":"text-box","prompt":"We Do: Solve 12 - 9 by thinking '9 + ? = 12'. The answer is...","visual":"","data":{"size":2},"correct":"3"},
+                    {"id":"d4_wedo_9","type":"text-box","prompt":"We Do: Solve 14 - 5 by thinking '5 + ? = 14'. The answer is...","visual":"","data":{"size":2},"correct":"9"},
+                    {"id":"d4_wedo_10","type":"true-false","prompt":"We Do: The numbers 5, 6, and 10 are in a fact family.","visual":"","data":{"options":["True","False"]},"correct":"False"},
+                    // You Do
+                    {"id":"d4_youdo_1","type":"mc","prompt":"You Do: Which addition fact helps you solve 15 - 6?","visual":"","data":{"options":["15 + 6 = ?","6 + ? = 15","9 + 6 = ?"]},"correct":"6 + ? = 15"},
+                    {"id":"d4_youdo_2","type":"text-box","prompt":"You Do: What is 15 - 6?","visual":"","data":{"size":2},"correct":"9"},
+                    {"id":"d4_youdo_3","type":"true-false","prompt":"You Do: Knowing 8 + 4 = 12 helps you solve 12 - 8.","visual":"","data":{"options":["True","False"]},"correct":"True"},
+                    {"id":"d4_youdo_4","type":"text-box","prompt":"You Do: What is 12 - 8?","visual":"part_part_whole_mat: whole_val=12, part1_val=8, part2_val=?","data":{"size":2},"correct":"4"},
+                    {"id":"d4_youdo_5","type":"text-box","prompt":"You Do: Use addition to solve 17 - 9. The answer is __.","visual":"","data":{"size":2},"correct":"8"}
+                ],
+                assessment: [
+                    {"id":"d4_a_1","type":"mc","prompt":"Which addition sentence is in the same fact family as 14 - 9 = 5?","visual":"","data":{"options":["14 + 9 = 23","9 + 5 = 14","14 + 5 = 19"]},"correct":"9 + 5 = 14"},
+                    {"id":"d4_a_2","type":"ebsr","prompt":"Part A: Are 7, 8, and 15 in the same fact family? Part B: Which equation proves your answer?","visual":"","data":{"partA_options":["Yes","No"],"partB_options":["7 + 8 = 15","8 - 7 = 1","15 + 7 = 22"]},"correct":{"partA":"Yes","partB":"7 + 8 = 15"}},
+                    {"id":"d4_a_3","type":"multi-select","prompt":"The numbers in the house are 6, 11, and 17. Which are correct number sentences for this fact family?","visual":"fact_family_house: roof_num=17, window1_num=6, window2_num=11","data":{"options":["17 - 11 = 6","11 - 6 = 5","6 + 11 = 17","6 + 17 = 23"]},"correct":["17 - 11 = 6","6 + 11 = 17"]},
+                    {"id":"d4_a_4","type":"text-box","prompt":"To solve 12 - 7, Maria thinks '12 + ? = 7'. What is wrong with her thinking? How should she think about it?","visual":"","data":{"size":100},"correct":"She should think '7 + ? = 12'."},
+                    {"id":"d4_a_5","type":"drag-drop-match","prompt":"Match the subtraction problem to the addition thought you can use to solve it.","visual":"","data":{"draggables":["11 - 5","16 - 9","13 - 7"],"dropTargets":["5 + ? = 11","9 + ? = 16","7 + ? = 13"]},"correct":{"11 - 5":"5 + ? = 11","16 - 9":"9 + ? = 16","13 - 7":"7 + ? = 13"}}
+                ]
+            }
+        };
+
+        // --- GLOBAL APP & SYNC STATE ---
+        let db, auth;
+        let roomName, userRole;
+        let firestoreUnsubscribe = null;
+        let _isApplyingRemote = false; // Flag to prevent sync loops
+        
+        // Application State
+        let appState = {
+            activeTab: 'day1',
+            mode: 'lesson', // 'lesson' or 'assessment'
+            allowFreeExplore: true,
+            progress: {
+                day1: { lessonSlide: 0, answers: {} },
+                day2: { lessonSlide: 0, answers: {} },
+                day3: { lessonSlide: 0, answers: {} },
+                day4: { lessonSlide: 0, answers: {} },
+            }
+        };
+        
+        let draggedItem = null; 
+
+        const positiveFeedback = ["Amazing!", "Great Discovery!", "You're on the right path!", "Brilliant find!", "Superb explorer!"];
+        const negativeFeedback = ["Hmm, check your map again.", "Not quite, give it another try!", "Let's rethink that step.", "Take a closer look."];
+
+        // --- CORE APPLICATION LOGIC ---
+        
+        document.addEventListener('DOMContentLoaded', init);
+
+        async function init() {
+            addModalEventListeners();
+            const startButton = document.getElementById('open-lesson-btn');
+            try {
+                await connectToFirebase();
+                
+                startButton.disabled = false;
+                startButton.textContent = 'Start Lesson';
+                
+                const savedRole = localStorage.getItem('lessonRole');
+                const savedRoom = localStorage.getItem('lessonRoom');
+
+                if (savedRole && savedRoom) {
+                    userRole = savedRole;
+                    roomName = savedRoom;
+                    startLesson();
+                } else {
+                    showSetupModal();
+                }
+            } catch (error) {
+                console.error("Firebase connection failed:", error);
+                startButton.textContent = 'Connection Failed';
+                const errorEl = document.getElementById('setup-error');
+                errorEl.textContent = 'Could not connect to the classroom service.';
+            }
+        }
+
+        function connectToFirebase() {
+            return new Promise((resolve, reject) => {
+                const firebaseReadyCheck = setInterval(() => {
+                    if (window.firebase && window.firebase.firestore && window.firebase.auth) {
+                        clearInterval(firebaseReadyCheck);
+                        try {
+                            if (!window.firebase.apps.length) {
+                                window.firebase.initializeApp(firebaseConfig);
+                            }
+                            db = window.firebase.firestore();
+                            auth = window.firebase.auth();
+                            
+                            // Check if there's already a user, otherwise sign in.
+                            if (auth.currentUser) {
+                                console.log("Firebase already signed in.");
+                                return resolve();
+                            }
+
+                            auth.signInAnonymously()
+                                .then(() => {
+                                    console.log("Firebase initialized and signed in.");
+                                    resolve();
+                                })
+                                .catch(error => {
+                                    console.error("Firebase sign-in failed:", error);
+                                    reject(error);
+                                });
+                        } catch (error) {
+                            console.error("Firebase initialization failed:", error);
+                            reject(error);
+                        }
+                    }
+                }, 100);
+            });
+        }
+        
+        function startLesson() {
+            hideSetupModal();
+            document.getElementById('app-container').classList.remove('hidden');
+            loadProgress();
+            buildFullUI();
+            addEventListeners();
+            initializeSync();
+            renderApp();
+        }
+
+        function buildFullUI() {
+            const contentArea = document.getElementById('content-area');
+            contentArea.innerHTML = ''; // Clear previous content
+
+            Object.keys(lessonData).forEach(dayId => {
+                const dayData = lessonData[dayId];
+                const dayContainer = document.createElement('div');
+                dayContainer.id = dayId;
+                dayContainer.className = 'day-content hidden';
+                
+                // Build the header for the day
+                const header = document.createElement('div');
+                header.className = 'flex justify-between items-center mb-4';
+                header.innerHTML = `
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-700">${dayData.title}</h2>
+                        <p class="text-sm text-gray-500">${dayData.standard}</p>
+                    </div>
+                    <button class="mode-toggle-btn bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg shadow transition" data-day="${dayId}">Go to Assessment 🗺️</button>
+                `;
+                dayContainer.appendChild(header);
+
+                // Build Lesson and Assessment containers
+                dayContainer.innerHTML += `
+                    <div class="lesson-view">
+                         <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                            <div class="progress-bar bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <div class="lesson-slides-container"></div>
+                        <div class="slide-nav flex justify-between mt-6">
+                            <button class="prev-btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg shadow transition">⬅️ Previous</button>
+                            <button class="next-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow transition">Next ➡️</button>
+                        </div>
+                    </div>
+                    <div class="assessment-view hidden">
+                         <div class="assessment-slides-container"></div>
+                    </div>
+                `;
+
+                contentArea.appendChild(dayContainer);
+
+                // Populate slides
+                const lessonContainer = dayContainer.querySelector('.lesson-slides-container');
+                dayData.lesson.forEach(item => lessonContainer.appendChild(createSlide(item, dayId, 'lesson')));
+
+                const assessmentContainer = dayContainer.querySelector('.assessment-slides-container');
+                dayData.assessment.forEach(item => assessmentContainer.appendChild(createSlide(item, dayId, 'assessment')));
+                assessmentContainer.appendChild(createCompletionSlide(dayId));
+            });
+        }
+        
+        function addEventListeners() {
+            document.getElementById('day-tabs').addEventListener('click', handleTabClick);
+            document.getElementById('content-area').addEventListener('click', handleContentClick);
+            document.getElementById('download-work-btn').addEventListener('click', handleDownloadWork);
+            document.getElementById('download-pdf-btn').addEventListener('click', handleDownloadPDF);
+            document.getElementById('change-role-room-btn').addEventListener('click', handleChangeRoom);
+            document.getElementById('sync-toggle').addEventListener('change', handleSyncToggleChange);
+            
+            // Add event listeners for drag and drop functionality
+            const contentArea = document.getElementById('content-area');
+            
+            contentArea.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('draggable')) {
+                    draggedItem = e.target;
+                    setTimeout(() => e.target.style.opacity = '0.5', 0);
+                }
+            });
+
+            contentArea.addEventListener('dragend', (e) => {
+                if (draggedItem) {
+                    draggedItem.style.opacity = '1';
+                    draggedItem = null;
+                }
+            });
+
+            contentArea.addEventListener('dragover', (e) => {
+                const dropTarget = e.target.closest('.drop-target');
+                if (dropTarget) {
+                    e.preventDefault();
+                    dropTarget.classList.add('drag-over');
+                }
+            });
+
+            contentArea.addEventListener('dragleave', (e) => {
+                const dropTarget = e.target.closest('.drop-target');
+                 if (dropTarget) {
+                    dropTarget.classList.remove('drag-over');
+                }
+            });
+
+            contentArea.addEventListener('drop', (e) => {
+                const dropTarget = e.target.closest('.drop-target');
+                if (dropTarget && draggedItem) {
+                    e.preventDefault();
+                    const slide = dropTarget.closest('.slide');
+                    const type = slide.dataset.type;
+
+                    // For matching, only one item per target. Swap if needed.
+                    if (type === 'drag-drop-match') {
+                        if (dropTarget.children.length > 0) {
+                            const existingItem = dropTarget.firstElementChild;
+                            const originalPool = slide.querySelector('.draggables-pool');
+                            originalPool.appendChild(existingItem);
+                        }
+                        dropTarget.innerHTML = ''; // Clear target
+                    }
+                    
+                    dropTarget.appendChild(draggedItem);
+                    dropTarget.classList.remove('drag-over');
+                }
+            });
+        }
+
+        // --- STATE MANAGEMENT ---
+
+        function saveProgress() {
+            localStorage.setItem('mathExplorerProgress', JSON.stringify(appState));
+        }
+
+        function loadProgress() {
+            const progressDataEl = document.getElementById('progress-data');
+            let savedData = null;
+            
+            if (progressDataEl && progressDataEl.textContent.trim().length > 2) {
+                try {
+                    savedData = JSON.parse(progressDataEl.textContent);
+                } catch (e) {
+                    console.error("Could not parse injected progress data.", e);
+                    savedData = localStorage.getItem('mathExplorerProgress');
+                }
+            } else {
+                 savedData = localStorage.getItem('mathExplorerProgress');
+            }
+
+            if (savedData) {
+                appState = typeof savedData === 'string' ? JSON.parse(savedData) : savedData;
+            }
+        }
+        
+        // --- RENDERING LOGIC ---
+
+        function renderApp() {
+             if (_isApplyingRemote) return; // Prevent re-rendering while applying remote state
+            // Update tabs
+            document.querySelectorAll('.day-tab').forEach(tab => {
+                const isActive = tab.dataset.tab === appState.activeTab;
+                tab.classList.toggle('text-blue-600', isActive);
+                tab.classList.toggle('border-blue-600', isActive);
+                tab.classList.toggle('bg-blue-50', isActive);
+            });
+            
+            // Update content visibility
+            document.querySelectorAll('.day-content').forEach(content => {
+                content.classList.toggle('hidden', content.id !== appState.activeTab);
+            });
+            
+            // Render the active day's content
+            renderDayContent(appState.activeTab);
+            
+            // Update sync-related UI
+            if (userRole === 'Student') {
+                 toggleStudentNav(!appState.allowFreeExplore);
+            }
+        }
+
+        function renderDayContent(dayId) {
+            const dayContainer = document.getElementById(dayId);
+            if (!dayContainer) return;
+
+            const lessonView = dayContainer.querySelector('.lesson-view');
+            const assessmentView = dayContainer.querySelector('.assessment-view');
+            const modeBtn = dayContainer.querySelector('.mode-toggle-btn');
+            
+            const isLessonMode = appState.mode === 'lesson';
+            lessonView.classList.toggle('hidden', !isLessonMode);
+            assessmentView.classList.toggle('hidden', isLessonMode);
+
+            if(isLessonMode) {
+                modeBtn.innerHTML = 'Go to Assessment 🗺️';
+                renderLessonSlide(dayId);
+            } else {
+                modeBtn.innerHTML = '⬅️ Back to Lesson';
+                renderAssessmentSlide(dayId);
+            }
+            
+            restoreAnswers(dayId);
+        }
+
+        function renderLessonSlide(dayId) {
+            const slides = document.querySelectorAll(`#${dayId} .lesson-slides-container .slide`);
+            const slideIndex = appState.progress[dayId].lessonSlide;
+
+            slides.forEach((slide, index) => {
+                slide.classList.toggle('active', index === slideIndex);
+            });
+
+            const dayContainer = document.getElementById(dayId);
+            dayContainer.querySelector('.prev-btn').disabled = slideIndex === 0;
+            dayContainer.querySelector('.next-btn').style.display = slideIndex === slides.length - 1 ? 'none' : 'inline-block';
+            
+            const progressBar = dayContainer.querySelector('.progress-bar');
+            const progressPercent = (slideIndex + 1) / slides.length * 100;
+            progressBar.style.width = `${progressPercent}%`;
+        }
+        
+        function renderAssessmentSlide(dayId) {
+            const assessmentContainer = document.querySelector(`#${dayId} .assessment-view`);
+            if (assessmentContainer.querySelector('.completion-slide.active')) {
+                // if completion slide is active, don't change anything
+                return;
+            }
+            const slides = assessmentContainer.querySelectorAll('.assessment-slides-container .slide');
+            slides.forEach(slide => slide.classList.remove('active'));
+            if (slides.length > 0) {
+                 slides[0].classList.add('active'); // Show first question by default
+            }
+        }
+        
+        function restoreAnswers(dayId) {
+            const answers = appState.progress[dayId].answers;
+            Object.keys(answers).forEach(questionId => {
+                const slide = document.getElementById(questionId);
+                if (!slide) return;
+                const answer = answers[questionId];
+                
+                 const inputs = slide.querySelectorAll('input, textarea');
+                 inputs.forEach(input => {
+                     if (input.type === 'radio' || input.type === 'checkbox') {
+                        if (Array.isArray(answer) ? answer.includes(input.value) : answer === input.value) {
+                             input.checked = true;
+                        }
+                     } else if (input.type === 'text') {
+                         input.value = answer;
+                     }
+                 });
+
+                const feedbackEl = slide.querySelector('.feedback');
+                if (feedbackEl && answer !== undefined) {
+                    const checkBtn = slide.querySelector('.check-answer-btn');
+                    if(checkBtn) checkBtn.click();
+                }
+            });
+        }
+
+
+        // --- UI ELEMENT CREATION ---
+        function createSlide(item, dayId, mode) {
+            const slide = document.createElement('div');
+            slide.id = item.id;
+            slide.className = `slide flex-col items-center justify-center p-6 bg-blue-50 rounded-lg min-h-[40vh] border-2 border-transparent ${mode === 'assessment' ? 'assessment-slide' : ''}`;
+            slide.dataset.day = dayId;
+            slide.dataset.type = item.type;
+            slide.dataset.correct = JSON.stringify(item.correct);
+            let contentHTML = `
+                <div class="w-full text-center">
+                    <p class="text-xl md:text-2xl font-medium text-gray-800 mb-4">${item.prompt}</p>
+                    ${item.visual ? `<div class="visual-container my-4 flex justify-center"></div>` : ''}
+            `;
+            switch (item.type) {
+                case 'instruction': contentHTML += `<p class="text-lg text-gray-600">${item.content}</p>`; break;
+                case 'mc': case 'true-false':
+                    contentHTML += `<div class="options grid grid-cols-1 md:grid-cols-2 gap-3 max-w-md mx-auto">`;
+                    item.data.options.forEach(opt => { contentHTML += `<label class="flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-blue-100 transition"><input type="radio" name="${item.id}" value="${opt}" class="mr-3 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300">${opt}</label>`; });
+                    contentHTML += `</div>`; break;
+                case 'multi-select':
+                    contentHTML += `<div class="options grid grid-cols-1 md:grid-cols-2 gap-3 max-w-md mx-auto">`;
+                    item.data.options.forEach(opt => { contentHTML += `<label class="flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-blue-100 transition"><input type="checkbox" name="${item.id}" value="${opt}" class="mr-3 h-5 w-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300">${opt}</label>`; });
+                    contentHTML += `</div>`; break;
+                case 'text-box': contentHTML += `<textarea rows="2" maxlength="${item.data.size}" class="mt-2 p-2 border border-gray-300 rounded-md w-full max-w-md mx-auto focus:ring-blue-500 focus:border-blue-500"></textarea>`; break;
+                case 'drag-drop-match':
+                     contentHTML += `<div class="flex flex-col md:flex-row justify-around items-center w-full max-w-2xl mx-auto gap-8"><div class="draggables-pool flex flex-col gap-4">${item.data.draggables.map(d => `<div class="draggable p-3 bg-yellow-300 rounded-lg shadow cursor-grab" draggable="true" data-value="${d}">${d}</div>`).join('')}</div><div class="drop-targets flex flex-col gap-4 w-full md:w-1/2">${item.data.dropTargets.map(t => `<div class="flex items-center gap-2"><div class="drop-target w-full h-14 rounded-lg bg-gray-100 flex items-center justify-center p-1" data-value="${t}"></div><p class="font-medium">${t}</p></div>`).join('')}</div></div>`; break;
+                case 'drag-drop-sort':
+                    contentHTML += `<div class="flex flex-col md:flex-row gap-6 w-full max-w-3xl mx-auto"><div class="draggables-pool flex flex-wrap justify-center gap-3 p-4 bg-gray-100 rounded-lg min-h-[80px]">${item.data.items.map(i => `<div class="draggable p-3 bg-yellow-300 rounded-lg shadow cursor-grab" draggable="true" data-value="${i}">${i}</div>`).join('')}</div><div class="categories flex-1 grid grid-cols-2 gap-4">${item.data.categories.map(c => `<div class="p-4 bg-blue-100 rounded-lg"><h3 class="font-bold text-center mb-2">${c}</h3><div class="drop-target min-h-[80px] p-2 flex flex-wrap gap-2 content-start" data-category="${c}"></div></div>`).join('')}</div></div>`; break;
+                case 'ebsr':
+                    contentHTML += `<div class="max-w-xl mx-auto space-y-6"><div><p class="font-semibold mb-2">Part A</p><div class="options grid grid-cols-2 gap-3">${item.data.partA_options.map(opt => `<label class="flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-blue-100 transition"><input type="radio" name="${item.id}-partA" value="${opt}" class="mr-3 h-5 w-5">${opt}</label>`).join('')}</div></div><div><p class="font-semibold mb-2">Part B</p><div class="options grid grid-cols-1 gap-3">${item.data.partB_options.map(opt => `<label class="flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-blue-100 transition"><input type="radio" name="${item.id}-partB" value="${opt}" class="mr-3 h-5 w-5">${opt}</label>`).join('')}</div></div></div>`; break;
+            }
+            if (item.type !== 'instruction') {
+                contentHTML += `<div class="mt-6 w-full text-center"><button class="check-answer-btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow transition transform hover:scale-105">Check My Work</button></div><div class="feedback mt-4 p-3 rounded-lg w-full max-w-md mx-auto"></div>`;
+            }
+            contentHTML += `</div>`;
+            slide.innerHTML = contentHTML;
+            if (item.visual) {
+                const visualContainer = slide.querySelector('.visual-container');
+                if(visualContainer) {
+                    try { const svg = generateVisual(item.visual); if(svg) visualContainer.appendChild(svg); } catch (e) { console.error(`Could not generate visual for "${item.visual}"`, e); visualContainer.textContent = "Error generating visual."; }
+                }
+            }
+            return slide;
+        }
+
+        function createCompletionSlide(dayId) {
+            const slide = document.createElement('div');
+            slide.className = 'slide completion-slide flex-col items-center justify-center p-6 bg-green-50 rounded-lg';
+            slide.innerHTML = `<div class="text-center"><h3 class="text-3xl font-bold text-green-700">Great Work, Explorer!</h3><p class="mt-2 text-lg">You've completed the assessment for Day ${dayId.slice(-1)}.</p><button class="go-back-btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow transition mt-8" data-day="${dayId}">Double Check My Answers</button><div class="mt-12"><button class="teacher-view-btn text-sm text-gray-500 hover:underline">Admin View</button></div><div class="teacher-report hidden mt-4 p-4 border-2 border-dashed border-gray-400 rounded-lg bg-white w-full max-w-lg mx-auto text-left"><h4 class="font-bold text-xl text-center mb-2">Score Summary</h4><div class="score-details"></div></div></div>`;
+            return slide;
+        }
+
+        // --- SETUP MODAL LOGIC ---
+        
+        function addModalEventListeners() {
+            document.querySelector('input[name="role"]').addEventListener('change', (e) => {
+                document.getElementById('teacher-password-container').classList.toggle('hidden', e.target.value !== 'Teacher');
+            });
+            document.getElementById('open-lesson-btn').addEventListener('click', handleStartLesson);
+        }
+
+        function showSetupModal() {
+            document.getElementById('setup-modal').classList.remove('hidden');
+            document.getElementById('app-container').classList.add('hidden');
+        }
+
+        function hideSetupModal() {
+            document.getElementById('setup-modal').classList.add('hidden');
+        }
+
+        function handleStartLesson() {
+            const roomInput = document.getElementById('room-name');
+            const roleInput = document.querySelector('input[name="role"]:checked');
+            const passwordInput = document.getElementById('teacher-password');
+            const errorEl = document.getElementById('setup-error');
+            
+            errorEl.textContent = '';
+            const selectedRole = roleInput.value;
+            const enteredRoom = roomInput.value.trim().toLowerCase();
+
+            if (!enteredRoom) {
+                errorEl.textContent = 'Please enter a room name.';
+                return;
+            }
+            if (selectedRole === 'Teacher' && passwordInput.value !== '2026') {
+                errorEl.textContent = 'Incorrect teacher password.';
+                return;
+            }
+
+            userRole = selectedRole;
+            roomName = enteredRoom;
+            localStorage.setItem('lessonRole', userRole);
+            localStorage.setItem('lessonRoom', roomName);
+
+            startLesson();
+        }
+
+        // --- FIREBASE & SYNC LOGIC ---
+        
+        function initializeSync() {
+            if (!db) {
+                console.error("Firestore is not initialized. Sync cannot start.");
+                return;
+            }
+            document.getElementById('role-room-badge').textContent = `${userRole} • room: ${roomName}`;
+            const syncToggleLabel = document.getElementById('sync-toggle-label');
+            const syncToggle = document.getElementById('sync-toggle');
+
+            if (firestoreUnsubscribe) firestoreUnsubscribe(); // Unsubscribe from old listener if exists
+
+            if (userRole === 'Teacher') {
+                syncToggleLabel.classList.remove('hidden');
+                // Set initial state from local or default, then push
+                syncToggle.checked = !appState.allowFreeExplore; 
+                syncPush();
+            } else { // Student
+                syncToggleLabel.classList.add('hidden');
+                const roomRef = db.collection('rooms').doc(roomName);
+                firestoreUnsubscribe = roomRef.onSnapshot(handleRemoteUpdate);
+            }
+        }
+        
+        function syncPush() {
+            if (userRole !== 'Teacher' || !roomName) return;
+            const roomRef = db.collection('rooms').doc(roomName);
+            const stateToPush = {
+                day: appState.activeTab,
+                slide: appState.progress[appState.activeTab].lessonSlide,
+                view: appState.mode,
+                allowFreeExplore: appState.allowFreeExplore,
+                updatedAt: window.firebase.firestore.FieldValue.serverTimestamp()
+            };
+            roomRef.set(stateToPush).catch(error => console.error("Error pushing state:", error));
+        }
+        
+        function handleRemoteUpdate(doc) {
+            if (userRole !== 'Student' || !doc.exists) return;
+            
+            _isApplyingRemote = true; // Set flag to prevent feedback loops
+            
+            const data = doc.data();
+            appState.allowFreeExplore = data.allowFreeExplore;
+            
+            if (appState.allowFreeExplore) {
+                toggleStudentNav(false); // Enable navigation
+            } else {
+                toggleStudentNav(true); // Disable navigation
+                // Force student's view to match teacher's
+                appState.activeTab = data.day;
+                appState.mode = data.view;
+                if (appState.progress[data.day]) {
+                    appState.progress[data.day].lessonSlide = data.slide;
+                }
+                renderApp();
+            }
+            
+            _isApplyingRemote = false; // Unset flag
+        }
+
+        function toggleStudentNav(isDisabled) {
+            document.querySelectorAll('.day-tab, .prev-btn, .next-btn, .mode-toggle-btn').forEach(el => {
+                el.classList.toggle('disabled-nav', isDisabled);
+            });
+        }
+        
+        function handleChangeRoom() {
+            if (firestoreUnsubscribe) firestoreUnsubscribe();
+            localStorage.removeItem('lessonRole');
+            localStorage.removeItem('lessonRoom');
+            showSetupModal();
+        }
+        
+        function handleSyncToggleChange(e) {
+            const isChecked = e.target.checked;
+            const password = prompt("Enter teacher password to change sync mode:");
+            if (password === '2026') {
+                appState.allowFreeExplore = !isChecked; // checked = sync on = free explore OFF
+                syncPush();
+            } else {
+                alert("Incorrect password.");
+                e.target.checked = !isChecked; // Revert checkbox
+            }
+        }
+
+        // --- EVENT HANDLERS ---
+        
+        function handleTabClick(e) {
+            if (e.target.classList.contains('day-tab')) {
+                appState.activeTab = e.target.dataset.tab;
+                appState.mode = 'lesson'; // Reset to lesson mode on tab switch
+                renderApp();
+                saveProgress();
+                if (userRole === 'Teacher') syncPush();
+            }
+        }
+        
+        function handleContentClick(e) {
+            const target = e.target;
+            const dayId = appState.activeTab;
+
+            // Mode toggle
+            if (target.classList.contains('mode-toggle-btn')) {
+                appState.mode = appState.mode === 'lesson' ? 'assessment' : 'lesson';
+                renderDayContent(dayId);
+                saveProgress();
+                if (userRole === 'Teacher') syncPush();
+            }
+            
+            // Lesson navigation
+            if (target.classList.contains('next-btn')) {
+                const slides = document.querySelectorAll(`#${dayId} .lesson-slides-container .slide`);
+                if (appState.progress[dayId].lessonSlide < slides.length - 1) {
+                    appState.progress[dayId].lessonSlide++;
+                    renderLessonSlide(dayId);
+                    saveProgress();
+                    if (userRole === 'Teacher') syncPush();
+                }
+            }
+            if (target.classList.contains('prev-btn')) {
+                if (appState.progress[dayId].lessonSlide > 0) {
+                    appState.progress[dayId].lessonSlide--;
+                    renderLessonSlide(dayId);
+                    saveProgress();
+                    if (userRole === 'Teacher') syncPush();
+                }
+            }
+            
+            // Check answer
+            if (target.classList.contains('check-answer-btn')) { handleCheckAnswer(target); }
+            // Try again
+            if (target.classList.contains('try-again-btn')) {
+                const slide = target.closest('.slide');
+                slide.classList.remove('incorrect-answer');
+                slide.querySelector('.feedback').classList.remove('show');
+                target.textContent = 'Check My Work';
+                target.classList.remove('try-again-btn', 'bg-orange-500', 'hover:bg-orange-600');
+                target.classList.add('check-answer-btn', 'bg-green-500', 'hover:bg-green-600');
+            }
+            // Teacher view
+            if (target.classList.contains('teacher-view-btn')) {
+                const password = prompt("Enter secret code:");
+                if (password === "2026") {
+                    const report = target.closest('.completion-slide').querySelector('.teacher-report');
+                    generateTeacherReport(dayId, report.querySelector('.score-details'));
+                    report.classList.remove('hidden');
+                } else if(password) {
+                    alert("Incorrect code.");
+                }
+            }
+            // Go back from completion screen
+            if (target.classList.contains('go-back-btn')) {
+                 const dayId = target.dataset.day;
+                 target.closest('.completion-slide').classList.remove('active');
+                 const firstQuestion = document.querySelector(`#${dayId} .assessment-slides-container .slide`);
+                 if(firstQuestion) firstQuestion.classList.add('active');
+            }
+        }
+        
+        function handleCheckAnswer(button) {
+            const slide = button.closest('.slide');
+            const { id, type, day } = slide.dataset;
+            const correct = JSON.parse(slide.dataset.correct);
+            const feedbackEl = slide.querySelector('.feedback');
+            let userAnswer, isCorrect = false;
+
+            switch (type) {
+                case 'mc': case 'true-false':
+                    const selectedRadio = slide.querySelector('input[type="radio"]:checked'); userAnswer = selectedRadio ? selectedRadio.value : null; isCorrect = userAnswer === correct; break;
+                case 'multi-select':
+                    const selectedChecks = Array.from(slide.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value); userAnswer = selectedChecks; isCorrect = selectedChecks.length === correct.length && selectedChecks.every(val => correct.includes(val)); break;
+                case 'text-box':
+                    const textarea = slide.querySelector('textarea'); userAnswer = textarea ? textarea.value.trim() : ''; isCorrect = userAnswer.toLowerCase() === correct.toLowerCase(); break;
+                 case 'ebsr':
+                    const partA = slide.querySelector(`input[name="${id}-partA"]:checked`); const partB = slide.querySelector(`input[name="${id}-partB"]:checked`); userAnswer = { partA: partA?.value, partB: partB?.value }; isCorrect = userAnswer.partA === correct.partA && userAnswer.partB === correct.partB; break;
+                case 'drag-drop-match':
+                    userAnswer = {};
+                    slide.querySelectorAll('.drop-target').forEach(target => {
+                        const draggable = target.querySelector('.draggable');
+                        if (draggable) { const draggableValue = draggable.dataset.value; const targetValue = target.dataset.value; userAnswer[draggableValue] = targetValue; }
+                    });
+                     isCorrect = Object.keys(correct).length === Object.keys(userAnswer).length && Object.keys(correct).every(key => correct[key] === userAnswer[key]); break;
+                case 'drag-drop-sort':
+                    userAnswer = {};
+                    slide.querySelectorAll('.drop-target[data-category]').forEach(cat => {
+                        const categoryName = cat.dataset.category; const draggables = Array.from(cat.querySelectorAll('.draggable')).map(d => d.dataset.value); userAnswer[categoryName] = draggables.sort();
+                    });
+                    isCorrect = Object.keys(correct).length === Object.keys(userAnswer).length;
+                    if(isCorrect) { for(const categoryName in correct) { const correctArr = [...correct[categoryName]].sort(); const userArr = userAnswer[categoryName] || []; if (correctArr.length !== userArr.length || !correctArr.every((val, index) => val === userArr[index])) { isCorrect = false; break; } } } break;
+            }
+            
+            appState.progress[day].answers[id] = userAnswer;
+            saveProgress();
+
+            slide.classList.remove('correct-answer', 'incorrect-answer');
+            if (isCorrect) {
+                slide.classList.add('correct-answer');
+                feedbackEl.className = 'feedback show p-3 rounded-lg w-full max-w-md mx-auto bg-green-100 text-green-800';
+                feedbackEl.textContent = `⭐ ${positiveFeedback[Math.floor(Math.random() * positiveFeedback.length)]}`;
+                button.disabled = true;
+                if (slide.classList.contains('assessment-slide')) {
+                    setTimeout(() => { const nextSlide = slide.nextElementSibling; if (nextSlide) { slide.classList.remove('active'); nextSlide.classList.add('active'); } }, 1200);
+                }
+            } else {
+                slide.classList.add('incorrect-answer');
+                feedbackEl.className = 'feedback show p-3 rounded-lg w-full max-w-md mx-auto bg-red-100 text-red-800';
+                feedbackEl.textContent = `🧭 ${negativeFeedback[Math.floor(Math.random() * negativeFeedback.length)]}`;
+                button.textContent = 'Try Again';
+                button.classList.remove('check-answer-btn', 'bg-green-500', 'hover:bg-green-600');
+                button.classList.add('try-again-btn', 'bg-orange-500', 'hover:bg-orange-600');
+            }
+        }
+        
+        function generateTeacherReport(dayId, container) {
+            const dayData = lessonData[dayId];
+            const userAnswers = appState.progress[dayId].answers;
+            let correctCount = 0, total = 0;
+            let reportHTML = '<ul class="space-y-2">';
+            dayData.assessment.forEach(q => {
+                if (q.type === 'instruction') return;
+                total++;
+                const userAnswer = userAnswers[q.id], correctAnsw = q.correct;
+                let isCorrect = JSON.stringify(userAnswer) === JSON.stringify(correctAnsw);
+                if(q.type === 'text-box' && typeof userAnswer === 'string') { isCorrect = userAnswer.toLowerCase() === correctAnsw.toLowerCase(); }
+                if (isCorrect) correctCount++;
+                reportHTML += `<li class="p-2 rounded ${isCorrect ? 'bg-green-50' : 'bg-red-50'}"><strong>Q:</strong> ${q.prompt.split('?')[0]}? <br><strong>Your Answer:</strong> ${JSON.stringify(userAnswer) || 'Not answered'} <br><strong class="text-green-700">Correct Answer:</strong> ${JSON.stringify(correctAnsw)}</li>`;
+            });
+            reportHTML += '</ul>';
+            container.innerHTML = `<p class="text-center font-bold mb-4">Total Score: ${correctCount} / ${total}</p>` + reportHTML;
+        }
+
+
+        // --- DYNAMIC SVG GENERATION ---
+        
+        function generateVisual(description) {
+            if (!description) return null;
+            const ns = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(ns, 'svg');
+            const type = description.substring(0, description.indexOf(':'));
+            let paramsStr = description.substring(description.indexOf(': ') + 2);
+            const params = {};
+            if (type === 'number_line' && paramsStr.includes('jumps=')) {
+                const jumpMatch = paramsStr.match(/,?\s*jumps=(\[.*?\])/);
+                if (jumpMatch) { params.jumps = jumpMatch[1]; paramsStr = paramsStr.replace(jumpMatch[0], ''); }
+            }
+            paramsStr.split(', ').forEach(p => { const parts = p.split('='); if (parts.length === 2) { params[parts[0].trim()] = parts[1].trim(); } });
+
+            switch(type) {
+                case 'ten_frame':
+                    svg.setAttribute('viewBox', '0 0 115 25'); svg.setAttribute('width', '230'); svg.setAttribute('height', '50');
+                    const count = parseInt(params.dot_count, 10);
+                    for (let frame = 0; frame < 2; frame++) { for (let row = 0; row < 2; row++) { for (let col = 0; col < 5; col++) { const rect = document.createElementNS(ns, 'rect'); rect.setAttribute('x', col * 10 + frame * 60); rect.setAttribute('y', row * 10); rect.setAttribute('width', 10); rect.setAttribute('height', 10); rect.setAttribute('fill', 'none'); rect.setAttribute('stroke', 'black'); svg.appendChild(rect); } } }
+                    for (let i = 0; i < count; i++) { if (i >= 20) break; const circle = document.createElementNS(ns, 'circle'); const frameIndex = Math.floor(i / 10); const positionInFrame = i % 10; const x = (positionInFrame % 5) * 10 + 5 + (frameIndex * 60); const y = Math.floor(positionInFrame / 5) * 10 + 5; circle.setAttribute('cx', x); circle.setAttribute('cy', y); circle.setAttribute('r', 4); circle.setAttribute('fill', params.dot_color || 'blue'); svg.appendChild(circle); }
+                    break;
+                case 'number_bond':
+                     svg.setAttribute('viewBox', '0 0 100 60'); svg.setAttribute('width', '200');
+                     const whole = params.whole, part1 = params.part1, part2 = params.part2;
+                     const line1 = document.createElementNS(ns, 'line'); line1.setAttribute('x1', '50'); line1.setAttribute('y1', '15'); line1.setAttribute('x2', '25'); line1.setAttribute('y2', '45'); line1.setAttribute('stroke', 'black'); svg.appendChild(line1);
+                     const line2 = document.createElementNS(ns, 'line'); line2.setAttribute('x1', '50'); line2.setAttribute('y1', '15'); line2.setAttribute('x2', '75'); line2.setAttribute('y2', '45'); line2.setAttribute('stroke', 'black'); svg.appendChild(line2);
+                     const c1 = document.createElementNS(ns, 'circle'); c1.setAttribute('cx', '50'); c1.setAttribute('cy', '15'); c1.setAttribute('r', '12'); c1.setAttribute('fill', '#fde047'); svg.appendChild(c1);
+                     const t1 = document.createElementNS(ns, 'text'); t1.setAttribute('x', '50'); t1.setAttribute('y', '19'); t1.setAttribute('text-anchor', 'middle'); t1.textContent = whole; svg.appendChild(t1);
+                     const c2 = document.createElementNS(ns, 'circle'); c2.setAttribute('cx', '25'); c2.setAttribute('cy', '45'); c2.setAttribute('r', '12'); c2.setAttribute('fill', '#a7f3d0'); svg.appendChild(c2);
+                     const t2 = document.createElementNS(ns, 'text'); t2.setAttribute('x', '25'); t2.setAttribute('y', '49'); t2.setAttribute('text-anchor', 'middle'); t2.textContent = part1; svg.appendChild(t2);
+                     const c3 = document.createElementNS(ns, 'circle'); c3.setAttribute('cx', '75'); c3.setAttribute('cy', '45'); c3.setAttribute('r', '12'); c3.setAttribute('fill', '#a7f3d0'); svg.appendChild(c3);
+                     const t3 = document.createElementNS(ns, 'text'); t3.setAttribute('x', '75'); t3.setAttribute('y', '49'); t3.setAttribute('text-anchor', 'middle'); t3.textContent = part2; svg.appendChild(t3);
+                    break;
+                case 'number_line':
+                    svg.setAttribute('viewBox', '0 0 210 50'); svg.setAttribute('width', '100%');
+                    const startNum = parseInt(params.start_num, 10), endNum = parseInt(params.end_num, 10);
+                    const mainLine = document.createElementNS(ns, 'line'); mainLine.setAttribute('x1', 5); mainLine.setAttribute('y1', 25); mainLine.setAttribute('x2', 205); mainLine.setAttribute('y2', 25); mainLine.setAttribute('stroke', 'black'); mainLine.setAttribute('stroke-width', 2); svg.appendChild(mainLine);
+                    for (let i = startNum; i <= endNum; i++) { const tick = document.createElementNS(ns, 'line'); const x = 5 + (i * 10); tick.setAttribute('x1', x); tick.setAttribute('y1', 20); tick.setAttribute('x2', x); tick.setAttribute('y2', 30); tick.setAttribute('stroke', 'black'); svg.appendChild(tick); if (i % 5 === 0 || i === endNum) { const numText = document.createElementNS(ns, 'text'); numText.setAttribute('x', x); numText.setAttribute('y', 40); numText.setAttribute('text-anchor', 'middle'); numText.textContent = i; svg.appendChild(numText); } }
+                    const defs = document.createElementNS(ns, 'defs'); const marker = document.createElementNS(ns, 'marker'); marker.setAttribute('id', 'arrow'); marker.setAttribute('viewBox', '0 0 10 10'); marker.setAttribute('refX', '8'); marker.setAttribute('refY', '5'); marker.setAttribute('markerWidth', '6'); marker.setAttribute('markerHeight', '6'); marker.setAttribute('orient', 'auto-start-reverse'); const arrowPath = document.createElementNS(ns, 'path'); arrowPath.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z'); arrowPath.setAttribute('fill', 'red'); marker.appendChild(arrowPath); defs.appendChild(marker); svg.appendChild(defs);
+                    if (params.jumps) { try { const jumpRegex = /{start:(\d+), size:(-?\d+), label:'(.*?)'}/g; let match; while ((match = jumpRegex.exec(params.jumps)) !== null) { const start = parseInt(match[1]), size = parseInt(match[2]), label = match[3]; const path = document.createElementNS(ns, 'path'); const startX = 5 + start * 10, endX = 5 + (start + size) * 10, midX = (startX + endX) / 2; path.setAttribute('d', `M ${startX} 22 Q ${midX} 2, ${endX} 22`); path.setAttribute('stroke', 'red'); path.setAttribute('stroke-width', 1.5); path.setAttribute('fill', 'none'); path.setAttribute('marker-end', 'url(#arrow)'); svg.appendChild(path); if (label) { const labelText = document.createElementNS(ns, 'text'); labelText.setAttribute('x', midX); labelText.setAttribute('y', 10); labelText.setAttribute('text-anchor', 'middle'); labelText.setAttribute('font-size', '8px'); labelText.setAttribute('fill', 'red'); labelText.textContent = label; svg.appendChild(labelText); } } } catch(e) { console.error("Could not parse jumps parameter:", params.jumps, e); } }
+                    break;
+                case 'fact_family_house':
+                     svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('width', '150');
+                     const body = document.createElementNS(ns, 'rect'); body.setAttribute('x', 10); body.setAttribute('y', 40); body.setAttribute('width', 80); body.setAttribute('height', 50); body.setAttribute('fill', '#fef3c7'); body.setAttribute('stroke', '#f59e0b'); body.setAttribute('stroke-width', 2); svg.appendChild(body);
+                     const roof = document.createElementNS(ns, 'path'); roof.setAttribute('d', 'M 5 40 L 50 10 L 95 40 Z'); roof.setAttribute('fill', '#ef4444'); roof.setAttribute('stroke', '#b91c1c'); roof.setAttribute('stroke-width', 2); svg.appendChild(roof);
+                     const rNum = params.roof_num, w1 = params.window1_num, w2 = params.window2_num;
+                     const roofText = document.createElementNS(ns, 'text'); roofText.setAttribute('x', 50); roofText.setAttribute('y', 32); roofText.setAttribute('text-anchor', 'middle'); roofText.textContent = rNum; roofText.setAttribute('font-size', '14'); roofText.setAttribute('font-weight', 'bold'); svg.appendChild(roofText);
+                     const w1Rect = document.createElementNS(ns, 'rect'); w1Rect.setAttribute('x', 20); w1Rect.setAttribute('y', 55); w1Rect.setAttribute('width', 25); w1Rect.setAttribute('height', 25); w1Rect.setAttribute('fill', '#bfdbfe'); svg.appendChild(w1Rect);
+                     const w1Text = document.createElementNS(ns, 'text'); w1Text.setAttribute('x', 32.5); w1Text.setAttribute('y', 72); w1Text.setAttribute('text-anchor', 'middle'); w1Text.textContent = w1; svg.appendChild(w1Text);
+                     const w2Rect = document.createElementNS(ns, 'rect'); w2Rect.setAttribute('x', 55); w2Rect.setAttribute('y', 55); w2Rect.setAttribute('width', 25); w2Rect.setAttribute('height', 25); w2Rect.setAttribute('fill', '#bfdbfe'); svg.appendChild(w2Rect);
+                     const w2Text = document.createElementNS(ns, 'text'); w2Text.setAttribute('x', 67.5); w2Text.setAttribute('y', 72); w2Text.setAttribute('text-anchor', 'middle'); w2Text.textContent = w2; svg.appendChild(w2Text);
+                     break;
+                default:
+                    const text = document.createElementNS(ns, 'text'); text.setAttribute('x', '10'); text.setAttribute('y', '20'); text.textContent = description.replace(/:/g, ' - '); svg.setAttribute('viewBox', '0 0 200 30'); svg.setAttribute('width', '200'); svg.appendChild(text);
+            }
+            return svg;
+        }
+
+        // --- FILE SAVING & EXPORT ---
+        
+        function handleDownloadWork() {
+            const currentHTML = document.documentElement.outerHTML;
+            const stateString = JSON.stringify(appState);
+            const stateScript = `<script id="progress-data" type="application/json">${stateString}<\/script>`;
+            const updatedHTML = currentHTML.replace(/<script id="progress-data" type="application\/json">.*?<\/script>/, stateScript);
+            const blob = new Blob([updatedHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'math_explorer_progress.html';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleDownloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const mainContent = document.getElementById('app-container');
+            const pdfButton = document.getElementById('download-pdf-btn');
+            pdfButton.textContent = 'Generating PDF...'; pdfButton.disabled = true;
+            const clone = mainContent.cloneNode(true);
+            clone.classList.add('print-friendly');
+            document.body.appendChild(clone);
+            clone.style.position = 'absolute'; clone.style.left = '-9999px'; clone.style.width = mainContent.offsetWidth + 'px';
+            clone.querySelectorAll('.day-content').forEach(el => el.classList.remove('hidden'));
+            clone.querySelectorAll('.assessment-view').forEach(el => el.classList.remove('hidden'));
+            Object.keys(appState.progress).forEach(dayId => {
+                const userAnswers = appState.progress[dayId].answers;
+                Object.keys(userAnswers).forEach(questionId => {
+                    const slideClone = clone.querySelector(`#${questionId}`);
+                    if (!slideClone) return;
+                    const answer = userAnswers[questionId];
+                    const answerDiv = document.createElement('div');
+                    answerDiv.className = 'mt-2 p-2 bg-yellow-100 rounded';
+                    answerDiv.innerHTML = `<strong>Answer:</strong> ${JSON.stringify(answer)}`;
+                    slideClone.querySelector('.w-full.text-center').appendChild(answerDiv);
+                });
+            });
+            html2canvas(clone, { scale: 2, useCORS: true }).then(canvas => {
+                document.body.removeChild(clone);
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+                const pdfWidth = pdf.internal.pageSize.getWidth(), pdfHeight = pdf.internal.pageSize.getHeight();
+                const canvasWidth = canvas.width, canvasHeight = canvas.height;
+                const ratio = canvasWidth / pdfWidth;
+                const pagedHeight = canvasHeight / ratio;
+                let heightLeft = pagedHeight, position = 0;
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pagedHeight);
+                heightLeft -= pdfHeight;
+                while (heightLeft > 0) {
+                    position = heightLeft - pagedHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pagedHeight);
+                    heightLeft -= pdfHeight;
+                }
+                pdf.save('math_explorer_report.pdf');
+                pdfButton.textContent = '📄 Export as PDF'; pdfButton.disabled = false;
+            }).catch(err => {
+                 console.error("PDF generation failed", err);
+                 document.body.removeChild(clone);
+                 pdfButton.textContent = '📄 Export as PDF'; pdfButton.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>
+
