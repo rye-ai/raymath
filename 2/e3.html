@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Making 10 to Subtract: Interactive Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family-Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .ten-frame-container {
+            transition: opacity 0.7s ease-in-out, transform 0.7s ease-in-out;
+        }
+        .ten-frame {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            width: 280px;
+            height: 112px;
+            padding: 8px;
+            border: 2px solid #9ca3af; /* gray-400 */
+            border-radius: 8px;
+        }
+        .counter-slot {
+            width: 100%;
+            height: 100%;
+            border: 2px dashed #d1d5db; /* gray-300 */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .counter {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            transition: transform 0.2s, opacity 0.3s, background-color 0.3s;
+            cursor: pointer;
+        }
+         .counter.clickable:hover {
+            transform: scale(1.1);
+        }
+        .counter.removed {
+            opacity: 0.2;
+            background-color: #d1d5db; /* gray-300 */
+            transform: scale(0.9);
+            cursor: not-allowed;
+        }
+        .decomposition-box {
+            border: 2px solid #e5e7eb; /* gray-200 */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: #f9fafb; /* gray-50 */
+        }
+        .equation-step {
+            transition: all 0.5s ease-in-out;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        .equation-step.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .hidden-visual {
+            opacity: 0;
+            transform: scale(0.9);
+            pointer-events: none;
+            position: absolute;
+        }
+        #next-step-btn {
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        /* New Styles for Sync Feature */
+        #setup-modal {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+        }
+        .disabled-nav {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        /* Custom checkbox for sync toggle */
+        #sync-toggle {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 3.5rem;
+            height: 1.75rem;
+            border-radius: 9999px;
+            position: relative;
+            background-color: #d1d5db;
+            transition: background-color 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        #sync-toggle::before {
+            content: "";
+            position: absolute;
+            top: 0.25rem;
+            left: 0.25rem;
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 9999px;
+            background-color: white;
+            transition: transform 0.2s ease-in-out;
+        }
+        #sync-toggle:checked {
+            background-color: #2563eb;
+        }
+        #sync-toggle:checked::before {
+            transform: translateX(1.75rem);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md p-8 rounded-xl shadow-2xl">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Classroom Sync Setup</h2>
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Your Role:</label>
+                    <div class="flex gap-4">
+                        <label class="flex-1 border border-gray-300 rounded-md p-3 text-center cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-blue-500">
+                            <input type="radio" name="role" value="Teacher" class="sr-only">
+                            <span class="font-semibold">Teacher</span>
+                        </label>
+                        <label class="flex-1 border border-gray-300 rounded-md p-3 text-center cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-blue-500">
+                            <input type="radio" name="role" value="Student" class="sr-only" checked>
+                            <span class="font-semibold">Student</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="teacher-password-container" class="hidden">
+                    <label for="teacher-password" class="block text-sm font-medium text-gray-700">Teacher Password</label>
+                    <input type="password" id="teacher-password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="room-name" class="block text-sm font-medium text-gray-700">Room Name</label>
+                    <input type="text" id="room-name" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., class-a">
+                </div>
+                <p id="modal-error" class="text-red-500 text-sm text-center min-h-[20px]"></p>
+                <button id="open-lesson-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors text-lg">Start Lesson</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="app-container" class="w-full max-w-5xl mx-auto bg-white p-6 md:p-8 rounded-xl shadow-lg border hidden">
+        
+        <header class="text-center mb-6">
+            <!-- Sync Controls Header -->
+            <div class="flex flex-wrap items-center justify-between gap-4 p-2 bg-gray-100 rounded-lg mb-6 border">
+                <div class="flex items-center gap-2">
+                    <span id="role-room-badge" class="font-semibold text-sm bg-gray-200 text-gray-700 px-3 py-1 rounded-full"></span>
+                    <button id="change-role-room-btn" class="text-sm text-blue-600 hover:underline">Change</button>
+                </div>
+                <label id="sync-toggle-label" for="sync-toggle" class="hidden items-center gap-2 cursor-pointer">
+                    <span class="font-semibold text-sm text-gray-700">Follow Me Mode</span>
+                    <input type="checkbox" id="sync-toggle" checked>
+                </label>
+            </div>
+            <h1 id="problem-display" class="text-4xl md:text-6xl font-bold text-blue-600 tracking-wide"></h1>
+        </header>
+
+        <main id="main-content" class="relative flex justify-center items-center gap-6 md:gap-8 mb-6 min-h-[128px]">
+            <!-- Initial Ten Frames -->
+            <div id="initial-frames-container" class="ten-frame-container flex flex-col md:flex-row justify-center items-center gap-6 md:gap-8">
+                <div id="ten-frame-1" class="ten-frame"></div>
+                <div id="ten-frame-2" class="ten-frame"></div>
+            </div>
+            <!-- Result Ten Frame (for Step 2) -->
+            <div id="result-frame-container" class="ten-frame-container hidden-visual flex justify-center items-center">
+                 <div id="ten-frame-result" class="ten-frame bg-blue-50"></div>
+            </div>
+        </main>
+
+        <!-- Equation Steps -->
+        <div id="equation-steps" class="text-center font-bold text-2xl md:text-3xl text-gray-700 space-y-2 min-h-[100px] my-6">
+            <div id="eq-step-1" class="equation-step"></div>
+            <div id="eq-step-2" class="equation-step"></div>
+            <div id="eq-step-3" class="equation-step"></div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 items-center justify-center gap-6">
+            <div id="guidance-panel" class="md:col-span-1 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg min-h-[100px]">
+                <h3 class="font-bold text-blue-800 mb-2">Step 1</h3>
+                <p id="instruction-text" class="text-blue-700">First, let's subtract to make 10.</p>
+            </div>
+
+             <div id="subtrahend-tracker" class="md:col-span-1 text-center p-4 bg-red-50 rounded-lg">
+                <p class="font-semibold text-gray-700 text-xl">Number to Subtract:</p>
+                <p id="remaining-value" class="text-6xl font-bold text-red-600"></p>
+            </div>
+
+            <div id="decomposition-visualizer" class="md:col-span-1 decomposition-box text-center">
+                <p class="font-semibold text-gray-600">Break apart <span id="subtrahend-display" class="font-bold text-xl text-red-600"></span>:</p>
+                <div class="flex items-center justify-center gap-4 mt-2">
+                    <div id="part-1" class="w-16 h-16 bg-red-100 text-red-700 font-bold text-3xl rounded-full flex items-center justify-center border-2 border-dashed border-red-300"></div>
+                    <span class="text-2xl font-bold text-gray-500">+</span>
+                    <div id="part-2" class="w-16 h-16 bg-red-100 text-red-700 font-bold text-3xl rounded-full flex items-center justify-center border-2 border-dashed border-red-300"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center my-8">
+            <button id="next-step-btn" class="hidden bg-green-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 text-xl shadow-md">Next Step</button>
+        </div>
+        
+        <!-- Answer Section -->
+        <div id="answer-section" class="hidden text-center my-8 p-6 bg-gray-100 rounded-lg">
+            <label for="student-answer" class="block text-xl font-semibold mb-4 text-gray-700">You subtracted all the parts. What is the final answer?</label>
+            <div class="flex justify-center items-center gap-4">
+                <input type="number" id="student-answer" class="w-32 h-16 text-4xl text-center font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <button id="check-answer-btn" class="bg-green-600 text-white font-bold py-4 px-8 rounded-lg hover:bg-green-700 text-xl shadow-md">Check Answer</button>
+            </div>
+            <div id="answer-feedback" class="mt-4 min-h-[30px] font-semibold text-lg"></div>
+        </div>
+
+
+        <footer class="mt-8 flex justify-center gap-4 border-t pt-6">
+            <button id="new-problem-btn" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors text-lg">
+                <svg xmlns="http://www.w.org/2000/svg" class="h-6 w-6 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm10 10a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 111.885-.666A5.002 5.002 0 0014.001 13H11a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                New Problem
+            </button>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Firebase Config ---
+            const firebaseConfig = {
+                apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+                authDomain: "lesson-sync-a223a.firebaseapp.com",
+                projectId: "lesson-sync-a223a",
+                storageBucket: "lesson-sync-a223a.firebasestorage.app",
+                messagingSenderId: "906128715071",
+                appId: "1:906128715071:web:347ea08f4d864fde02778a"
+            };
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+            const auth = firebase.auth();
+
+            // --- App Constants ---
+            const TEACHER_PASSWORD = "2026";
+
+            // --- Global App State ---
+            let appState = {
+                role: 'Student',
+                room: null,
+                allowFreeExplore: false,
+                unsubscribe: null,
+                _isApplyingRemote: false
+            };
+
+            // --- DOM Elements ---
+            // Modal
+            const setupModal = document.getElementById('setup-modal');
+            const appContainer = document.getElementById('app-container');
+            const teacherPasswordContainer = document.getElementById('teacher-password-container');
+            const openLessonBtn = document.getElementById('open-lesson-btn');
+            const modalError = document.getElementById('modal-error');
+            const roleRadios = document.querySelectorAll('input[name="role"]');
+            
+            // Header Controls
+            const roleRoomBadge = document.getElementById('role-room-badge');
+            const changeRoleRoomBtn = document.getElementById('change-role-room-btn');
+            const syncToggleLabel = document.getElementById('sync-toggle-label');
+            const syncToggle = document.getElementById('sync-toggle');
+
+            // Main Content
+            const mainContent = document.getElementById('main-content');
+            const problemDisplay = document.getElementById('problem-display');
+            const initialFramesContainer = document.getElementById('initial-frames-container');
+            const resultFrameContainer = document.getElementById('result-frame-container');
+            const tenFrame1 = document.getElementById('ten-frame-1');
+            const tenFrame2 = document.getElementById('ten-frame-2');
+            const tenFrameResult = document.getElementById('ten-frame-result');
+            const guidancePanel = document.getElementById('guidance-panel');
+            const instructionText = document.getElementById('instruction-text');
+            const remainingValue = document.getElementById('remaining-value');
+            const subtrahendDisplay = document.getElementById('subtrahend-display');
+            const part1Box = document.getElementById('part-1');
+            const part2Box = document.getElementById('part-2');
+            const eqStep1 = document.getElementById('eq-step-1');
+            const eqStep2 = document.getElementById('eq-step-2');
+            const eqStep3 = document.getElementById('eq-step-3');
+            const nextStepBtn = document.getElementById('next-step-btn');
+            const newProblemBtn = document.getElementById('new-problem-btn');
+            const answerSection = document.getElementById('answer-section');
+            const studentAnswerInput = document.getElementById('student-answer');
+            const checkAnswerBtn = document.getElementById('check-answer-btn');
+            const answerFeedback = document.getElementById('answer-feedback');
+            
+            // --- Lesson State ---
+            let lessonState = {};
+
+            // =================================================================
+            // SYNC & SETUP LOGIC
+            // =================================================================
+            
+            function initializeModal() {
+                const savedRole = localStorage.getItem('lessonRole');
+                const savedRoom = localStorage.getItem('lessonRoom');
+
+                if (savedRole && savedRoom) {
+                    appState.role = savedRole;
+                    appState.room = savedRoom;
+                    startLesson();
+                } else {
+                    setupModal.style.display = 'flex';
+                }
+            }
+            
+            roleRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    teacherPasswordContainer.classList.toggle('hidden', e.target.value !== 'Teacher');
+                });
+            });
+
+            openLessonBtn.addEventListener('click', () => {
+                const role = document.querySelector('input[name="role"]:checked').value;
+                const roomName = document.getElementById('room-name').value.trim().toLowerCase();
+                const password = document.getElementById('teacher-password').value;
+                modalError.textContent = '';
+
+                if (!roomName) {
+                    modalError.textContent = 'Please enter a room name.';
+                    return;
+                }
+                if (role === 'Teacher' && password !== TEACHER_PASSWORD) {
+                    modalError.textContent = 'Incorrect teacher password.';
+                    return;
+                }
+                
+                appState.role = role;
+                appState.room = roomName;
+                localStorage.setItem('lessonRole', role);
+                localStorage.setItem('lessonRoom', roomName);
+                startLesson();
+            });
+
+            changeRoleRoomBtn.addEventListener('click', () => {
+                if (appState.unsubscribe) appState.unsubscribe();
+                localStorage.removeItem('lessonRole');
+                localStorage.removeItem('lessonRoom');
+                location.reload();
+            });
+
+            async function startLesson() {
+                setupModal.style.display = 'none';
+                appContainer.classList.remove('hidden');
+
+                try {
+                    await auth.signInAnonymously();
+                    roleRoomBadge.textContent = `${appState.role} • room: ${appState.room}`;
+
+                    if (appState.role === 'Teacher') {
+                        startTeacherSession();
+                    } else {
+                        startStudentSession();
+                    }
+                } catch (error) {
+                    console.error("Firebase Auth Error:", error);
+                    alert("Could not connect to the classroom session. Please check your connection and try again.");
+                }
+            }
+
+            function startTeacherSession() {
+                syncToggleLabel.style.display = 'flex';
+                appState.allowFreeExplore = !syncToggle.checked;
+                // Teacher starts by generating a problem, which automatically pushes state.
+                setupProblem();
+            }
+
+            function startStudentSession() {
+                const roomRef = db.collection('rooms').doc(appState.room);
+                appState.unsubscribe = roomRef.onSnapshot(doc => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        appState._isApplyingRemote = true;
+                        
+                        appState.allowFreeExplore = data.allowFreeExplore;
+                        toggleStudentControls(appState.allowFreeExplore);
+
+                        if (!appState.allowFreeExplore) {
+                            lessonState = data.problemState || {};
+                            render();
+                        }
+                        
+                        setTimeout(() => appState._isApplyingRemote = false, 50);
+                    } else {
+                        // Room doesn't exist yet, show a waiting message.
+                        instructionText.textContent = "Waiting for teacher to start the lesson...";
+                    }
+                });
+            }
+            
+            async function syncPush() {
+                if (appState.role !== 'Teacher' || appState._isApplyingRemote) return;
+                
+                const roomRef = db.collection('rooms').doc(appState.room);
+                const payload = {
+                    allowFreeExplore: appState.allowFreeExplore,
+                    problemState: lessonState,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                try {
+                    await roomRef.set(payload, { merge: true });
+                } catch(error) {
+                    console.error("Firestore sync error:", error);
+                }
+            }
+            
+            syncToggle.addEventListener('change', () => {
+                const password = prompt("Please enter the teacher password to change sync mode:");
+                if (password === TEACHER_PASSWORD) {
+                    appState.allowFreeExplore = !syncToggle.checked;
+                    syncPush();
+                } else {
+                    alert("Incorrect password.");
+                    syncToggle.checked = !syncToggle.checked; // Revert checkbox
+                }
+            });
+            
+            function toggleStudentControls(enabled) {
+                if(appState.role !== 'Student') return;
+                mainContent.classList.toggle('disabled-nav', !enabled);
+                newProblemBtn.classList.toggle('disabled-nav', !enabled);
+            }
+
+
+            // =================================================================
+            // LESSON LOGIC (Modified for Syncing)
+            // =================================================================
+            
+            function setupProblem() {
+                // Generate a problem with a minuend from 11-20 and a single-digit subtrahend
+                // that requires using the "make 10" strategy.
+                const minuend = Math.floor(Math.random() * 8) + 11; // 11-18
+                const part1 = minuend - 10;
+                const minSubtrahend = part1 + 1;
+                const maxSubtrahend = 9;
+                const subtrahend = Math.floor(Math.random() * (maxSubtrahend - minSubtrahend + 1)) + minSubtrahend;
+                const part2 = subtrahend - part1;
+                const answer = minuend - subtrahend;
+
+                lessonState = {
+                    minuend, subtrahend, answer, phase: 1, part1, part2,
+                    subtrahendRemaining: subtrahend,
+                    countersClickedInPhase: 0,
+                    isReadyForAnswer: false,
+                    removedCountersInResult: [],
+                };
+                
+                studentAnswerInput.disabled = false;
+                checkAnswerBtn.disabled = false;
+                render();
+                syncPush();
+            }
+
+            function render() {
+                if (!lessonState.minuend) return; // Don't render if no state
+                
+                // Update problem display based on the current phase
+                if (lessonState.phase === 1) {
+                    problemDisplay.textContent = `${lessonState.minuend} - ${lessonState.subtrahend} = ?`;
+                } else if (lessonState.phase === 2) {
+                    problemDisplay.textContent = `10 - ${lessonState.part2} = ?`;
+                } else if (lessonState.phase === 3) {
+                    problemDisplay.textContent = `${lessonState.minuend} - ${lessonState.subtrahend} = ${lessonState.answer}`;
+                }
+
+                remainingValue.textContent = lessonState.subtrahendRemaining;
+                subtrahendDisplay.textContent = lessonState.subtrahend;
+                part1Box.textContent = lessonState.part1;
+                part2Box.textContent = lessonState.part2;
+
+                renderTenFrames();
+                updateGuidance();
+                renderEquationSteps();
+                renderDecompositionHighlights();
+
+                answerSection.classList.toggle('hidden', !lessonState.isReadyForAnswer);
+                if(lessonState.phase < 3) {
+                   studentAnswerInput.value = '';
+                   answerFeedback.innerHTML = '';
+                }
+
+                if (lessonState.phase === 1) {
+                    initialFramesContainer.classList.remove('hidden-visual');
+                    resultFrameContainer.classList.add('hidden-visual');
+                    nextStepBtn.classList.toggle('hidden', lessonState.countersClickedInPhase !== lessonState.part1);
+                } else if (lessonState.phase === 2 || lessonState.phase === 3) {
+                    initialFramesContainer.classList.add('hidden-visual');
+                    resultFrameContainer.classList.remove('hidden-visual');
+                }
+            }
+            
+            function renderTenFrames() {
+                tenFrame1.innerHTML = '';
+                tenFrame2.innerHTML = '';
+                for (let i = 0; i < 10; i++) {
+                    tenFrame1.appendChild(createCounterSlot(1, i, true));
+                }
+                for (let i = 0; i < 10; i++) {
+                    const hasCounter = i < lessonState.part1;
+                    tenFrame2.appendChild(createCounterSlot(2, i, hasCounter));
+                }
+
+                tenFrameResult.innerHTML = '';
+                for (let i = 0; i < 10; i++) {
+                    tenFrameResult.appendChild(createCounterSlot('result', i, true));
+                }
+            }
+            
+            function createCounterSlot(frameId, index, hasCounter) {
+                const slot = document.createElement('div');
+                slot.className = 'counter-slot';
+                if (hasCounter) {
+                    const counter = createCounter(frameId, index);
+                    if ((lessonState.phase === 1 && frameId === 2) || (lessonState.phase === 2 && frameId === 'result')) {
+                         if (!counter.classList.contains('removed')) {
+                             counter.classList.add('clickable');
+                         }
+                    }
+                    slot.appendChild(counter);
+                }
+                return slot;
+            }
+
+            function createCounter(frame, index) {
+                const counter = document.createElement('div');
+                counter.className = 'counter';
+                counter.dataset.frame = frame;
+                counter.dataset.index = index;
+                counter.classList.add(frame === 2 ? 'bg-red-500' : 'bg-blue-500');
+                counter.addEventListener('click', handleCounterClick);
+
+                if (frame === 2 && lessonState.phase === 1) {
+                    // Check if counter is among the first N clicked
+                    const clickedSoFar = lessonState.countersClickedInPhase;
+                    if(index < clickedSoFar) counter.classList.add('removed');
+                } else if (frame === 'result' && lessonState.removedCountersInResult.includes(index)) {
+                    counter.classList.add('removed');
+                }
+
+                return counter;
+            }
+
+            function handleCounterClick(e) {
+                const counter = e.target;
+                if (!counter.classList.contains('clickable') || counter.classList.contains('removed')) return;
+
+                counter.classList.add('removed');
+                counter.classList.remove('clickable'); 
+
+                if (lessonState.phase === 2) {
+                    lessonState.removedCountersInResult.push(parseInt(counter.dataset.index));
+                }
+
+                lessonState.subtrahendRemaining--;
+                lessonState.countersClickedInPhase++;
+                
+                render();
+                syncPush();
+            }
+            
+            function updateGuidance() {
+                const guidanceHeader = guidancePanel.querySelector('h3');
+                if (lessonState.isReadyForAnswer) {
+                    guidanceHeader.textContent = "Almost there!";
+                    instructionText.innerHTML = "You've removed all the parts. Now enter the final answer below.";
+                    return;
+                }
+                switch (lessonState.phase) {
+                    case 1:
+                        guidanceHeader.textContent = 'Step 1: Make 10';
+                        instructionText.innerHTML = `Click the <strong>${lessonState.part1}</strong> red counters to get down to 10.`;
+                        break;
+                    case 2:
+                        guidanceHeader.textContent = 'Step 2: Subtract the Rest';
+                        instructionText.innerHTML = `Great! Now you have 10. Click <strong>${lessonState.part2}</strong> blue counters to subtract the rest.`;
+                        break;
+                    case 3:
+                        guidanceHeader.textContent = 'Complete!';
+                        instructionText.innerHTML = `Correct! <strong>${lessonState.minuend} - ${lessonState.subtrahend} = ${lessonState.answer}</strong>. Great job!`;
+                        break;
+                }
+            }
+
+            function renderDecompositionHighlights() {
+                [part1Box, part2Box].forEach(el => el.classList.remove('bg-green-200', 'border-green-400'));
+                if (lessonState.phase > 1) {
+                    part1Box.classList.add('bg-green-200', 'border-green-400');
+                }
+                if (lessonState.phase > 2) {
+                    part2Box.classList.add('bg-green-200', 'border-green-400');
+                }
+            }
+            
+            function renderEquationSteps() {
+                [eqStep1, eqStep2, eqStep3].forEach(el => {
+                    el.classList.remove('visible');
+                    el.innerHTML = '';
+                });
+
+                if (lessonState.phase === 1) {
+                    eqStep1.innerHTML = `${lessonState.minuend} - ${lessonState.subtrahend} = ${lessonState.minuend} - ${lessonState.part1}...`;
+                    eqStep1.classList.add('visible');
+                } else if (lessonState.phase >= 2) {
+                    eqStep1.innerHTML = `${lessonState.minuend} - ${lessonState.subtrahend} = ${lessonState.minuend} - ${lessonState.part1} - ${lessonState.part2}`;
+                    eqStep1.classList.add('visible');
+                    
+                    eqStep2.innerHTML = `&nbsp; &nbsp; &nbsp; &nbsp; = 10 - ${lessonState.part2}`;
+                    eqStep2.classList.add('visible');
+                }
+                if (lessonState.phase === 3) {
+                    eqStep3.innerHTML = `&nbsp; &nbsp; &nbsp; &nbsp; = <span class="text-green-600">${lessonState.answer}</span>`;
+                     eqStep3.classList.add('visible');
+                }
+            }
+
+            function handleNextStep() {
+                if (lessonState.phase === 1) {
+                    lessonState.phase = 2;
+                    lessonState.countersClickedInPhase = 0;
+                    render();
+                    syncPush();
+                }
+            }
+            
+            function handleCheckAnswer() {
+                const userAnswer = parseInt(studentAnswerInput.value);
+                if (isNaN(userAnswer)) {
+                    answerFeedback.innerHTML = `<p class="text-orange-500">Please enter a number.</p>`;
+                    return;
+                }
+
+                if (userAnswer === lessonState.answer) {
+                    answerFeedback.innerHTML = `<p class="text-green-600">Correct! Well done!</p>`;
+                    lessonState.phase = 3;
+                    studentAnswerInput.disabled = true;
+                    checkAnswerBtn.disabled = true;
+                    render();
+                    syncPush();
+                } else {
+                    answerFeedback.innerHTML = `<p class="text-red-500">Not quite. Take another look and try again!</p>`;
+                    studentAnswerInput.value = '';
+                    studentAnswerInput.focus();
+                }
+            }
+
+            // --- Event Listeners ---
+            newProblemBtn.addEventListener('click', () => {
+                nextStepBtn.classList.add('hidden');
+                setupProblem(); // This now handles sync for the teacher
+            });
+            nextStepBtn.addEventListener('click', handleNextStep);
+            checkAnswerBtn.addEventListener('click', handleCheckAnswer);
+            studentAnswerInput.addEventListener('keyup', (e) => {
+                if(e.key === 'Enter') {
+                    handleCheckAnswer();
+                }
+            })
+
+            // --- Initial Load ---
+            initializeModal();
+        });
+    </script>
+</body>
+</html>
+
