@@ -3,1006 +3,1087 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quest for Knowledge: Word Problems</title>
+    <title>Math Detective Agency - 3rd Grade</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Slab:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
     <style>
-        /* Custom Fantasy RPG Theme Styles */
         body {
-            font-family: 'Lato', sans-serif;
-            background-color: #2c1e15; /* Dark wood color */
-            background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MiIgaGVpZ2h0PSIyNiIgdmlld0JveD0iMCAwIDUyIDI2Ij48ZyBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiM5YzY5NTEiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMTggMHYyNmg0VjB6TTQxIDB2MjZoNFYweiIvPjwvZz48L2c+PC9zdmc+');
+            font-family: 'Inter', sans-serif;
         }
-        h1, h2, h3, .rpg-font {
-            font-family: 'MedievalSharp', cursive;
-        }
-        .rpg-btn {
-            background-color: #7a5c4f; /* Leather brown */
-            border: 4px solid #4a382f; /* Darker brown */
-            color: #f3e9dc; /* Parchment color */
-            font-family: 'MedievalSharp', cursive;
-            font-size: 1.25rem;
-            padding: 8px 16px;
-            border-radius: 8px;
-            box-shadow: 0 5px #3a2c23;
-            transition: all 0.1s ease-in-out;
-            cursor: pointer;
-            text-shadow: 1px 1px 2px #000;
-        }
-        .rpg-btn:hover {
-            transform: translateY(2px);
-            box-shadow: 0 3px #3a2c23;
-        }
-        .rpg-btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 1px #3a2c23;
-        }
-        .rpg-btn:disabled {
-            background-color: #5d4a41;
-            cursor: not-allowed;
-            box-shadow: 0 2px #3a2c23;
-            transform: translateY(3px);
-        }
-        .tab-btn {
-            background-color: #4a382f;
-            color: #c5b8a5;
-            padding: 12px 24px;
-            border-radius: 10px 10px 0 0;
-            border: 3px solid #3a2c23;
-            border-bottom: none;
-            transition: all 0.3s;
-            position: relative;
-            bottom: -3px;
-        }
-        .tab-btn.active {
-            background-color: #6a4c3f;
-            color: #fff;
-            border-color: #3a2c23;
-        }
-        .quest-scroll {
-            background-color: #f3e9dc; /* Parchment */
-            color: #3a2c23;
-            border: 15px solid transparent;
-            border-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48ZGVmcz48cGF0dGVybiBpZD0icGF0dGVybiIgcGF0dGVyblVuaXRzPSJvYmplY3RCb3VuZGluZ0JveCIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSI+PHBhdGggZmlsbD0iIzdhNWM0ZiIgc3Ryb2tlPSIjNGEzODJmIiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik0wLDBIMzAwVjMwMEgwWiIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9InVybCgjcGF0dGVybikiLz48L3N2Zz4=') 15 stretch;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        h1, h2, h3 {
+            font-family: 'Roboto Slab', serif;
         }
         .slide {
-            padding: 2rem;
-            min-height: 500px;
+            display: none;
         }
+        .slide.active {
+            display: block;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .feedback-banner {
+            transition: all 0.3s ease-in-out;
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        .feedback-banner.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .slide-transition-out {
+            animation: fadeOut 0.3s forwards;
+        }
+        .slide-transition-in {
+            animation: fadeIn 0.3s forwards;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        /* Drag and Drop Styles */
         .draggable {
             cursor: grab;
             user-select: none;
         }
+        .draggable.dragging {
+            opacity: 0.4;
+            border: 2px dashed #0284c7;
+        }
         .drop-target {
-            border: 3px dashed #8a6c5f;
-            min-height: 80px;
-            transition: background-color 0.3s;
-            background: rgba(122, 92, 79, 0.1);
-            border-radius: 10px;
+            border: 2px dashed #ccc;
+            min-height: 40px;
         }
-        .drop-target.over {
-            background-color: rgba(100, 150, 100, 0.3);
+        .drop-target.drag-over {
+            background-color: #e0f7fa;
+            border-color: #007bff;
         }
-        .feedback {
-            font-size: 1.5rem;
-            font-weight: bold;
-            padding: 1rem;
-            border-radius: 10px;
-            margin-top: 1rem;
-            text-align: center;
-            font-family: 'MedievalSharp', cursive;
-        }
-        .feedback.correct {
-            background-color: #e6f4ea;
-            color: #2d6a4f;
-            border: 2px solid #52b788;
-        }
-        .feedback.incorrect {
-            background-color: #fde0e0;
-            color: #9e2a2b;
-            border: 2px solid #e56b6f;
-        }
-        .xp-gain {
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 1.5rem;
-            color: #ffd700;
-            text-shadow: 0 0 5px #000;
-            animation: fadeUp 1.5s ease-out forwards;
-        }
-        @keyframes fadeUp {
-            0% { opacity: 1; transform: translate(-50%, 0); }
-            100% { opacity: 0; transform: translate(-50%, -50px); }
+        /* Sync Styles */
+        .disabled-nav { 
+            pointer-events: none; 
+            opacity: .5; 
         }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="bg-amber-50">
 
-    <div id="app" class="max-w-7xl mx-auto">
-        <!-- Header -->
-        <header class="flex flex-col md:flex-row justify-between items-center mb-4 text-center md:text-left">
-            <h1 class="text-4xl md:text-5xl font-bold text-amber-200 mb-4 md:mb-0" style="text-shadow: 2px 2px 4px #000;">📜 Quest for Knowledge ⚔️</h1>
-            <div class="flex space-x-2">
-                <button id="download-work-btn" class="rpg-btn">Save Quest Log</button>
-                <button id="download-pdf-btn" class="rpg-btn">Export Scroll</button>
+    <div id="app-container" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">Math Detective Agency</h1>
+                    <p class="text-gray-600">3rd Grade Division - Word Problem Investigations</p>
+                </div>
+                <div class="flex items-center space-x-2 mt-4 sm:mt-0">
+                    <span id="role-room-badge" class="px-3 py-1.5 rounded-full bg-gray-200 text-gray-700 text-xs font-semibold"></span>
+                    <button id="sync-toggle" class="ml-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-3 rounded-lg">
+                      Sync: ON
+                    </button>
+                    <button id="download-html-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-transform hover:scale-105">
+                        Download Work
+                    </button>
+                    <button id="download-pdf-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-transform hover:scale-105">
+                        Export as PDF
+                    </button>
+                </div>
             </div>
+            <!-- Tab Navigation -->
+            <nav id="main-tabs" class="mt-4 border-b-2 border-gray-200">
+                <div class="flex flex-wrap -mb-px">
+                    <button data-day="day1" class="tab-btn text-lg font-semibold py-3 px-6 border-b-4 border-blue-600 text-blue-600">Day 1</button>
+                    <button data-day="day2" class="tab-btn text-lg font-semibold py-3 px-6 border-b-4 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300">Day 2</button>
+                    <button data-day="day3" class="tab-btn text-lg font-semibold py-3 px-6 border-b-4 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300">Day 3</button>
+                    <button data-day="day4" class="tab-btn text-lg font-semibold py-3 px-6 border-b-4 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-300">Day 4</button>
+                </div>
+            </nav>
         </header>
 
-        <!-- Main Navigation Tabs -->
-        <nav id="main-tabs" class="flex justify-center space-x-2 z-10 relative rpg-font">
-            <!-- Tabs will be generated here -->
-        </nav>
-
-        <!-- Content Area -->
-        <main id="content-area" class="quest-scroll">
-            <!-- Day content will be injected here -->
+        <main id="content-area">
+            <!-- Content for each day will be dynamically inserted here -->
         </main>
     </div>
-
-    <!-- Hidden data script for saving progress -->
+    
+    <!-- This script tag is used to save and load student progress -->
     <script id="progress-data" type="application/json"></script>
-
+    
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- DATA ---
-        const lessonData = {
-          "day1": {
-            "title": "The Dragon's Hoard (Add-To Problems)",
-            "standard": "3.PAFR.2.2 - Solve one- and two-step real-world situations using addition and subtraction up to 1,000.",
-            "sections": {
-              "hook": [
-                { "id": "d1_hook_1", "type": "content", "prompt": "Ignis the dragon counted 245 gold coins in one pile. He found another pile with 132 gold coins. How many coins did he count in all?" }
-              ],
-              "i_do": [
-                { "id": "d1_ido_1", "type": "mc", "prompt": "Ignis found a chest with 357 rubies. His griffin friend brought him 228 more. How many rubies does he have now?", "visual": "graphic_organizer: {story_text:'357 rubies and 228 more.', number_sentence:'357 + 228 = ?', answer:''}", "data": { "options": ["585", "575", "584"] }, "correct": "585" },
-                { "id": "d1_ido_2", "type": "text-box", "prompt": "A royal blacksmith forged 152 iron swords on Monday and 235 on Tuesday. How many swords did he forge in total?", "visual": "equation_scroll: {text:'152 + 235 = ?'}", "data": { "size": 3 }, "correct": "387" },
-                { "id": "d1_ido_3", "type": "true-false", "prompt": "A wizard has 450 spellbooks and buys 125 more. The correct number sentence is 450 + 125 = 575.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }
-              ],
-              "we_do": [
-                { "id": "d1_wedo_1", "type": "mc", "prompt": "Ignis has 418 sapphires and 190 diamonds. How many gems does he have altogether?", "visual": "", "data": { "options": ["608", "508", "618"] }, "correct": "608" },
-                { "id": "d1_wedo_2", "type": "mc", "prompt": "A kingdom has 280 knights. 155 more knights were trained. How many knights does the kingdom have now?", "visual": "", "data": { "options": ["335", "435", "445"] }, "correct": "435" },
-                { "id": "d1_wedo_3", "type": "true-false", "prompt": "342 gold coins plus 259 gold coins equals 601 gold coins.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
-                { "id": "d1_wedo_4", "type": "text-box", "prompt": "A castle has 523 guards. 248 more guards are hired. How many guards are there in total?", "visual": "", "data": { "size": 3 }, "correct": "771" },
-                { "id": "d1_wedo_5", "type": "drag-drop-match", "prompt": "Drag the total to the quest scroll.", "visual": "equation_scroll: {text:'475 + 350 = ?'}", "data": { "draggables": ["825", "725"], "dropTargets": ["Answer"] }, "correct": { "825": "Answer" } },
-                { "id": "d1_wedo_6", "type": "mc", "prompt": "An army has 365 archers and 280 swordsmen. How many soldiers are in the army?", "visual": "", "data": { "options": ["645", "545", "655"] }, "correct": "645" },
-                { "id": "d1_wedo_7", "type": "true-false", "prompt": "You have 615 XP and earn 150 more. You now have 755 XP.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
-                { "id": "d1_wedo_8", "type": "text-box", "prompt": "Solve: A dragon's hoard has 555 rubies and 333 emeralds. How many gems total?", "visual": "", "data": { "size": 3 }, "correct": "888" },
-                { "id": "d1_wedo_9", "type": "mc", "prompt": "Which scroll matches: 'A village has 217 houses. 142 more are built.'?", "visual": "", "data": { "options": ["217 - 142 = 75", "217 + 142 = 359", "359 - 142 = 217"] }, "correct": "217 + 142 = 359" },
-                { "id": "d1_wedo_10", "type": "drag-drop-match", "prompt": "Drag the numbers to the organizer to represent the story: '184 potions and 236 more'.", "visual": "graphic_organizer: {story_text:'', number_sentence:'', answer:''}", "data": { "draggables": ["184", "236"], "dropTargets": ["Part 1", "Part 2"] }, "correct": { "184": "Part 1", "236": "Part 2" } }
-              ],
-              "you_do": [
-                { "id": "d1_youdo_1", "type": "mc", "prompt": "A wizard collected 456 herbs. He found 279 more. How many herbs does he have?", "visual": "", "data": { "options": ["725", "735", "635"] }, "correct": "735" },
-                { "id": "d1_youdo_2", "type": "text-box", "prompt": "A royal library has 682 books. 250 new books arrive. How many books are there now?", "visual": "", "data": { "size": 3 }, "correct": "932" },
-                { "id": "d1_youdo_3", "type": "true-false", "prompt": "A griffin flew 347 miles and then 453 more miles. It flew a total of 800 miles.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
-                { "id": "d1_youdo_4", "type": "mc", "prompt": "A kingdom planted 525 trees one year and 385 the next. How many trees were planted in all?", "visual": "", "data": { "options": ["810", "900", "910"] }, "correct": "910" },
-                { "id": "d1_youdo_5", "type": "drag-drop-match", "prompt": "Drag the total to the equation: 499 + 499 = ?", "visual": "", "data": { "draggables": ["998", "898"], "dropTargets": ["Equation"] }, "correct": { "998": "Equation" } }
-              ]
-            },
-            "assessment": [
-              { "id": "d1_a_1", "type": "mc", "prompt": "A caravan has 175 camels. Another caravan with 215 camels joins them. Which number sentence shows the total number of camels?", "visual": "", "data": { "options": ["215 - 175 = 40", "175 + 215 = 390", "215 + 100 = 315"] }, "correct": "175 + 215 = 390" },
-              { "id": "d1_a_2", "type": "multi-select", "prompt": "A royal feast has 320 apple tarts and 280 cherry tarts. Select all the true statements.", "visual": "", "data": { "options": ["There are 600 tarts in total.", "The number sentence is 320 + 280 = 600.", "There are more cherry tarts than apple tarts.", "This is a subtraction problem."] }, "correct": ["There are 600 tarts in total.", "The number sentence is 320 + 280 = 600."] },
-              { "id": "d1_a_3", "type": "text-box", "prompt": "A castle's wall is 455 feet long. The builders add another 355 feet. How long is the wall now? Write your answer in the box.", "visual": "", "data": { "size": 4 }, "correct": "810" },
-              { "id": "d1_a_4", "type": "drag-drop-match", "prompt": "Drag the correct total to the story: 'A dragon sleeps for 150 years, then sleeps for 150 more years.'", "visual": "", "data": { "draggables": ["300 years", "200 years"], "dropTargets": ["Total Sleep"] }, "correct": { "300 years": "Total Sleep" } },
-              { "id": "d1_a_5", "type": "mc", "prompt": "Part A: A hero scores 475 points in a tournament and gets a 250 point bonus. How many points does she have? Part B: Why is addition the correct operation to use?", "visual": "", "data": { "options": ["A: 725, B: Because she is getting more points.", "A: 225, B: Because a bonus means you subtract.", "A: 725, B: Because the numbers are large."] }, "correct": "A: 725, B: Because she is getting more points." }
-            ]
-          },
-          "day2": {
-            "title": "The Goblin's Riddle (One-Step Subtraction)",
-            "standard": "3.PAFR.2.2 - Solve one- and two-step real-world situations using addition and subtraction up to 1,000.",
-            "sections": {
-              "hook": [
-                { "id": "d2_hook_1", "type": "content", "prompt": "Your party begins its journey with a treasure chest containing 546 gold coins. Grizelda the goblin demands a toll of 123 coins. How many coins are left for your adventure?" }
-               ],
-              "i_do": [
-                { "id": "d2_ido_1", "type": "mc", "prompt": "A castle had 425 flags. A storm tore down 138 of them. How many flags remain?", "visual": "graphic_organizer: {story_text:'Start with 425, lose 138.', number_sentence:'425 - 138 = ?', answer:''}", "data": { "options": ["287", "297", "313"] }, "correct": "287" },
-                { "id": "d2_ido_2", "type": "text-box", "prompt": "A dragon has a hoard of 872 gems. A thief steals 250 of them. How many gems are left?", "visual": "equation_scroll: {text:'872 - 250 = ?'}", "data": { "size": 3 }, "correct": "622" },
-                { "id": "d2_ido_3", "type": "true-false", "prompt": "A wizard had 300 potions and sold 150. The correct number sentence is 300 - 150 = 150.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }
-              ],
-              "we_do": [
-                { "id": "d2_wedo_1", "type": "mc", "prompt": "An army of 872 soldiers marched to battle. 359 were sent to protect the village. How many went to the main battle?", "visual": "", "data": { "options": ["513", "523", "413"] }, "correct": "513" },
-                { "id": "d2_wedo_2", "type": "mc", "prompt": "You have 600 gold pieces and buy a sword for 255. How much gold is left?", "visual": "", "data": { "options": ["345", "355", "455"] }, "correct": "345" },
-                { "id": "d2_wedo_3", "type": "true-false", "prompt": "780 minus 190 equals 590.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
-                { "id": "d2_wedo_4", "type": "text-box", "prompt": "A kingdom has 941 barrels of water. 380 are used during a siege. How many are left?", "visual": "", "data": { "size": 3 }, "correct": "561" },
-                { "id": "d2_wedo_5", "type": "drag-drop-match", "prompt": "Drag the answer to the quest scroll.", "visual": "equation_scroll: {text:'500 - 225 = ?'}", "data": { "draggables": ["275", "375"], "dropTargets": ["Answer"] }, "correct": { "275": "Answer" } },
-                { "id": "d2_wedo_6", "type": "mc", "prompt": "A library had 750 scrolls. 325 were borrowed. How many are on the shelves?", "visual": "", "data": { "options": ["425", "435", "325"] }, "correct": "425" },
-                { "id": "d2_wedo_7", "type": "true-false", "prompt": "You have 800 XP and spend 150 on a new skill. You have 650 XP left.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
-                { "id": "d2_wedo_8", "type": "text-box", "prompt": "Solve: A dragon has 999 scales and loses 111. How many are left?", "visual": "", "data": { "size": 3 }, "correct": "888" },
-                { "id": "d2_wedo_9", "type": "mc", "prompt": "Which scroll matches: 'A castle has 450 guards. 120 are sent away.'?", "visual": "", "data": { "options": ["450 + 120 = 570", "450 - 120 = 330", "570 - 120 = 450"] }, "correct": "450 - 120 = 330" },
-                { "id": "d2_wedo_10", "type": "drag-drop-match", "prompt": "Drag the numbers to represent: 'Start with 673, take away 241'.", "visual": "graphic_organizer: {story_text:'', number_sentence:'', answer:''}", "data": { "draggables": ["673", "241"], "dropTargets": ["Whole", "Part"] }, "correct": { "673": "Whole", "241": "Part" } }
-              ],
-              "you_do": [
-                { "id": "d2_youdo_1", "type": "mc", "prompt": "A royal baker made 345 cakes. The king ate 128 of them. How many are left?", "visual": "", "data": { "options": ["217", "227", "117"] }, "correct": "217" },
-                { "id": "d2_youdo_2", "type": "text-box", "prompt": "A ship has 700 feet of rope. The sailors use 345 feet. How much rope is left?", "visual": "", "data": { "size": 3 }, "correct": "355" },
-                { "id": "d2_youdo_3", "type": "true-false", "prompt": "A wizard had 821 potions. He dropped 139. He has 682 potions left.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
-                { "id": "d2_youdo_4", "type": "mc", "prompt": "A forest has 911 trees. 450 are chopped down. How many trees remain?", "visual": "", "data": { "options": ["461", "561", "451"] }, "correct": "461" },
-                { "id": "d2_youdo_5", "type": "drag-drop-match", "prompt": "Drag the answer to the equation: 1000 - 550 = ?", "visual": "", "data": { "draggables": ["450", "550"], "dropTargets": ["Equation"] }, "correct": { "450": "Equation" } }
-              ]
-            },
-            "assessment": [
-              { "id": "d2_a_1", "type": "mc", "prompt": "A dragon has 742 gold coins. It gives 310 to its child. Which number sentence shows how many coins are left?", "visual": "", "data": { "options": ["742 + 310 = 1052", "310 + 742 = 1052", "742 - 310 = 432"] }, "correct": "742 - 310 = 432" },
-              { "id": "d2_a_2", "type": "multi-select", "prompt": "A wizard has 500 pages of parchment. He uses 175 pages for a long spell. Select all the true statements.", "visual": "", "data": { "options": ["He has 325 pages left.", "This is an addition problem.", "The number sentence is 500 - 175 = 325.", "He has more pages left than he used."] }, "correct": ["He has 325 pages left.", "The number sentence is 500 - 175 = 325.", "He has more pages left than he used."] },
-              { "id": "d2_a_3", "type": "text-box", "prompt": "An army of 900 soldiers attacks a fortress. 285 soldiers are lost in the battle. How many soldiers are left?", "visual": "", "data": { "size": 3 }, "correct": "615" },
-              { "id": "d2_a_4", "type": "drag-drop-match", "prompt": "Drag the correct number of remaining items to the story: 'A royal chef has 450 eggs. He uses 225 for a giant omelet.'", "visual": "", "data": { "draggables": ["225 eggs left", "675 eggs left"], "dropTargets": ["Story"] }, "correct": { "225 eggs left": "Story" } },
-              { "id": "d2_a_5", "type": "mc", "prompt": "Part A: A caravan of 842 camels is crossing a desert. 199 camels get tired and stop to rest. How many camels are still walking? Part B: How do you know you need to regroup to solve this problem?", "visual": "", "data": { "options": ["A: 643, B: Because you can't subtract 9 from 4 in the tens place.", "A: 653, B: Because you don't need to regroup.", "A: 1041, B: Because you should add the numbers."] }, "correct": "A: 643, B: Because you can't subtract 9 from 4 in the tens place." }
-            ]
-          },
-          "day3": {
-            "title": "The Alchemist's Dilemma (Part-Part-Whole Problems)",
-            "standard": "3.PAFR.2.2 - Solve one- and two-step real-world situations using addition and subtraction up to 1,000.",
-            "sections": {
-              "hook": [
-                { "id": "d3_hook_1", "type": "content", "prompt": "The alchemist needs to brew a potion with a total of 350 drops of liquid. He has already poured in 150 drops of sparkling water. The rest must be moonflower nectar. How many drops of moonflower nectar does he need?" }
-              ],
-              "i_do": [
-                { "id": "d3_ido_1", "type": "mc", "prompt": "A knight has 8 steel shields and 5 wooden shields. How many shields in total?", "visual": "part_part_whole_mat: {part1:{type:'shield', count:8}, part2:{type:'shield', count:5}, whole:'?'}", "data": { "options": ["12", "13", "14"] }, "correct": "13" },
-                { "id": "d3_ido_2", "type": "text-box", "prompt": "A wizard has 14 potions. 6 are healing potions, and the rest are mana potions. How many are mana potions?", "visual": "part_part_whole_mat: {whole:14, part1:{type:'potion', count:6}, part2:'?'}", "data": { "size": 2 }, "correct": "8" },
-                { "id": "d3_ido_3", "type": "true-false", "prompt": "If a chest has 17 total coins and 9 are gold, then there must be 8 silver coins.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }
-              ],
-              "we_do": [
-                { "id": "d3_wedo_1", "type": "mc", "prompt": "There are 17 adventurers in a dungeon. 9 are warriors and the rest are mages. How many are mages?", "visual": "", "data": { "options": ["7", "8", "9"] }, "correct": "8" },
-                { "id": "d3_wedo_2", "type": "mc", "prompt": "A treasure map has two parts. The first part is 7 miles long. The second part is 9 miles long. How long is the whole journey?", "visual": "", "data": { "options": ["15 miles", "16 miles", "17 miles"] }, "correct": "16 miles" },
-                { "id": "d3_wedo_3", "type": "true-false", "prompt": "If there are 11 heroes total and 5 are elves, then 7 must be dwarves.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
-                { "id": "d3_wedo_4", "type": "text-box", "prompt": "A dragon's hoard has 18 items. 10 are gold coins and the rest are gems. How many are gems?", "visual": "", "data": { "size": 2 }, "correct": "8" },
-                { "id": "d3_wedo_5", "type": "drag-drop-match", "prompt": "Drag the missing part to the equation scroll.", "visual": "equation_scroll: {text:'8 + ? = 15'}", "data": { "draggables": ["7", "8"], "dropTargets": ["?"] }, "correct": { "7": "?" } },
-                { "id": "d3_wedo_6", "type": "mc", "prompt": "A forest has 13 talking animals. 6 are squirrels and the rest are rabbits. How many are rabbits?", "visual": "", "data": { "options": ["6", "7", "8"] }, "correct": "7" },
-                { "id": "d3_wedo_7", "type": "true-false", "prompt": "A chest with 9 rubies and 9 sapphires has 18 gems in total.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
-                { "id": "d3_wedo_8", "type": "text-box", "prompt": "A hero needs 20 arrows. She has 11. How many more does she need to make?", "visual": "", "data": { "size": 2 }, "correct": "9" },
-                { "id": "d3_wedo_9", "type": "mc", "prompt": "Which story matches '14 - 6 = 8'?", "visual": "", "data": { "options": ["You have 14 coins and find 6 more.", "You have 14 coins. 6 are gold and 8 are silver.", "You have 8 coins and find 6 more."] }, "correct": "You have 14 coins. 6 are gold and 8 are silver." },
-                { "id": "d3_wedo_10", "type": "drag-drop-match", "prompt": "A hoard has 17 gems total. One part is 8 gems. Drag the other part to the mat.", "visual": "part_part_whole_mat: {whole:17, part1:8, part2:'?'}", "data": { "draggables": ["8 gems", "9 gems"], "dropTargets": ["Part 2"] }, "correct": { "9 gems": "Part 2" } }
-              ],
-              "you_do": [
-                { "id": "d3_youdo_1", "type": "mc", "prompt": "A library has 19 spellbooks. 12 are on a shelf and the rest are on a table. How many are on the table?", "visual": "", "data": { "options": ["6", "7", "8"] }, "correct": "7" },
-                { "id": "d3_youdo_2", "type": "text-box", "prompt": "A blacksmith has 9 iron swords and 7 steel swords. How many swords does he have in all?", "visual": "", "data": { "size": 2 }, "correct": "16" },
-                { "id": "d3_youdo_3", "type": "true-false", "prompt": "If a quest has a total of 15 XP and you've earned 8 XP, you still need to earn 7 XP.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
-                { "id": "d3_youdo_4", "type": "mc", "prompt": "A potion requires 13 total ingredients. You have 6. How many more do you need?", "visual": "", "data": { "options": ["7", "8", "9"] }, "correct": "7" },
-                { "id": "d3_youdo_5", "type": "drag-drop-match", "prompt": "Drag the missing part to the equation: ? + 5 = 11", "visual": "", "data": { "draggables": ["6", "7"], "dropTargets": ["?"] }, "correct": { "6": "?" } }
-              ]
-            },
-            "assessment": [
-              { "id": "d3_a_1", "type": "mc", "prompt": "A quest requires a total of 500 XP. You have 250 XP. Which number sentence finds how much XP you still need?", "visual": "", "data": { "options": ["500 + 250 = 750", "500 - 250 = 250", "250 + 500 = 750"] }, "correct": "500 - 250 = 250" },
-              { "id": "d3_a_2", "type": "multi-select", "prompt": "A dragon's hoard has 800 coins. Some are gold and 350 are silver. Select all true statements.", "visual": "", "data": { "options": ["There are 450 gold coins.", "This is an addition problem.", "The number sentence could be 350 + ? = 800.", "There are more silver coins than gold coins."] }, "correct": ["There are 450 gold coins.", "The number sentence could be 350 + ? = 800."] },
-              { "id": "d3_a_3", "type": "text-box", "prompt": "A castle needs 975 guards for its walls. There are 625 guards already on duty. How many more guards are needed?", "visual": "", "data": { "size": 3 }, "correct": "350" },
-              { "id": "d3_a_4", "type": "drag-drop-match", "prompt": "Drag the correct missing part to the story: 'A wizard has 215 fire potions. He has 400 potions in total. The rest are ice potions.'", "visual": "", "data": { "draggables": ["185 ice potions", "615 ice potions"], "dropTargets": ["Missing Part"] }, "correct": { "185 ice potions": "Missing Part" } },
-              { "id": "d3_a_5", "type": "mc", "prompt": "Part A: An army has 720 soldiers. 350 are archers and the rest are swordsmen. How many are swordsmen? Part B: Which statement best explains why you solved it that way?", "visual": "", "data": { "options": ["A: 370, B: I knew the whole and one part, so I subtracted to find the other part.", "A: 1070, B: I knew two parts, so I added to find the whole.", "A: 370, B: I guessed because the numbers were large."] }, "correct": "A: 370, B: I knew the whole and one part, so I subtracted to find the other part." }
-            ]
-          },
-          "day4": {
-            "title": "The Two-Step Trial (Multi-Step Problems)",
-            "standard": "3.PAFR.2.2 - Solve one- and two-step real-world situations using addition and subtraction up to 1,000.",
-            "sections": {
-              "hook": [
-                { "id": "d4_hook_1", "type": "content", "prompt": "To begin your journey, you pack a bag with 124 berries. You find another 78 berries on the path. Then, you are ambushed by hungry pixies and give them 50 berries. How many berries do you have left?" }
-              ],
-              "i_do": [
-                { "id": "d4_ido_1", "type": "mc", "prompt": "A castle has 350 soldiers. 120 ride out to patrol. Then, 75 new recruits arrive. How many soldiers are at the castle now?", "visual": "graphic_organizer: {story_text:'Step 1: 350 - 120. Step 2: Add 75.', number_sentence:'230 + 75 = ?', answer:''}", "data": { "options": ["305", "230", "425"] }, "correct": "305" },
-                { "id": "d4_ido_2", "type": "text-box", "prompt": "You have 520 gold coins. You buy a shield for 150 and a helmet for 80. How much gold is left?", "visual": "equation_scroll: {text:'520 - 150 - 80 = ?'}", "data": { "size": 3 }, "correct": "290" },
-                { "id": "d4_ido_3", "type": "true-false", "prompt": "A dragon had 200 gems. It found 50 more, then lost 100. The final amount is 150.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }
-              ],
-              "we_do": [
-                { "id": "d4_wedo_1", "type": "mc", "prompt": "A wizard had 420 potions. He sold 150, then brewed 85 more. How many potions does he have now?", "visual": "", "data": { "options": ["270", "355", "485"] }, "correct": "355" },
-                { "id": "d4_wedo_2", "type": "mc", "prompt": "A library had 800 scrolls. 250 were borrowed. Then, 120 were returned. How many scrolls are in the library?", "visual": "", "data": { "options": ["550", "670", "430"] }, "correct": "670" },
-                { "id": "d4_wedo_3", "type": "true-false", "prompt": "You start with 500 gold. You earn 200, then spend 300. You have 400 gold left.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
-                { "id": "d4_wedo_4", "type": "text-box", "prompt": "A forest has 980 trees. 150 are cut down, but 200 new trees are planted. How many trees are in the forest?", "visual": "", "data": { "size": 4 }, "correct": "1030" },
-                { "id": "d4_wedo_5", "type": "drag-drop-match", "prompt": "Drag the final answer to the quest: 'Start with 300, add 150, subtract 100'", "visual": "", "data": { "draggables": ["350", "450"], "dropTargets": ["Answer"] }, "correct": { "350": "Answer" } },
-                { "id": "d4_wedo_6", "type": "mc", "prompt": "A hero has 180 arrows. He shoots 60, then finds 40 more. How many arrows does he have?", "visual": "", "data": { "options": ["120", "160", "200"] }, "correct": "160" },
-                { "id": "d4_wedo_7", "type": "true-false", "prompt": "A castle has 600 guards. 250 leave, then 150 return. There are now 500 guards.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
-                { "id": "d4_wedo_8", "type": "text-box", "prompt": "Solve: A dragon had 740 gems. It gave away 200, then found 110. How many gems now?", "visual": "", "data": { "size": 3 }, "correct": "650" },
-                { "id": "d4_wedo_9", "type": "mc", "prompt": "Which story matches '100 + 50 - 25 = 125'?", "visual": "", "data": { "options": ["You had 100 coins, lost 50, then found 25.", "You had 100 coins, found 50, then spent 25.", "You had 100 coins, found 50, then found 25."] }, "correct": "You had 100 coins, found 50, then spent 25." },
-                { "id": "d4_wedo_10", "type": "drag-drop-match", "prompt": "What is the answer after the first step? 'A baker has 250 cakes. He sells 120, then bakes 50 more.'", "visual": "", "data": { "draggables": ["130", "300"], "dropTargets": ["Answer to Step 1"] }, "correct": { "130": "Answer to Step 1" } }
-              ],
-              "you_do": [
-                { "id": "d4_youdo_1", "type": "mc", "prompt": "You have 325 gold. You buy a shield for 110 and a potion for 25. How much is left?", "visual": "", "data": { "options": ["190", "215", "200"] }, "correct": "190" },
-                { "id": "d4_youdo_2", "type": "text-box", "prompt": "A kingdom had 800 soldiers. 250 went on a quest. 150 new soldiers were recruited. How many soldiers are there now?", "visual": "", "data": { "size": 3 }, "correct": "700" },
-                { "id": "d4_youdo_3", "type": "true-false", "prompt": "A wizard started with 500 pages of paper. He used 125 for spells and 50 for letters. He has 325 pages left.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" },
-                { "id": "d4_youdo_4", "type": "mc", "prompt": "A dragon collected 240 gems. It lost 80 in a fight, but then found 100 more. How many gems does it have?", "visual": "", "data": { "options": ["160", "260", "340"] }, "correct": "260" },
-                { "id": "d4_youdo_5", "type": "drag-drop-match", "prompt": "Drag the final answer to the quest: 'Start with 950, subtract 500, add 150'", "visual": "", "data": { "draggables": ["600", "500"], "dropTargets": ["Final Answer"] }, "correct": { "600": "Final Answer" } }
-              ]
-            },
-            "assessment": [
-                { "id": "d4_a_1", "type": "mc", "prompt": "A merchant has 250 apples. She sells 120, then buys 80 more. Which pair of number sentences solves the problem?", "visual": "", "data": { "options": ["250 + 120, then 370 + 80", "250 - 120, then 130 + 80", "250 - 120, then 130 - 80"] }, "correct": "250 - 120, then 130 + 80" },
-                { "id": "d4_a_2", "type": "multi-select", "prompt": "A hero has 500 health points. He takes 150 damage, then drinks a potion that heals 75 points. Select all true statements.", "visual": "", "data": { "options": ["His health after being hit is 350.", "His final health is 425.", "He should add 150 and 75 first.", "His final health is 275."] }, "correct": ["His health after being hit is 350.", "His final health is 425."] },
-                { "id": "d4_a_3", "type": "text-box", "prompt": "A castle library has 675 books. 250 are checked out. Then, 115 new books are added. How many books are in the library now?", "visual": "", "data": { "size": 3 }, "correct": "540" },
-                { "id": "d4_a_4", "type": "drag-drop-match", "prompt": "Drag the correct final answer to the story: 'A dragon has 300 gold coins. It gets 250 more from a village, then spends 120 on a new cave.'", "visual": "", "data": { "draggables": ["430 coins", "550 coins"], "dropTargets": ["Final Amount"] }, "correct": { "430 coins": "Final Amount" } },
-                { "id": "d4_a_5", "type": "mc", "prompt": "Part A: A blacksmith has 180 iron bars. He uses 120 to make swords. Then he buys 200 more. How many iron bars does he have? Part B: Which step must be completed first to find the correct answer?", "visual": "", "data": { "options": ["A: 260, B: You must first find how many bars he had after making swords.", "A: 500, B: You must first add the bars he started with and the bars he bought.", "A: 260, B: It does not matter which step you do first."] }, "correct": "A: 260, B: You must first find how many bars he had after making swords." }
-            ]
-          }
-        };
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- SYNC & ROLE HELPERS ---
+            function getRoleAndRoom() {
+              const url = new URL(window.location.href);
+              const qs = new URLSearchParams(url.search);
 
-        // --- STATE MANAGEMENT ---
-        let appState = {
-            activeDay: 'day1',
-            currentMode: 'lesson', // 'lesson' or 'assessment'
-            progress: {}
-        };
-
-        const POSITIVE_FEEDBACK = ["Huzzah!", "A legendary success!", "Your wisdom grows!", "Quest Complete!", "Victory!"];
-
-        // --- SVG & DYNAMIC ELEMENT GENERATION ---
-
-        const createSvgElement = (tag, attrs) => {
-            const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-            for (let key in attrs) {
-                el.setAttribute(key, attrs[key]);
+              let teacherRaw = qs.get('teacher') ?? (url.hash.includes('teacher') ? '1' : null);
+              let isTeacher = false;
+              if (teacherRaw !== null) {
+                const v = String(teacherRaw).toLowerCase();
+                isTeacher = (v === '' || v === '1' || v === 'true' || v === 'yes' || v === 'y');
+              }
+              let room = qs.get('room') || (url.hash.match(/room=([\w-]+)/)?.[1]) || 'default';
+              return { isTeacher, room };
             }
-            return el;
-        };
-        
-        const generateVisual = (visualString) => {
-            if (!visualString) return null;
+            const { isTeacher: IS_TEACHER, room: ROOM_ID } = getRoleAndRoom();
 
-            const svg = createSvgElement('svg', { viewBox: '0 0 400 200', class: 'w-full h-auto max-w-lg mx-auto' });
+            // --- FIREBASE CONFIG ---
+            const firebaseConfig = {
+              apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+              authDomain: "lesson-sync-a223a.firebaseapp.com",
+              projectId: "lesson-sync-a223a",
+              storageBucket: "lesson-sync-a223a.firebasestorage.app",
+              messagingSenderId: "906128715071",
+              appId: "1:906128715071:web:347ea08f4d864fde02778a"
+            };
+            firebase.initializeApp(firebaseConfig);
+
+            // --- GLOBAL SYNC STATE ---
+            let ALLOW_FREE_EXPLORE = false;
+            let _db, _auth, _roomRef, _unsubSnap = null, _isApplyingRemote = false;
             
-            const [type, paramsStr] = visualString.split(/:(.+)/);
-            let params = {};
-            if (paramsStr) {
+            // --- DATA ---
+            const lessonData = {
+                day1: {
+                    title: "The Case of the Combined Collections",
+                    iDo: [
+                        { "id": "d1_ido_q1", "type": "mc", "prompt": "Here's the case file: 'The zoo has 245 mammals and 132 reptiles. How many animals are there in total?' Which are the number clues we should circle?", "visual": "{\"type\":\"cubes-strategy-highlight\", \"text\":\"The zoo has 245 mammals and 132 reptiles. How many animals are there in total?\", \"circles\":[], \"underline\":\"\", \"box\":\"\"}", "data": { "options": ["245 and 132", "245 and animals", "132 and zoo"] }, "correct": "245 and 132" },
+                        { "id": "d1_ido_q2", "type": "mc", "prompt": "Case File: 'A video game costs $45. A new controller costs $25. What is the total cost?' Which keyword tells us this is an addition case?", "visual": "{\"type\":\"cubes-strategy-highlight\", \"text\":\"A video game costs $45. A new controller costs $25. What is the total cost?\", \"circles\":[45, 25], \"underline\":\"What is the total cost?\", \"box\":\"\"}", "data": { "options": ["video game", "costs", "total"] }, "correct": "total" },
+                        { "id": "d1_ido_q3", "type": "drag-drop-match", "prompt": "Look at this blueprint for the case. Drag the clues to the right spots on the strip diagram. The parts are 210 and 150.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[\"\",\"\"]}", "data": { "draggables": ["210", "150"], "dropTargets": ["Part 1", "Part 2"] }, "correct": { "210": "Part 1", "150": "Part 2" } }
+                    ],
+                    weDo: [
+                        { "id": "d1_wedo_q1", "type": "true-false", "prompt": "Case: 'On Saturday, 350 people visited the museum. On Sunday, 425 people visited. How many people visited in all?' The numbers 350 and 425 are the 'parts'.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[350, 425]}", "data": { "options": ["True", "False"] }, "correct": "True" },
+                        { "id": "d1_wedo_q2", "type": "mc", "prompt": "Case: 'The school cafeteria made 276 cheese pizzas and 312 pepperoni pizzas.' Where does the number 276 go in our blueprint?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Total Pizzas\", \"parts\":[\"Cheese\", \"Pepperoni\"]}", "data": { "options": ["As a part", "As the whole", "It's extra information"] }, "correct": "As a part" },
+                        { "id": "d1_wedo_q3", "type": "text-box", "prompt": "A farm has 180 chickens and 115 cows. What is the total number of animals? Solve the case!", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[180, 115]}", "data": { "size": 10 }, "correct": "295" },
+                        { "id": "d1_wedo_q4", "type": "mc", "prompt": "Look at this strip diagram. What addition equation matches this blueprint?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[400, 150]}", "data": { "options": ["400 + ? = 150", "150 - 400 = ?", "400 + 150 = ?"] }, "correct": "400 + 150 = ?" },
+                        { "id": "d1_wedo_q5", "type": "true-false", "prompt": "Case: 'Lila read 120 pages of her book, which has 300 pages. Her brother read 75 pages. How many pages did Lila and her brother read altogether?' The number 300 is extra information we can eliminate.", "visual": "{\"type\":\"cubes-strategy-highlight\", \"text\":\"Lila read 120 pages of her book, which has 300 pages. Her brother read 75 pages. How many pages did Lila and her brother read altogether?\", \"circles\":[120, 300, 75], \"underline\":\"How many pages did Lila and her brother read altogether?\", \"box\":\"altogether\"}", "data": { "options": ["True", "False"] }, "correct": "True" },
+                        { "id": "d1_wedo_q6", "type": "text-box", "prompt": "Using the clues from the last case (Lila read 120 pages, her brother read 75), what is the total number of pages they read?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[120, 75]}", "data": { "size": 10 }, "correct": "195" },
+                        { "id": "d1_wedo_q7", "type": "mc", "prompt": "A baker made 255 vanilla cupcakes and 220 chocolate cupcakes. Which strip diagram correctly shows this case?", "visual": "", "data": { "options": ["Whole: ?, Parts: 255, 220", "Whole: 255, Parts: 220, ?", "Whole: 220, Parts: 255, ?"] }, "correct": "Whole: ?, Parts: 255, 220" },
+                        { "id": "d1_wedo_q8", "type": "text-box", "prompt": "Solve the cupcake case! How many cupcakes in all?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[255, 220]}", "data": { "size": 10 }, "correct": "475" },
+                        { "id": "d1_wedo_q9", "type": "mc", "prompt": "Case: 'A train traveled 450 miles on Monday and 450 miles on Tuesday.' Which number sentence solves the case?", "visual": "", "data": { "options": ["450 - 450 = 0", "450 + 450 = 900", "450 + 0 = 450"] }, "correct": "450 + 450 = 900" },
+                        { "id": "d1_wedo_q10", "type": "true-false", "prompt": "When solving an addition word problem, we are looking for one of the 'parts'.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Whole\", \"parts\":[\"Part\", \"Part\"]}", "data": { "options": ["True", "False"] }, "correct": "False" }
+                    ],
+                    youDo: [
+                        { "id": "d1_youdo_q1", "type": "text-box", "prompt": "You are on a case! There are 345 apple trees and 231 pear trees in an orchard. How many trees are there in total?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[345, 231]}", "data": { "size": 10 }, "correct": "576" },
+                        { "id": "d1_youdo_q2", "type": "mc", "prompt": "Case File: 'A store sold 520 adult tickets and 355 child tickets to a movie.' What is the question you are trying to answer?", "visual": "", "data": { "options": ["How many more adult tickets were sold?", "What is the total number of tickets sold?", "How much did the tickets cost?"] }, "correct": "What is the total number of tickets sold?" },
+                        { "id": "d1_youdo_q3", "type": "text-box", "prompt": "Solve the movie ticket case: 520 adult tickets and 355 child tickets were sold. What is the total?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[520, 355]}", "data": { "size": 10 }, "correct": "875" },
+                        { "id": "d1_youdo_q4", "type": "drag-drop-match", "prompt": "Match the parts of the problem to the blueprint. Problem: 'A team scored 140 points in their first game and 125 in their second.'", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Total Points\", \"parts\":[\"Game 1\", \"Game 2\"]}", "data": { "draggables": ["140", "125", "?"], "dropTargets": ["Game 1", "Game 2", "Total Points"] }, "correct": { "140": "Game 1", "125": "Game 2", "?": "Total Points" } },
+                        { "id": "d1_youdo_q5", "type": "true-false", "prompt": "The keyword 'altogether' usually means you should subtract.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" }
+                    ],
+                    assessment: [
+                        { "id": "d1_assess_q1", "type": "mc", "prompt": "In the problem: 'A class library has 418 fiction books and 351 non-fiction books. How many books are there in all?' What is the keyword that tells you to add?", "visual": "", "data": { "options": ["library", "books", "in all"] }, "correct": "in all" },
+                        { "id": "d1_assess_q2", "type": "mc", "prompt": "Which visual model correctly represents finding the total of 250 and 300?", "visual": "", "data": { "options": ["A strip diagram with 250 as the whole and 300 as a part.", "A strip diagram with the whole as unknown and parts of 250 and 300.", "A strip diagram with 300 as the whole and 250 as a part."] }, "correct": "A strip diagram with the whole as unknown and parts of 250 and 300." },
+                        { "id": "d1_assess_q3", "type": "multi-select", "prompt": "A cafeteria served 247 slices of pizza on Monday. They served 321 slices on Tuesday. The oven can cook 100 slices at a time. How many slices did they serve altogether on Monday and Tuesday? Select the two numbers that are the 'parts' needed to find the total.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[\"Monday\", \"Tuesday\"]}", "data": { "options": ["247", "321", "100", "Monday"] }, "correct": ["247", "321"] },
+                        { "id": "d1_assess_q4", "type": "text-box", "prompt": "At a school assembly, there are 264 third graders and 225 fourth graders. How many students are there in total?", "visual": "{\"type\":\"object-group\", \"groups\":[{\"name\":\"third-graders\", \"count\":264, \"icon-description\":\"stick figure\"}, {\"name\":\"fourth-graders\", \"count\":225, \"icon-description\":\"stick figure\"}]}", "data": { "size": 10 }, "correct": "489" },
+                        { "id": "d1_assess_q5", "type": "drag-drop-sort", "prompt": "Read the problem, then sort the numbers into the correct categories. Problem: 'An airplane flew 375 miles. After a stop, it flew another 420 miles. The plane can hold 200 people.'", "visual": "", "data": { "items": ["375", "420", "200"], "categories": ["Part (Needed Clue)", "Extra Information"] }, "correct": { "Part (Needed Clue)": ["375", "420"], "Extra Information": ["200"] } }
+                    ]
+                },
+                day2: {
+                    title: "The Case of the Missing Pieces",
+                    iDo: [
+                        { "id": "d2_ido_q1", "type": "mc", "prompt": "Case File: 'There were 750 tickets for sale. The school sold 500 tickets. How many tickets are left?' In our blueprint, what number is the 'whole'?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"\", \"parts\":[\"\",\"\"]}", "data": { "options": ["750", "500", "We don't know the whole"] }, "correct": "750" },
+                        { "id": "d2_ido_q2", "type": "mc", "prompt": "Case File: 'A whale is 87 feet long. A shark is 25 feet long. What is the difference in their length?' Which keyword tells us this is a subtraction case?", "visual": "{\"type\":\"cubes-strategy-highlight\", \"text\":\"A whale is 87 feet long. A shark is 25 feet long. What is the difference in their length?\", \"circles\":[87, 25], \"underline\":\"What is the difference in their length?\", \"box\":\"\"}", "data": { "options": ["long", "shark", "difference"] }, "correct": "difference" },
+                        { "id": "d2_ido_q3", "type": "drag-drop-match", "prompt": "Look at this blueprint for the case. The whole is 950 and one part is 400. Drag the clues to the right spots on the strip diagram.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"\", \"parts\":[\"\",\"\"]}", "data": { "draggables": ["950", "400", "?"], "dropTargets": ["The Whole", "Part 1", "Part 2"] }, "correct": { "950": "The Whole", "400": "Part 1", "?": "Part 2" } }
+                    ],
+                    weDo: [
+                        { "id": "d2_wedo_q1", "type": "true-false", "prompt": "Case: 'A library has 800 books. 250 are checked out. How many are on the shelves?' The number 800 is the 'whole'.", "visual": "{\"type\":\"strip-diagram\", \"whole\":800, \"parts\":[250, \"?\"]}", "data": { "options": ["True", "False"] }, "correct": "True" },
+                        { "id": "d2_wedo_q2", "type": "mc", "prompt": "Case: 'A farmer picked 450 apples. He sold 300 of them.' Where does 300 go in our blueprint?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Total Apples\", \"parts\":[\"Sold\", \"Left\"]}", "data": { "options": ["As a part", "As the whole", "It's extra information"] }, "correct": "As a part" },
+                        { "id": "d2_wedo_q3", "type": "text-box", "prompt": "A roll of ribbon was 98 inches long. You cut off 35 inches. How many inches are left? Solve the case!", "visual": "{\"type\":\"strip-diagram\", \"whole\":98, \"parts\":[35, \"?\"]}", "data": { "size": 10 }, "correct": "63" },
+                        { "id": "d2_wedo_q4", "type": "mc", "prompt": "Look at this strip diagram. What subtraction equation matches this blueprint?", "visual": "{\"type\":\"strip-diagram\", \"whole\":600, \"parts\":[250, \"?\"]}", "data": { "options": ["600 + 250 = ?", "250 - ? = 600", "600 - 250 = ?"] }, "correct": "600 - 250 = ?" },
+                        { "id": "d2_wedo_q5", "type": "true-false", "prompt": "If a problem asks 'How many are left?', you should probably add the numbers together.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
+                        { "id": "d2_wedo_q6", "type": "text-box", "prompt": "The school fundraiser goal is $950. So far, they have raised $720. How much more money do they need to raise?", "visual": "{\"type\":\"strip-diagram\", \"whole\":950, \"parts\":[720, \"?\"]}", "data": { "size": 10 }, "correct": "230" },
+                        { "id": "d2_wedo_q7", "type": "mc", "prompt": "There were 345 people on a train. 120 people got off at the first stop. Which strip diagram correctly shows this case?", "visual": "", "data": { "options": ["Whole: ?, Parts: 345, 120", "Whole: 345, Parts: 120, ?", "Whole: 120, Parts: 345, ?"] }, "correct": "Whole: 345, Parts: 120, ?" },
+                        { "id": "d2_wedo_q8", "type": "text-box", "prompt": "Solve the train case! How many people are still on the train?", "visual": "{\"type\":\"strip-diagram\", \"whole\":345, \"parts\":[120, \"?\"]}", "data": { "size": 10 }, "correct": "225" },
+                        { "id": "d2_wedo_q9", "type": "mc", "prompt": "Case: 'A painter has 150 ounces of paint. He uses 80 ounces.' Which number sentence solves the case?", "visual": "", "data": { "options": ["150 + 80 = 230", "150 - 80 = 70", "80 + 150 = 230"] }, "correct": "150 - 80 = 70" },
+                        { "id": "d2_wedo_q10", "type": "true-false", "prompt": "In subtraction problems, we always know the 'whole' and one 'part'.", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Whole\", \"parts\":[\"Part\", \"Part\"]}", "data": { "options": ["True", "False"] }, "correct": "True" }
+                    ],
+                    youDo: [
+                        { "id": "d2_youdo_q1", "type": "text-box", "prompt": "Time to solve a case, detective. There are 876 bricks to build a wall. So far, 550 have been used. How many bricks are left?", "visual": "{\"type\":\"strip-diagram\", \"whole\":876, \"parts\":[550, \"?\"]}", "data": { "size": 10 }, "correct": "326" },
+                        { "id": "d2_youdo_q2", "type": "mc", "prompt": "Case File: 'A water tank holds 600 gallons. It currently has 250 gallons in it.' What question are you trying to answer?", "visual": "{\"type\":\"strip-diagram\", \"whole\":600, \"parts\":[250, \"?\"]}", "data": { "options": ["How many gallons are there in total?", "How much was used?", "How many more gallons can fit in the tank?"] }, "correct": "How many more gallons can fit in the tank?" },
+                        { "id": "d2_youdo_q3", "type": "text-box", "prompt": "Solve the water tank case: A 600-gallon tank has 250 gallons in it. How much more can it hold?", "visual": "{\"type\":\"strip-diagram\", \"whole\":600, \"parts\":[250, \"?\"]}", "data": { "size": 10 }, "correct": "350" },
+                        { "id": "d2_youdo_q4", "type": "drag-drop-match", "prompt": "Match the parts of the problem to the blueprint. Problem: 'A book has 280 pages. Sam has read 150 pages.'", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"Total Pages\", \"parts\":[\"Read\", \"Not Read\"]}", "data": { "draggables": ["280", "150", "?"], "dropTargets": ["Total Pages", "Read", "Not Read"] }, "correct": { "280": "Total Pages", "150": "Read", "?": "Not Read" } },
+                        { "id": "d2_youdo_q5", "type": "true-false", "prompt": "The word 'difference' usually means you should add.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" }
+                    ],
+                    assessment: [
+                        { "id": "d2_assess_q1", "type": "mc", "prompt": "In the problem: 'A baker made 350 cookies. She sold 200 of them. How many cookies are left?' What number represents the 'whole'?", "visual": "", "data": { "options": ["350", "200", "The answer is the whole."] }, "correct": "350" },
+                        { "id": "d2_assess_q2", "type": "mc", "prompt": "Which visual model correctly represents finding how many are left if you start with 500 and take away 150?", "visual": "", "data": { "options": ["A strip diagram with 150 as the whole and 500 as a part.", "A strip diagram with the whole as unknown and parts of 500 and 150.", "A strip diagram with 500 as the whole and 150 as a part."] }, "correct": "A strip diagram with 500 as the whole and 150 as a part." },
+                        { "id": "d2_assess_q3", "type": "multi-select", "prompt": "A city park has 980 trees. 400 of the trees are oak trees. The park also has 2 playgrounds. How many trees in the park are not oak trees? Select the two numbers needed to solve this problem.", "visual": "{\"type\":\"strip-diagram\", \"whole\":980, \"parts\":[400, \"?\"]}", "data": { "options": ["980", "400", "2", "trees"] }, "correct": ["980", "400"] },
+                        { "id": "d2_assess_q4", "type": "text-box", "prompt": "A marathon is 26 miles long. A runner has already run 10 miles. How many miles does she have left to run?", "visual": "{\"type\":\"object-group\", \"groups\":[{\"name\":\"total-miles\", \"count\":26, \"icon-description\":\"road marker\"}, {\"name\":\"run-miles\", \"count\":10, \"icon-description\":\"runner icon\"}]}", "data": { "size": 10 }, "correct": "16" },
+                        { "id": "d2_assess_q5", "type": "drag-drop-sort", "prompt": "Read the problem, then sort the words into the correct operation category. Problem: 'On a farm with 80 animals, 50 are cows. The rest are pigs. What is the difference between the number of cows and pigs?'", "visual": "", "data": { "items": ["total", "difference", "left", "in all"], "categories": ["Addition Keyword", "Subtraction Keyword"] }, "correct": { "Addition Keyword": ["total", "in all"], "Subtraction Keyword": ["difference", "left"] } }
+                    ]
+                },
+                day3: {
+                    title: "The Case of the Comparison",
+                    iDo: [
+                        { "id": "d3_ido_q1", "type": "mc", "prompt": "Read the case: 'A mountain is 950 feet tall. A nearby hill is 300 feet tall. How much taller is the mountain?' Is this a case for addition or subtraction?", "visual": "{\"type\":\"comparison-bar-diagram\", \"bar1_label\":\"Mountain\", \"bar1_value\":950, \"bar2_label\":\"Hill\", \"bar2_value\":300, \"difference_label\":\"?\"}", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Subtraction" },
+                        { "id": "d3_ido_q2", "type": "mc", "prompt": "Now read this case: 'A red building is 250 feet tall. A blue building is 200 feet tall. What is their combined height?' Is this a case for addition or subtraction?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[250, 200]}", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Addition" },
+                        { "id": "d3_ido_q3", "type": "drag-drop-sort", "prompt": "Let's sort our keywords. Drag the phrases to the correct detective tool.", "visual": "", "data": { "items": ["How many in all?", "How many fewer?", "What is the total?", "What is the difference?"], "categories": ["Addition", "Subtraction"] }, "correct": { "Addition": ["How many in all?", "What is the total?"], "Subtraction": ["How many fewer?", "What is the difference?"] } }
+                    ],
+                    weDo: [
+                        { "id": "d3_wedo_q1", "type": "mc", "prompt": "Case: 'A video game has 560 possible points. You have scored 340 points. How many more points do you need to get a perfect score?'", "visual": "{\"type\":\"strip-diagram\", \"whole\":560, \"parts\":[340, \"?\"]}", "data": { "options": ["Add", "Subtract"] }, "correct": "Subtract" },
+                        { "id": "d3_wedo_q2", "type": "mc", "prompt": "Case: 'A whale weighs 850 pounds. A dolphin weighs 320 pounds. What is their combined weight?'", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[850, 320]}", "data": { "options": ["Add", "Subtract"] }, "correct": "Add" },
+                        { "id": "d3_wedo_q3", "type": "text-box", "prompt": "Solve the whale and dolphin case. What is their combined weight?", "visual": "", "data": { "size": 10 }, "correct": "1170" },
+                        { "id": "d3_wedo_q4", "type": "mc", "prompt": "Look at this blueprint. Does it show an addition or subtraction problem?", "visual": "{\"type\":\"strip-diagram\", \"whole\":900, \"parts\":[450, \"?\"]}", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Subtraction" },
+                        { "id": "d3_wedo_q5", "type": "true-false", "prompt": "The phrase 'how many fewer' means you should add.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
+                        { "id": "d3_wedo_q6", "type": "text-box", "prompt": "Maria's book has 275 pages. Leo's book has 250 pages. How many more pages does Maria's book have?", "visual": "{\"type\":\"comparison-bar-diagram\", \"bar1_label\":\"Maria\", \"bar1_value\":275, \"bar2_label\":\"Leo\", \"bar2_value\":250, \"difference_label\":\"?\"}", "data": { "size": 10 }, "correct": "25" },
+                        { "id": "d3_wedo_q7", "type": "mc", "prompt": "Choose the correct operation for this case: 'There are 180 days in a school year. We have already completed 95 days.'", "visual": "", "data": { "options": ["180 + 95", "180 - 95"] }, "correct": "180 - 95" },
+                        { "id": "d3_wedo_q8", "type": "text-box", "prompt": "Solve it! How many school days are left?", "visual": "{\"type\":\"strip-diagram\", \"whole\":180, \"parts\":[95, \"?\"]}", "data": { "size": 10 }, "correct": "85" },
+                        { "id": "d3_wedo_q9", "type": "mc", "prompt": "Case: 'A plane flies 600 miles. A car drives 300 miles. What is the sum of their distances?' What operation does 'sum' tell you to do?", "visual": "", "data": { "options": ["Add", "Subtract", "Multiply"] }, "correct": "Add" },
+                        { "id": "d3_wedo_q10", "type": "true-false", "prompt": "To find a total, you add. To find a difference, you subtract.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "True" }
+                    ],
+                    youDo: [
+                        { "id": "d3_youdo_q1", "type": "mc", "prompt": "First, identify the operation. Case: 'Last year, 458 students were at the school. This year, there are 512 students. How many more students are there this year?'", "visual": "", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Subtraction" },
+                        { "id": "d3_youdo_q2", "type": "text-box", "prompt": "Now, solve the case. How many more students are there?", "visual": "{\"type\":\"comparison-bar-diagram\", \"bar1_label\":\"This Year\", \"bar1_value\":512, \"bar2_label\":\"Last Year\", \"bar2_value\":458, \"difference_label\":\"?\"}", "data": { "size": 10 }, "correct": "54" },
+                        { "id": "d3_youdo_q3", "type": "mc", "prompt": "Identify the operation. Case: 'A jogger ran 150 minutes one week and 180 minutes the next week. What was the total time she ran?'", "visual": "", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Addition" },
+                        { "id": "d3_youdo_q4", "type": "text-box", "prompt": "Now, solve the jogger case. What was the total time?", "visual": "{\"type\":\"strip-diagram\", \"whole\":\"?\", \"parts\":[150, 180]}", "data": { "size": 10 }, "correct": "330" },
+                        { "id": "d3_youdo_q5", "type": "drag-drop-sort", "prompt": "Sort these problems. You don't have to solve them, just decide on the operation.", "visual": "", "data": { "items": ["Find the total of 100 and 200.", "Find the difference between 300 and 150."], "categories": ["Addition", "Subtraction"] }, "correct": { "Addition": ["Find the total of 100 and 200."], "Subtraction": ["Find the difference between 300 and 150."] } }
+                    ],
+                    assessment: [
+                        { "id": "d3_assess_q1", "type": "mc", "prompt": "Which question is asking you to find a difference?", "visual": "", "data": { "options": ["What is the total cost?", "How many are there in all?", "How many fewer apples are there?"] }, "correct": "How many fewer apples are there?" },
+                        { "id": "d3_assess_q2", "type": "mc", "prompt": "Read the problem: 'A farm has 125 chickens and 75 pigs.' Which question would you need to SUBTRACT to solve?", "visual": "", "data": { "options": ["How many animals are there altogether?", "How many more chickens than pigs are there?", "If they get 50 more chickens, how many chickens will they have?"] }, "correct": "How many more chickens than pigs are there?" },
+                        { "id": "d3_assess_q3", "type": "multi-select", "prompt": "Which two problems below require ADDITION to be solved?", "visual": "", "data": { "options": ["What is the total of 250 and 310?", "What is 400 minus 150?", "How many are left if you start with 500 and give away 200?", "What is the sum of 180 and 220?"] }, "correct": ["What is the total of 250 and 310?", "What is the sum of 180 and 220?"] },
+                        { "id": "d3_assess_q4", "type": "text-box", "prompt": "Solve this case: Team Blue scored 450 points. Team Red scored 325 points. How many more points did Team Blue score?", "visual": "{\"type\":\"comparison-bar-diagram\", \"bar1_label\":\"Blue\", \"bar1_value\":450, \"bar2_label\":\"Red\", \"bar2_value\":325, \"difference_label\":\"?\"}", "data": { "size": 10 }, "correct": "125" },
+                        { "id": "d3_assess_q5", "type": "drag-drop-sort", "prompt": "Create your own problems. Drag a number to each box to create one addition problem and one subtraction problem.", "visual": "", "data": { "items": ["300", "500"], "categories": ["How many more is ___ than ___?", "What is the total of ___ and ___?"] }, "correct": { "How many more is ___ than ___?": ["500", "300"], "What is the total of ___ and ___?": ["500", "300"] } }
+                    ]
+                },
+                day4: {
+                    title: "The Case of Multiple Strategies",
+                    iDo: [
+                        { "id": "d4_ido_q1", "type": "mc", "prompt": "Let's solve 350 + 125. If we use a number line and start at 350, what could be our first 'jump'?", "visual": "{\"type\":\"number-line-jumps\", \"start\":350, \"end\":475, \"jumps\":[]}", "data": { "options": ["A jump of 100", "A jump of 5", "A jump of 350"] }, "correct": "A jump of 100" },
+                        { "id": "d4_ido_q2", "type": "true-false", "prompt": "When using the standard algorithm (stacking) to solve 451 + 23, it's important to line up the 1 over the 3.", "visual": "{\"type\":\"place-value-chart\", \"number\":451, \"representation\":\"digits\"}", "data": { "options": ["True", "False"] }, "correct": "True" },
+                        { "id": "d4_ido_q3", "type": "mc", "prompt": "Let's solve 500 - 150. If we use a number line, we can start at 500 and jump backwards. What would a good first jump be?", "visual": "{\"type\":\"number-line-jumps\", \"start\":500, \"end\":350, \"jumps\":[]}", "data": { "options": ["A jump back of 10", "A jump back of 500", "A jump back of 100"] }, "correct": "A jump back of 100" }
+                    ],
+                    weDo: [
+                        { "id": "d4_wedo_q1", "type": "mc", "prompt": "Let's solve 220 + 150 on a number line. Start at 220. Jump 100. Where are you now?", "visual": "{\"type\":\"number-line-jumps\", \"start\":220, \"end\":370, \"jumps\":[{\"size\":100, \"direction\":\"forward\"}]}", "data": { "options": ["220", "320", "100"] }, "correct": "320" },
+                        { "id": "d4_wedo_q2", "type": "mc", "prompt": "You are at 320. Now jump 50. Where are you now?", "visual": "{\"type\":\"number-line-jumps\", \"start\":220, \"end\":370, \"jumps\":[{\"size\":100, \"direction\":\"forward\"}, {\"size\":50, \"direction\":\"forward\"}]}", "data": { "options": ["370", "350", "325"] }, "correct": "370" },
+                        { "id": "d4_wedo_q3", "type": "text-box", "prompt": "Now solve 220 + 150 using the standard algorithm (stacking). What's the answer?", "visual": "", "data": { "size": 10 }, "correct": "370" },
+                        { "id": "d4_wedo_q4", "type": "mc", "prompt": "Let's solve 450 - 110. Using the standard algorithm, what is 0 - 0?", "visual": "{\"type\":\"place-value-chart\", \"number\":450, \"representation\":\"digits\"}", "data": { "options": ["0", "1", "10"] }, "correct": "0" },
+                        { "id": "d4_wedo_q5", "type": "mc", "prompt": "Next, in the tens place, what is 5 - 1?", "visual": "{\"type\":\"place-value-chart\", \"number\":450, \"representation\":\"digits\"}", "data": { "options": ["3", "4", "5"] }, "correct": "4" },
+                        { "id": "d4_wedo_q6", "type": "text-box", "prompt": "Finish the problem: 450 - 110. What's the final answer?", "visual": "", "data": { "size": 10 }, "correct": "340" },
+                        { "id": "d4_wedo_q7", "type": "mc", "prompt": "Case: 'A bucket holds 128 ounces of water. Another bucket holds 64 ounces.' If we need to find the total, which strategy seems faster here?", "visual": "", "data": { "options": ["Number Line", "Standard Algorithm", "Both are good"] }, "correct": "Both are good" },
+                        { "id": "d4_wedo_q8", "type": "text-box", "prompt": "Solve it using any strategy: 128 + 64.", "visual": "", "data": { "size": 10 }, "correct": "192" },
+                        { "id": "d4_wedo_q9", "type": "true-false", "prompt": "You must always use the standard algorithm to get the right answer.", "visual": "", "data": { "options": ["True", "False"] }, "correct": "False" },
+                        { "id": "d4_wedo_q10", "type": "mc", "prompt": "Let's solve a two-step case! 'You have $200. You spend $50 on a game and $30 on a book. How much is left?' What is the first step?", "visual": "", "data": { "options": ["Add $50 and $30", "Subtract $50 from $200", "Subtract $30 from $50"] }, "correct": "Add $50 and $30" }
+                    ],
+                    youDo: [
+                        { "id": "d4_youdo_q1", "type": "text-box", "prompt": "Case: 'There are 345 fish in a large tank. The owner adds 125 more.' First, solve using a number line. What is the total?", "visual": "{\"type\":\"number-line-jumps\", \"start\":345, \"end\":470, \"jumps\":[]}", "data": { "size": 10 }, "correct": "470" },
+                        { "id": "d4_youdo_q2", "type": "text-box", "prompt": "Now, solve the same case (345 + 125) using the standard algorithm. What is the total?", "visual": "{\"type\":\"place-value-chart\", \"number\":345, \"representation\":\"digits\"}", "data": { "size": 10 }, "correct": "470" },
+                        { "id": "d4_youdo_q3", "type": "text-box", "prompt": "Case: 'A movie is 180 minutes long. You have watched 70 minutes.' Solve using any strategy. How many minutes are left?", "visual": "{\"type\":\"strip-diagram\", \"whole\":180, \"parts\":[70, \"?\"]}", "data": { "size": 10 }, "correct": "110" },
+                        { "id": "d4_youdo_q4", "type": "mc", "prompt": "For the last problem (180 - 70), which strategy is likely fastest and easiest?", "visual": "", "data": { "options": ["Number Line because the numbers are 'friendly'", "Standard Algorithm because it requires regrouping", "Both are equally hard"] }, "correct": "Number Line because the numbers are 'friendly'" },
+                        { "id": "d4_youdo_q5", "type": "text-box", "prompt": "TWO-STEP case: 'Leo had 150 stickers. He gave 20 to a friend and 30 to his brother.' How many stickers does he have left? (Hint: First find out how many he gave away in total).", "visual": "{\"type\":\"strip-diagram\", \"whole\":150, \"parts\":[50, \"?\"]}", "data": { "size": 10 }, "correct": "100" }
+                    ],
+                    assessment: [
+                        { "id": "d4_assess_q1", "type": "mc", "prompt": "To solve 456 + 213 using the standard algorithm, you should start by adding which two digits?", "visual": "{\"type\":\"place-value-chart\", \"number\":456, \"representation\":\"digits\"}", "data": { "options": ["4 and 2", "5 and 1", "6 and 3"] }, "correct": "6 and 3" },
+                        { "id": "d4_assess_q2", "type": "mc", "prompt": "Which strategy involves making 'jumps' of hundreds, tens, and ones from a starting number?", "visual": "", "data": { "options": ["The CUBES strategy", "The Standard Algorithm", "The Number Line strategy"] }, "correct": "The Number Line strategy" },
+                        { "id": "d4_assess_q3", "type": "multi-select", "prompt": "To solve 315 - 160, which two strategies would work?", "visual": "", "data": { "options": ["Starting at 315 and jumping back on a number line.", "Stacking the numbers and regrouping (borrowing).", "Adding 315 and 160.", "Finding the total."] }, "correct": ["Starting at 315 and jumping back on a number line.", "Stacking the numbers and regrouping (borrowing)."] },
+                        { "id": "d4_assess_q4", "type": "text-box", "prompt": "Solve using any strategy: A new bike costs $355. You have saved $225. How much more money do you need?", "visual": "{\"type\":\"strip-diagram\", \"whole\":355, \"parts\":[225, \"?\"]}", "data": { "size": 10 }, "correct": "130" },
+                        { "id": "d4_assess_q5", "type": "drag-drop-sort", "prompt": "This is a two-step problem. Drag the steps into the correct order to solve. Problem: 'Sam had 500 pennies. He spent 150, then he found 50 more. How many does he have now?'", "visual": "", "data": { "items": ["Add 50 to the new total.", "Start with 500.", "Subtract 150 from 500."], "categories": ["Step 1", "Step 2", "Step 3"] }, "correct": { "Step 1": ["Start with 500."], "Step 2": ["Subtract 150 from 500."], "Step 3": ["Add 50 to the new total."] } }
+                    ]
+                }
+            };
+
+            const POSITIVE_AFFIRMATIONS = ["Case solved!", "Excellent deduction!", "You've cracked the code!", "Brilliant work, Detective!", "Another mystery solved!"];
+            const GENTLE_NUDGES = ["Not quite, Detective. Re-examine the evidence.", "That lead went cold. Let's look at the clues again.", "Good try! Check your calculations and try again."];
+            
+            // --- STATE MANAGEMENT ---
+            let appState;
+
+            const defaultState = {
+                currentDay: 'day1',
+                day1: { lessonSlideIndex: 0, assessmentSlideIndex: 0, answers: {}, view: 'lesson' },
+                day2: { lessonSlideIndex: 0, assessmentSlideIndex: 0, answers: {}, view: 'lesson' },
+                day3: { lessonSlideIndex: 0, assessmentSlideIndex: 0, answers: {}, view: 'lesson' },
+                day4: { lessonSlideIndex: 0, assessmentSlideIndex: 0, answers: {}, view: 'lesson' },
+            };
+
+            function saveProgress() {
                 try {
-                    params = new Function(`return ${paramsStr}`)();
+                    localStorage.setItem('mathDetectiveProgress', JSON.stringify(appState));
                 } catch (e) {
-                    console.error("Could not parse visual params:", paramsStr, e);
+                    console.error("Could not save progress to localStorage", e);
+                }
+            }
+
+            function loadProgress() {
+                let loadedState = null;
+                const progressDataScript = document.getElementById('progress-data');
+                
+                if (progressDataScript && progressDataScript.textContent.trim()) {
+                    try {
+                        loadedState = JSON.parse(progressDataScript.textContent);
+                    } catch (e) { console.error("Could not parse progress from script tag.", e); }
+                }
+
+                if (!loadedState) {
+                    try {
+                        const savedProgress = localStorage.getItem('mathDetectiveProgress');
+                        if (savedProgress) {
+                            loadedState = JSON.parse(savedProgress);
+                        }
+                    } catch (e) { console.error("Could not parse progress from localStorage.", e); }
+                }
+                
+                appState = { ...defaultState };
+                if(loadedState) {
+                    for(const day in defaultState){
+                        if(loadedState[day]){
+                           appState[day] = { ...defaultState[day], ...loadedState[day] };
+                        }
+                    }
+                    appState.currentDay = loadedState.currentDay || defaultState.currentDay;
+                }
+            }
+            
+            // --- SYNC FUNCTIONS ---
+            function applyStudentNavPolicy() {
+              const disable = !ALLOW_FREE_EXPLORE && !IS_TEACHER;
+              const activeDayContainer = document.getElementById(appState.currentDay);
+              if (activeDayContainer) {
+                  const prevBtn = activeDayContainer.querySelector('.prev-btn');
+                  const nextBtn = activeDayContainer.querySelector('.next-btn');
+                  if(prevBtn) prevBtn.classList.toggle('disabled-nav', disable);
+                  if(nextBtn) nextBtn.classList.toggle('disabled-nav', disable);
+              }
+              document.querySelectorAll('#main-tabs .tab-btn').forEach(b => {
+                b.classList.toggle('disabled-nav', disable);
+              });
+            }
+
+            async function initFirebaseSync() {
+              _auth = firebase.auth();
+              _db = firebase.firestore();
+              if (IS_TEACHER) {
+                  try {
+                      await _auth.signInAnonymously();
+                  } catch(e) { console.error("Teacher sign-in failed", e); }
+              }
+
+              _roomRef = _db.collection('rooms').doc(ROOM_ID);
+
+              if (IS_TEACHER) {
+                await pushRoomState(); // Initial seed
+              }
+
+              _unsubSnap = _roomRef.onSnapshot((doc) => {
+                const data = doc.data();
+                if (!data) return;
+
+                const prevAllowFreeExplore = ALLOW_FREE_EXPLORE;
+                ALLOW_FREE_EXPLORE = !!data.allowFreeExplore;
+                
+                if (prevAllowFreeExplore !== ALLOW_FREE_EXPLORE) {
+                    const syncBtn = document.getElementById('sync-toggle');
+                    if (syncBtn && IS_TEACHER) {
+                        syncBtn.textContent = `Sync: ${ALLOW_FREE_EXPLORE ? 'OFF (Free Explore)' : 'ON'}`;
+                    }
+                }
+
+                applyStudentNavPolicy();
+
+                if (!IS_TEACHER && !ALLOW_FREE_EXPLORE && doc.metadata.hasPendingWrites === false) {
+                  _isApplyingRemote = true;
+                  
+                  const remoteDay = data.day || 'day1';
+                  const remoteView = data.view || 'lesson';
+                  const remoteSlide = data.slide || 0;
+
+                  appState.currentDay = remoteDay;
+                  appState[remoteDay].view = remoteView;
+                  if(remoteView === 'lesson') {
+                      appState[remoteDay].lessonSlideIndex = remoteSlide;
+                  } else {
+                      appState[remoteDay].assessmentSlideIndex = remoteSlide;
+                  }
+                  
+                  renderApp(); 
+                  _isApplyingRemote = false;
+                }
+              });
+            }
+
+            async function pushRoomState() {
+              if (!IS_TEACHER || !_roomRef || _isApplyingRemote) return;
+              try {
+                const currentDayState = appState[appState.currentDay];
+                const stateToPush = {
+                  day: appState.currentDay,
+                  view: currentDayState.view,
+                  slide: currentDayState.view === 'lesson' ? currentDayState.lessonSlideIndex : currentDayState.assessmentSlideIndex,
+                  allowFreeExplore: ALLOW_FREE_EXPLORE,
+                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                await _roomRef.set(stateToPush, { merge: true });
+              } catch (e) {
+                console.error('pushRoomState failed:', e);
+              }
+            }
+
+
+            // --- SVG & DYNAMIC ELEMENT GENERATION ---
+            function generateVisual(visualDescription) {
+                if (!visualDescription) return null;
+
+                try {
+                    const visual = JSON.parse(visualDescription);
+                    const svgNS = "http://www.w3.org/2000/svg";
+                    const svg = document.createElementNS(svgNS, "svg");
+                    svg.setAttribute("class", "w-full my-4");
+                    let width = 400; let height = 150;
+
+                    switch (visual.type) {
+                        case 'strip-diagram':
+                            height = visual.whole && visual.parts.length > 2 ? 150 : 100;
+                            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+                            
+                            const wholeRect = document.createElementNS(svgNS, "rect");
+                            wholeRect.setAttribute("x", 1);
+                            wholeRect.setAttribute("y", 1);
+                            wholeRect.setAttribute("width", width - 2);
+                            wholeRect.setAttribute("height", height / 2 - 2);
+                            wholeRect.setAttribute("fill", "#e0f2fe");
+                            wholeRect.setAttribute("stroke", "#0284c7");
+                            wholeRect.setAttribute("stroke-width", 2);
+                            svg.appendChild(wholeRect);
+
+                            const wholeText = document.createElementNS(svgNS, "text");
+                            wholeText.setAttribute("x", width / 2);
+                            wholeText.setAttribute("y", height / 4 + 5);
+                            wholeText.setAttribute("text-anchor", "middle");
+                            wholeText.setAttribute("fill", "#0369a1");
+                            wholeText.textContent = visual.whole || "?";
+                            svg.appendChild(wholeText);
+
+                            const numParts = visual.parts.length;
+                            const partWidth = (width - (numParts - 1) * 2) / numParts;
+                            visual.parts.forEach((part, index) => {
+                                const partRect = document.createElementNS(svgNS, "rect");
+                                const x = index * (partWidth + 2) + 1;
+                                partRect.setAttribute("x", x);
+                                partRect.setAttribute("y", height / 2 + 1);
+                                partRect.setAttribute("width", partWidth - 2);
+                                partRect.setAttribute("height", height / 2 - 2);
+                                partRect.setAttribute("fill", "#fef3c7");
+                                partRect.setAttribute("stroke", "#d97706");
+                                partRect.setAttribute("stroke-width", 2);
+                                svg.appendChild(partRect);
+
+                                const partText = document.createElementNS(svgNS, "text");
+                                partText.setAttribute("x", x + partWidth / 2);
+                                partText.setAttribute("y", height * 0.75 + 5);
+                                partText.setAttribute("text-anchor", "middle");
+                                partText.setAttribute("fill", "#b45309");
+                                partText.textContent = part || "?";
+                                svg.appendChild(partText);
+                            });
+                            break;
+                        
+                        case 'comparison-bar-diagram':
+                            height = 120;
+                            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+                            const maxVal = Math.max(visual.bar1_value, visual.bar2_value, 1);
+                            const bar1Height = (visual.bar1_value / maxVal) * (height-20);
+                            const bar2Height = (visual.bar2_value / maxVal) * (height-20);
+
+                            const bar1 = document.createElementNS(svgNS, "rect");
+                            bar1.setAttribute("x", width * 0.2);
+                            bar1.setAttribute("y", height - bar1Height);
+                            bar1.setAttribute("width", width * 0.2);
+                            bar1.setAttribute("height", bar1Height);
+                            bar1.setAttribute("fill", "#dbeafe");
+                            svg.appendChild(bar1);
+                            
+                            const bar2 = document.createElementNS(svgNS, "rect");
+                            bar2.setAttribute("x", width * 0.6);
+                            bar2.setAttribute("y", height - bar2Height);
+                            bar2.setAttribute("width", width*0.2);
+                            bar2.setAttribute("height", bar2Height);
+                            bar2.setAttribute("fill", "#fee2e2");
+                            svg.appendChild(bar2);
+
+                            const label1 = document.createElementNS(svgNS, "text");
+                            label1.setAttribute("x", width * 0.3);
+                            label1.setAttribute("y", height - bar1Height - 5);
+                            label1.setAttribute("text-anchor", "middle");
+                            label1.textContent = visual.bar1_label;
+                            svg.appendChild(label1);
+
+                            const label2 = document.createElementNS(svgNS, "text");
+                            label2.setAttribute("x", width * 0.7);
+                            label2.setAttribute("y", height - bar2Height - 5);
+                            label2.setAttribute("text-anchor", "middle");
+                            label2.textContent = visual.bar2_label;
+                            svg.appendChild(label2);
+                            break;
+                        default:
+                            return null;
+                    }
+                    return svg;
+                } catch (e) {
+                    console.error("Could not generate visual:", e);
                     return null;
                 }
             }
             
-            const getItemEmoji = (type) => {
-                const map = { 'potion': '🧪', 'arrow': '🏹', 'shield': '🛡️', 'gold_coin': '💰', 'ruby': '💎', 'sapphire': '💠', 'scale': '🐉' };
-                return map[type] || '❓';
-            };
-
-            switch (type.trim()) {
-                case 'part_part_whole_mat':
-                    const { part1, part2, whole } = params;
-                    const matGroup = createSvgElement('g');
-                    // Whole Box
-                    matGroup.appendChild(createSvgElement('rect', { x: 50, y: 20, width: 300, height: 70, rx:10, fill: 'rgba(122, 92, 79, 0.1)', stroke: '#7a5c4f', 'stroke-width': 2 }));
-                    // Part Boxes
-                    matGroup.appendChild(createSvgElement('rect', { x: 50, y: 110, width: 140, height: 70, rx:10, fill: 'rgba(122, 92, 79, 0.1)', stroke: '#7a5c4f', 'stroke-width': 2 }));
-                    matGroup.appendChild(createSvgElement('rect', { x: 210, y: 110, width: 140, height: 70, rx:10, fill: 'rgba(122, 92, 79, 0.1)', stroke: '#7a5c4f', 'stroke-width': 2 }));
-
-                    const renderContent = (content, x, y) => {
-                        if (typeof content === 'string' || typeof content === 'number') {
-                            const text = createSvgElement('text', { x, y, 'font-size': '40px', 'font-family': 'MedievalSharp', fill: '#3a2c23', 'text-anchor': 'middle' });
-                            text.textContent = content;
-                            return text;
-                        }
-                        if (typeof content === 'object') {
-                            const itemText = createSvgElement('text', { x, y, 'font-size': '24px', 'text-anchor': 'middle' });
-                            itemText.textContent = `${getItemEmoji(content.type)} x ${content.count}`;
-                            return itemText;
-                        }
-                        return null;
-                    };
-                    
-                    matGroup.appendChild(renderContent(whole, 200, 65));
-                    matGroup.appendChild(renderContent(part1, 120, 155));
-                    matGroup.appendChild(renderContent(part2, 280, 155));
-
-                    svg.appendChild(matGroup);
-                    break;
-                case 'equation_scroll':
-                     svg.setAttribute('viewBox', '0 0 300 100');
-                    const scrollText = createSvgElement('text', { x: 150, y: 58, 'font-size': '28px', 'font-family': 'MedievalSharp', fill: '#3a2c23', 'text-anchor': 'middle' });
-                    scrollText.textContent = params.text;
-                    svg.appendChild(scrollText);
-                    break;
-                case 'item_counter':
-                    svg.setAttribute('viewBox', '0 0 200 100');
-                    const itemGroup = createSvgElement('g');
-                    const itemEmoji = createSvgElement('text', { x: 100, y: 60, 'font-size': '40px', 'text-anchor': 'middle' });
-                    itemEmoji.textContent = `${getItemEmoji(params.type)} x ${params.count}`;
-                    itemGroup.appendChild(itemEmoji);
-                    svg.appendChild(itemGroup);
-                    break;
-            }
-            return svg;
-        };
-
-        // --- APPLICATION LOGIC ---
-        const init = () => {
-            loadProgress();
-            renderTabs();
-            renderDay(appState.activeDay);
-            setupEventListeners();
-        };
-
-        const renderTabs = () => {
-            const tabsContainer = document.getElementById('main-tabs');
-            tabsContainer.innerHTML = '';
-            Object.keys(lessonData).forEach(dayKey => {
-                const dayNum = dayKey.replace('day', '');
-                const button = document.createElement('button');
-                button.className = `tab-btn ${appState.activeDay === dayKey ? 'active' : ''}`;
-                button.textContent = `Day ${dayNum}`;
-                button.dataset.day = dayKey;
-                tabsContainer.appendChild(button);
-            });
-        };
-
-        const renderDay = (dayKey) => {
-            const dayData = lessonData[dayKey];
-            const contentArea = document.getElementById('content-area');
-            
-            if (!appState.progress[dayKey]) {
-                appState.progress[dayKey] = {
-                    lesson: { slideIndex: 0, answers: {} },
-                    assessment: { slideIndex: 0, answers: {}, completed: false }
-                };
-            }
-
-            contentArea.innerHTML = `
-                <div class="day-container" data-day="${dayKey}">
-                    <div class="flex justify-between items-center mb-4 p-4">
-                        <button class="mode-toggle-btn rpg-btn" data-mode="${appState.currentMode === 'lesson' ? 'assessment' : 'lesson'}">
-                            ${appState.currentMode === 'lesson' ? 'Go to Assessment ⚔️' : 'Back to Lesson 🏕️'}
-                        </button>
-                    </div>
-                    <div id="lesson-view" class="${appState.currentMode === 'lesson' ? '' : 'hidden'}"></div>
-                    <div id="assessment-view" class="${appState.currentMode === 'assessment' ? '' : 'hidden'}"></div>
-                </div>
-            `;
-            
-            if (appState.currentMode === 'lesson') {
-                renderLessonView(dayKey);
-            } else {
-                renderAssessmentView(dayKey);
-            }
-        };
-        
-        const renderLessonView = (dayKey) => {
-            const dayData = lessonData[dayKey];
-            const lessonContainer = document.getElementById('lesson-view');
-            const lessonProgress = appState.progress[dayKey].lesson;
-            
-            const allSlides = [].concat(...Object.values(dayData.sections));
-
-            lessonContainer.innerHTML = `
-                <h2 class="text-3xl font-bold text-center mb-2">${dayData.title}</h2>
-                <p class="text-center text-lg italic mb-4">${dayData.standard}</p>
-                <div id="lesson-slides-container"></div>
-                <div class="flex justify-between items-center mt-4">
-                    <button id="lesson-prev-btn" class="rpg-btn">⬅️ Last Page</button>
-                    <div id="quest-map" class="w-1/2 h-8 bg-center bg-no-repeat bg-contain" style="background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAiPjxwYXRoIGQ9Ik0wIDEwIEwgMjAwIDEwIiBzdHJva2U9IiM4YTZjNWYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWRhc2hhcnJheT0iNCA0Ii8+PC9zdmc+');">
-                        <div id="hero-icon" class="w-8 h-8 transition-all duration-500" style="transform: translateX(0px);">👣</div>
-                    </div>
-                    <button id="lesson-next-btn" class="rpg-btn">Next Page ➡️</button>
-                </div>
-            `;
-            
-            renderSlide('lesson', dayKey, lessonProgress.slideIndex);
-        };
-
-        const renderAssessmentView = (dayKey) => {
-            const assessmentContainer = document.getElementById('assessment-view');
-            const assessmentProgress = appState.progress[dayKey].assessment;
-            
-            if (assessmentProgress.completed) {
-                renderCompletionScreen(dayKey);
-                return;
-            }
-
-            const questions = lessonData[dayKey].assessment;
-
-            assessmentContainer.innerHTML = `
-                <div class="flex justify-center items-center mb-4 space-x-4">
-                    <h2 class="text-3xl font-bold">Assessment Trial</h2>
-                </div>
-                <div id="assessment-slides-container"></div>
-                 <div class="flex justify-between items-center mt-4">
-                    <button id="assessment-prev-btn" class="rpg-btn">⬅️ Previous</button>
-                    <span class="font-bold text-lg rpg-font">${assessmentProgress.slideIndex + 1} / ${questions.length}</span>
-                    <button id="assessment-next-btn" class="rpg-btn">Next ➡️</button>
-                </div>
-            `;
-            
-            renderSlide('assessment', dayKey, assessmentProgress.slideIndex);
-        };
-
-        const renderSlide = (mode, dayKey, slideIndex) => {
-            const container = document.getElementById(`${mode}-slides-container`);
-            if (!container) return;
-
-            let slideData;
-            if (mode === 'lesson') {
-                const allSlides = [].concat(...Object.values(lessonData[dayKey].sections));
-                slideData = allSlides[slideIndex];
-            } else { // assessment
-                slideData = lessonData[dayKey].assessment[slideIndex];
-            }
-
-            if (!slideData) return;
-
-            const slideElement = document.createElement('div');
-            slideElement.className = 'slide flex flex-col items-center justify-center text-center';
-            slideElement.dataset.id = slideData.id;
-
-            const visualElement = generateVisual(slideData.visual);
-            
-            slideElement.innerHTML = `
-                <p class="text-2xl mb-4">${slideData.prompt}</p>
-                ${visualElement ? `<div class="visual-container mb-4 w-full">${visualElement.outerHTML}</div>` : ''}
-                <div class="interactive-area w-full max-w-2xl"></div>
-                <div class="feedback-area mt-4 w-full max-w-2xl relative"></div>
-            `;
-
-            container.innerHTML = '';
-            container.appendChild(slideElement);
-            
-            renderInteractiveElement(slideElement, slideData, mode);
-
-            const savedAnswer = appState.progress[dayKey][mode].answers[slideData.id];
-            if (savedAnswer) {
-                restoreAnswer(slideElement, slideData.type, savedAnswer);
-                if (mode === 'lesson') {
-                    handleCheckAnswer({ target: slideElement.querySelector('.check-answer-btn') });
-                }
-            }
-            
-            if (mode === 'lesson') {
-                const allLessonSlides = [].concat(...Object.values(lessonData[dayKey].sections));
-                if (slideIndex === allLessonSlides.length - 1) {
-                    const btn = document.createElement('button');
-                    btn.textContent = 'Go to Assessment ⚔️';
-                    btn.className = 'rpg-btn text-2xl mt-8 mode-toggle-btn';
-                    btn.dataset.mode = 'assessment';
-                    slideElement.querySelector('.interactive-area').appendChild(btn);
-                }
-            }
-            
-            updateNavButtons(mode, dayKey);
-        };
-
-        const renderInteractiveElement = (slideElement, question, mode) => {
-            const container = slideElement.querySelector('.interactive-area');
-            switch (question.type) {
-                case 'mc':
-                case 'multi-select':
-                case 'true-false':
-                    const optionsContainer = document.createElement('div');
-                    optionsContainer.className = 'flex flex-wrap justify-center gap-4';
-                    question.data.options.forEach(option => {
-                        const button = document.createElement('button');
-                        button.className = 'rpg-btn';
-                        button.textContent = option;
-                        button.dataset.option = option;
-                        optionsContainer.appendChild(button);
-                    });
-                    container.appendChild(optionsContainer);
-                    break;
-                case 'text-box':
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.maxLength = question.data.size;
-                    input.className = 'p-2 bg-[#f3e9dc] border-2 border-[#8a6c5f] rounded-lg text-2xl text-center text-[#3a2c23] w-full md:w-1/2';
-                    container.appendChild(input);
-                    break;
-                case 'drag-drop-match':
-                case 'drag-drop-sort':
-                    initDragAndDrop(slideElement, question);
-                    break;
-            }
-
-            if (question.type !== 'content' && mode === 'lesson') {
-                 const checkButton = document.createElement('button');
-                 checkButton.textContent = 'Check Answer';
-                 checkButton.className = 'rpg-btn check-answer-btn mt-6';
-                 container.appendChild(checkButton);
-            }
-        };
-        
-        function initDragAndDrop(slideElement, question) {
-            const interactiveArea = slideElement.querySelector('.interactive-area');
-            interactiveArea.innerHTML = ''; // Clear for DD setup
-
-            if (question.type === 'drag-drop-match') {
-                const container = document.createElement('div');
-                container.className = 'flex flex-col md:flex-row items-center justify-center gap-8';
-                
-                const draggablesContainer = document.createElement('div');
-                draggablesContainer.className = 'flex flex-col gap-4';
-                question.data.draggables.forEach(item => {
-                    const el = document.createElement('div');
-                    el.className = 'rpg-btn draggable p-4';
-                    el.textContent = item;
-                    el.draggable = true;
-                    el.dataset.value = item;
-                    draggablesContainer.appendChild(el);
-                });
-
-                const dropTargetsContainer = document.createElement('div');
-                dropTargetsContainer.className = 'flex flex-col gap-4';
-                question.data.dropTargets.forEach(target => {
-                    const targetEl = document.createElement('div');
-                    targetEl.className = 'flex items-center gap-4';
-                    targetEl.innerHTML = `<div class="drop-target w-48 h-16 rounded-lg flex items-center justify-center" data-target="${target}"></div><span class="text-xl font-bold rpg-font">${target}</span>`;
-                    dropTargetsContainer.appendChild(targetEl);
-                });
-
-                container.appendChild(draggablesContainer);
-                container.appendChild(dropTargetsContainer);
-                interactiveArea.appendChild(container);
-            }
-            
-            let draggedItem = null;
-            slideElement.querySelectorAll('.draggable').forEach(item => {
-                item.addEventListener('dragstart', (e) => {
-                    draggedItem = e.target;
-                    setTimeout(() => e.target.style.opacity = '0.5', 0);
-                });
-                item.addEventListener('dragend', (e) => {
-                    draggedItem = null;
-                    e.target.style.opacity = '1';
-                });
-            });
-
-            slideElement.querySelectorAll('.drop-target').forEach(target => {
-                target.addEventListener('dragover', (e) => { e.preventDefault(); target.classList.add('over'); });
-                target.addEventListener('dragleave', () => { target.classList.remove('over'); });
-                target.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    target.classList.remove('over');
-                    if (draggedItem) {
-                        if (target.children.length > 0 && question.type === 'drag-drop-match') {
-                            const existingItem = target.firstElementChild;
-                            draggedItem.parentElement.appendChild(existingItem);
-                        }
-                        target.appendChild(draggedItem);
-                        saveProgress(question.id);
-                    }
-                });
-            });
-        }
-
-        const updateNavButtons = (mode, dayKey) => {
-            const progress = appState.progress[dayKey][mode];
-            const prevBtn = document.getElementById(`${mode}-prev-btn`);
-            const nextBtn = document.getElementById(`${mode}-next-btn`);
-            
-            let totalSlides;
-            if (mode === 'lesson') {
-                totalSlides = [].concat(...Object.values(lessonData[dayKey].sections)).length;
-                const map = document.getElementById('quest-map');
-                const hero = document.getElementById('hero-icon');
-                if(map && hero) {
-                    const mapWidth = map.offsetWidth;
-                    const progressPercentage = totalSlides > 1 ? progress.slideIndex / (totalSlides - 1) : 1;
-                    hero.style.transform = `translateX(${progressPercentage * (mapWidth - 32)}px)`; // 32 is hero width
-                }
-            } else { // assessment
-                totalSlides = lessonData[dayKey].assessment.length;
-            }
-
-            prevBtn.disabled = progress.slideIndex === 0;
-            if (mode === 'assessment' && progress.slideIndex === totalSlides - 1) {
-                nextBtn.textContent = 'Finish Trial ➡️';
-            } else {
-                nextBtn.textContent = 'Next Page ➡️';
-            }
-            nextBtn.disabled = false; // Next is never disabled until completion screen
-        };
-        
-        // --- EVENT HANDLERS ---
-        const setupEventListeners = () => {
-            document.getElementById('main-tabs').addEventListener('click', handleTabClick);
-            document.getElementById('content-area').addEventListener('click', handleContentClick);
-            document.getElementById('download-work-btn').addEventListener('click', downloadWork);
-            document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
-        };
-        
-        const handleContentClick = (e) => {
-            const target = e.target;
-            
-            if (target.closest('.mode-toggle-btn')) {
-                appState.currentMode = target.closest('.mode-toggle-btn').dataset.mode;
-                renderDay(appState.activeDay);
-                saveProgress();
-            }
-            
-            if (target.matches('#lesson-prev-btn, #lesson-next-btn, #assessment-prev-btn, #assessment-next-btn')) {
-                handleSlideNav(target.id);
-            }
-            
-            if (target.closest('.interactive-area .rpg-btn') && target.closest('.interactive-area .rpg-btn').dataset.option) {
-                handleOptionSelect(target.closest('.interactive-area .rpg-btn'));
-            }
-
-            if (target.closest('.check-answer-btn')) {
-                handleCheckAnswer({ target: target.closest('.check-answer-btn') });
-            }
-        };
-
-        const handleTabClick = (e) => {
-            const dayKey = e.target.dataset.day;
-            if (dayKey) {
-                appState.activeDay = dayKey;
-                appState.currentMode = 'lesson';
-                renderTabs();
-                renderDay(dayKey);
-                saveProgress();
-            }
-        };
-
-        const handleSlideNav = (buttonId) => {
-            const [mode, direction] = buttonId.split('-');
-            const progress = appState.progress[appState.activeDay][mode];
-            const totalSlides = (mode === 'lesson') ? 
-                [].concat(...Object.values(lessonData[appState.activeDay].sections)).length :
-                lessonData[appState.activeDay].assessment.length;
-
-            saveProgress(document.querySelector('.slide').dataset.id);
-
-            if (direction === 'next') {
-                if (progress.slideIndex < totalSlides - 1) {
-                    progress.slideIndex++;
-                    renderSlide(mode, appState.activeDay, progress.slideIndex);
-                } else if (mode === 'assessment') {
-                    progress.completed = true;
-                    renderCompletionScreen(appState.activeDay);
-                }
-            }
-            if (direction === 'prev') {
-                if (progress.slideIndex > 0) {
-                    progress.slideIndex--;
-                    renderSlide(mode, appState.activeDay, progress.slideIndex);
-                }
-            }
-            saveProgress();
-        };
-
-        const handleOptionSelect = (selectedButton) => {
-            const slide = selectedButton.closest('.slide');
-            const questionId = slide.dataset.id;
-            const mode = document.getElementById('lesson-view').classList.contains('hidden') ? 'assessment' : 'lesson';
-
-            let question;
-            if (mode === 'lesson') {
-                question = [].concat(...Object.values(lessonData[appState.activeDay].sections)).find(q => q.id === questionId);
-            } else {
-                question = lessonData[appState.activeDay].assessment.find(q => q.id === questionId);
-            }
-
-            if (question.type === 'multi-select') {
-                selectedButton.classList.toggle('bg-amber-600');
-            } else {
-                slide.querySelectorAll('[data-option]').forEach(btn => btn.classList.remove('bg-amber-600'));
-                selectedButton.classList.add('bg-amber-600');
-            }
-            saveProgress(questionId);
-        };
-        
-        const handleCheckAnswer = (e) => {
-            const button = e.target;
-            const slide = button.closest('.slide');
-            if (!slide) return;
-            
-            const questionId = slide.dataset.id;
-            const mode = 'lesson'; // Only lessons have a check answer button
-            
-            let question = [].concat(...Object.values(lessonData[appState.activeDay].sections)).find(q => q.id === questionId);
-            if (!question) return;
-
-            let userAnswer;
-            let isCorrect = false;
-
-            switch (question.type) {
-                case 'mc':
-                case 'true-false':
-                    const selected = slide.querySelector('.bg-amber-600');
-                    userAnswer = selected ? selected.dataset.option : null;
-                    isCorrect = userAnswer === question.correct;
-                    break;
-                case 'multi-select':
-                    const selectedNodes = slide.querySelectorAll('.bg-amber-600');
-                    userAnswer = Array.from(selectedNodes).map(n => n.dataset.option);
-                    isCorrect = question.correct.length === userAnswer.length && question.correct.every(val => userAnswer.includes(val));
-                    break;
-                case 'text-box':
-                    const input = slide.querySelector('input[type="text"]');
-                    userAnswer = input.value.trim();
-                    isCorrect = userAnswer.toLowerCase() === question.correct.toLowerCase();
-                    break;
-                case 'drag-drop-match':
-                    const matchTargets = slide.querySelectorAll('.drop-target');
-                    userAnswer = {};
-                    let allMatched = true;
-                    matchTargets.forEach(target => {
-                        const dropped = target.querySelector('.draggable');
-                        if (dropped) {
-                            userAnswer[dropped.dataset.value] = target.dataset.target;
-                        } else {
-                            allMatched = false;
-                        }
-                    });
-                    isCorrect = allMatched && JSON.stringify(userAnswer) === JSON.stringify(question.correct);
-                    break;
-            }
-
-            displayFeedback(slide, isCorrect, mode);
-            
-            const interactiveElements = slide.querySelectorAll('.interactive-area button, .interactive-area input, .draggable');
-            interactiveElements.forEach(el => el.disabled = true);
-            slide.querySelectorAll('.draggable').forEach(el => el.draggable = false);
-            button.style.display = 'none';
-        };
-
-        const displayFeedback = (slide, isCorrect, mode) => {
-            const feedbackArea = slide.querySelector('.feedback-area');
-            const feedbackDiv = document.createElement('div');
-            feedbackDiv.className = `feedback ${isCorrect ? 'correct' : 'incorrect'}`;
-
-            if (isCorrect) {
-                feedbackDiv.textContent = `🎉 ${POSITIVE_FEEDBACK[Math.floor(Math.random() * POSITIVE_FEEDBACK.length)]}`;
-            } else {
-                feedbackDiv.textContent = '🛡️ A valiant effort, hero! Rethink your strategy.';
-            }
-            feedbackArea.prepend(feedbackDiv);
-        };
-
-        // --- DATA PERSISTENCE ---
-        const saveProgress = (questionId = null) => {
-            if (questionId) {
-                const slide = document.querySelector(`[data-id="${questionId}"]`);
-                if (!slide) return;
-                
-                const mode = document.getElementById('lesson-view').classList.contains('hidden') ? 'assessment' : 'lesson';
-                const dayKey = appState.activeDay;
-
-                let question;
-                if (mode === 'lesson') {
-                    question = [].concat(...Object.values(lessonData[dayKey].sections)).find(q => q.id === questionId);
-                } else {
-                    question = lessonData[dayKey].assessment.find(q => q.id === questionId);
-                }
-
-                let answer;
+            function createQuestionHTML(question, dayKey, section) {
+                 const savedAnswers = appState[dayKey].answers;
+                 let savedAnswer = savedAnswers[question.id];
+                let answerHTML = '';
+                // ... (rest of the function is unchanged)
                 switch (question.type) {
                     case 'mc':
                     case 'true-false':
-                        answer = slide.querySelector('.bg-amber-600')?.dataset.option || null;
+                        answerHTML = question.data.options.map(option => `
+                            <label class="block border rounded-lg p-3 my-2 hover:bg-gray-100 cursor-pointer">
+                                <input type="radio" name="${question.id}" value="${option}" class="mr-2" ${savedAnswer === option ? 'checked' : ''}>
+                                ${option}
+                            </label>
+                        `).join('');
                         break;
                     case 'multi-select':
-                        answer = Array.from(slide.querySelectorAll('.bg-amber-600')).map(n => n.dataset.option);
+                        savedAnswer = savedAnswer || [];
+                        answerHTML = question.data.options.map(option => `
+                            <label class="block border rounded-lg p-3 my-2 hover:bg-gray-100 cursor-pointer">
+                                <input type="checkbox" name="${question.id}" value="${option}" class="mr-2" ${savedAnswer.includes(option) ? 'checked' : ''}>
+                                ${option}
+                            </label>
+                        `).join('');
                         break;
                     case 'text-box':
-                        answer = slide.querySelector('input').value;
+                        answerHTML = `<textarea class="w-full border-2 border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="1" maxlength="${question.data.size}" placeholder="Type your answer here...">${savedAnswer || ''}</textarea>`;
                         break;
                     case 'drag-drop-match':
-                        answer = {};
-                        slide.querySelectorAll('.drop-target').forEach(target => {
-                            const dropped = target.querySelector('.draggable');
-                            if(dropped) answer[dropped.dataset.value] = target.dataset.target;
-                        });
+                    case 'drag-drop-sort':
+                         answerHTML = `<div class="flex flex-col md:flex-row gap-4">
+                            <div class="w-full md:w-1/3 p-2 bg-gray-100 rounded-lg">
+                                <h4 class="font-bold mb-2">Drag From Here:</h4>
+                                <div id="draggables-${question.id}" class="space-y-2">
+                                    ${(question.data.draggables || question.data.items).map(item => `<div class="draggable bg-white p-2 rounded shadow border cursor-grab">${item}</div>`).join('')}
+                                </div>
+                            </div>
+                            <div class="w-full md:w-2/3 p-2">
+                                <h4 class="font-bold mb-2">Drop Here:</h4>
+                                <div class="space-y-4">
+                                     ${(question.data.dropTargets || question.data.categories).map(target => `
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-semibold w-1/3">${target}:</span>
+                                            <div class="drop-target w-2/3 p-2 rounded-lg bg-gray-50 min-h-[44px]" data-target="${target}"></div>
+                                        </div>
+                                     `).join('')}
+                                </div>
+                            </div>
+                         </div>`;
                         break;
                 }
-                appState.progress[dayKey][mode].answers[questionId] = answer;
-            }
-            
-            localStorage.setItem('rpgWordProblemsProgress', JSON.stringify(appState));
-        };
 
-        const loadProgress = () => {
-            const progressDataScript = document.getElementById('progress-data');
-            let loadedState = null;
-
-            if (progressDataScript && progressDataScript.textContent.trim().length > 2) {
-                try {
-                    loadedState = JSON.parse(progressDataScript.textContent);
-                } catch (e) { console.error("Failed to parse embedded progress data.", e); }
-            } else {
-                const savedState = localStorage.getItem('rpgWordProblemsProgress');
-                if (savedState) {
-                    try {
-                        loadedState = JSON.parse(savedState);
-                    } catch (e) { console.error("Failed to parse localStorage progress data.", e); }
-                }
+                const visualElement = generateVisual(question.visual);
+                
+                return `
+                    <div class="question-slide bg-white rounded-lg shadow-lg p-6 border border-gray-200" data-question-id="${question.id}" data-question-type="${question.type}">
+                        <div class="feedback-banner absolute top-0 left-0 right-0 p-2 text-white font-bold text-center rounded-t-lg"></div>
+                        <p class="text-lg text-gray-700 mb-4">${question.prompt}</p>
+                        <div class="visual-container mb-4">${visualElement ? visualElement.outerHTML : ''}</div>
+                        <div class="answer-area">${answerHTML}</div>
+                        <div class="mt-6 flex justify-between items-center">
+                           <button class="try-again-btn bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-600 transition-transform hover:scale-105" style="display: none;">Try Again</button>
+                           <button class="check-answer-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-transform hover:scale-105">Analyze Clues</button>
+                        </div>
+                    </div>
+                `;
             }
 
-            if (loadedState) appState = loadedState;
-        };
+            // --- RENDERING ---
+            function renderApp() {
+                // ... (This function is largely unchanged but now its calls will be synced)
+                const contentArea = document.getElementById('content-area');
+                contentArea.innerHTML = ''; 
 
-        const restoreAnswer = (slide, type, answer) => {
-            if (!answer) return;
-            switch (type) {
-                case 'mc':
-                case 'true-false':
-                    slide.querySelector(`[data-option="${answer}"]`)?.classList.add('bg-amber-600');
-                    break;
-                case 'multi-select':
-                    answer.forEach(opt => slide.querySelector(`[data-option="${opt}"]`)?.classList.add('bg-amber-600'));
-                    break;
-                case 'text-box':
-                    slide.querySelector('input').value = answer;
-                    break;
-                case 'drag-drop-match':
-                     Object.entries(answer).forEach(([draggableValue, targetValue]) => {
-                        const draggable = slide.querySelector(`[data-value="${draggableValue}"]`);
-                        const target = slide.querySelector(`[data-target="${targetValue}"]`);
-                        if (draggable && target) target.appendChild(draggable);
-                    });
-                    break;
-            }
-        };
+                Object.keys(lessonData).forEach(dayKey => {
+                    const dayData = lessonData[dayKey];
+                    const dayState = appState[dayKey];
+                    const dayContainer = document.createElement('div');
+                    dayContainer.id = dayKey;
+                    dayContainer.className = `tab-content ${appState.currentDay === dayKey ? 'active' : ''}`;
+                    
+                    const lessonSlides = [
+                        ...dayData.iDo.map(q => createQuestionHTML(q, dayKey, 'lesson')),
+                        ...dayData.weDo.map(q => createQuestionHTML(q, dayKey, 'lesson')),
+                        ...dayData.youDo.map(q => createQuestionHTML(q, dayKey, 'lesson')),
+                    ];
+                    
+                    const totalLessonSlides = lessonSlides.length;
+                    
+                    const assessmentSlides = dayData.assessment.map(q => createQuestionHTML(q, dayKey, 'assessment'));
+                    const totalAssessmentSlides = assessmentSlides.length;
+                    
+                    assessmentSlides.push(`
+                        <div class="bg-white rounded-lg shadow-lg p-6 text-center">
+                            <h2 class="text-2xl font-bold text-green-700 mb-4">Great work, Detective! Your report is ready.</h2>
+                            <p class="mb-6">You have completed the investigation for this day.</p>
+                            <div id="score-summary-${dayKey}" class="hidden text-left mt-6 p-4 bg-gray-100 rounded"></div>
+                            <div class="flex justify-center space-x-4">
+                               <button class="go-back-btn bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">Go Back To Double Check</button>
+                               <button class="teacher-view-btn bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800">Admin</button>
+                            </div>
+                        </div>
+                    `);
 
-        const downloadWork = () => {
-            saveProgress();
-            const progressJsonString = JSON.stringify(appState);
-            const updatedHtml = document.documentElement.outerHTML.replace(
-                /<script id="progress-data" type="application\/json">.*?<\/script>/,
-                `<script id="progress-data" type="application/json">${progressJsonString}<\/script>`
-            );
-            const blob = new Blob([updatedHtml], { type: 'text/html' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'rpg-word-problems-progress.html';
-            a.click();
-            URL.revokeObjectURL(a.href);
-        };
-        
-        const downloadPDF = async () => {
-            const { jsPDF } = window.jspdf;
-            const clone = document.createElement('div');
-            clone.style.position = 'absolute';
-            clone.style.left = '-9999px';
-            clone.style.width = '1200px';
-            clone.style.background = '#f3e9dc';
-            clone.style.color = '#3a2c23';
-            clone.style.fontFamily = 'Lato, sans-serif';
-            document.body.appendChild(clone);
+                    const progressPercent = dayState.view === 'lesson'
+                        ? (dayState.lessonSlideIndex / Math.max(1, totalLessonSlides - 1)) * 100
+                        : (dayState.assessmentSlideIndex / Math.max(1, totalAssessmentSlides - 1)) * 100;
+                    
+                    dayContainer.innerHTML = `
+                        <div class="bg-white rounded-lg shadow-md p-4 mb-4">
+                           <div class="flex justify-between items-center mb-4">
+                              <h2 class="text-2xl font-bold text-gray-800">${dayData.title}</h2>
+                              <div class="flex space-x-2">
+                                 <button data-view="lesson" class="view-switch-btn ${dayState.view === 'lesson' ? 'bg-blue-600 text-white' : 'bg-gray-200'} font-bold py-2 px-4 rounded-lg">Lesson</button>
+                                 <button data-view="assessment" class="view-switch-btn ${dayState.view === 'assessment' ? 'bg-blue-600 text-white' : 'bg-gray-200'} font-bold py-2 px-4 rounded-lg">Final Investigation</button>
+                              </div>
+                           </div>
+                           <div class="w-full bg-gray-200 rounded-full h-2.5">
+                              <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${progressPercent}%"></div>
+                           </div>
+                        </div>
+                        
+                        <div class="slides-container-lesson" style="${dayState.view !== 'lesson' ? 'display: none;' : ''}">
+                             ${lessonSlides.map((slide, index) => `<div class="slide ${index === dayState.lessonSlideIndex ? 'active' : ''}">${slide}</div>`).join('')}
+                        </div>
 
-            for (const dayKey in lessonData) {
-                const dayData = lessonData[dayKey];
-                clone.innerHTML += `<h1 style="font-family: 'MedievalSharp', cursive; font-size: 24px; font-weight: bold; padding: 10px; background-color: #eaddc7; text-align: center;">Day ${dayKey.replace('day', '')}: ${dayData.title}</h1>`;
+                        <div class="slides-container-assessment" style="${dayState.view !== 'assessment' ? 'display: none;' : ''}">
+                             ${assessmentSlides.map((slide, index) => `<div class="slide ${index === dayState.assessmentSlideIndex ? 'active' : ''}">${slide}</div>`).join('')}
+                        </div>
 
-                const allSlides = [
-                    ...dayData.sections.hook, ...dayData.sections.i_do, ...dayData.sections.we_do, ...dayData.sections.you_do,
-                    ...(dayData.assessment || [])
-                ];
-
-                for (const slideData of allSlides) {
-                    const savedAnswer = appState.progress[dayKey]?.lesson?.answers[slideData.id] || appState.progress[dayKey]?.assessment?.answers[slideData.id];
-                    if (!savedAnswer || (Array.isArray(savedAnswer) && savedAnswer.length === 0)) continue;
-
-                    clone.innerHTML += `
-                        <div style="padding: 10px; border-bottom: 1px solid #d3c5b4;">
-                            <p style="font-weight: bold;">${slideData.prompt}</p>
-                            <p style="color: #6a4c3f;"><strong>Answer:</strong> ${JSON.stringify(savedAnswer)}</p>
+                        <div class="mt-6 flex justify-between">
+                           <button class="prev-btn bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">← Previous Clue</button>
+                           <button class="next-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Next Clue →</button>
                         </div>
                     `;
+                    contentArea.appendChild(dayContainer);
+                });
+
+                updateTabStyles();
+                attachAllEventListeners();
+                applyStudentNavPolicy();
+            }
+            
+            function updateTabStyles() {
+                 // ... (unchanged)
+                const tabs = document.querySelectorAll('.tab-btn');
+                tabs.forEach(tab => {
+                    if (tab.dataset.day === appState.currentDay) {
+                        tab.classList.remove('border-transparent', 'text-gray-500', 'hover:border-blue-300');
+                        tab.classList.add('border-blue-600', 'text-blue-600');
+                    } else {
+                        tab.classList.remove('border-blue-600', 'text-blue-600');
+                        tab.classList.add('border-transparent', 'text-gray-500', 'hover:border-blue-300');
+                    }
+                });
+            }
+
+            // --- EVENT LISTENERS ---
+            function attachAllEventListeners() {
+                // ... (unchanged)
+                 // Main Tabs
+                document.querySelectorAll('.tab-btn').forEach(tab => {
+                    tab.addEventListener('click', handleTabClick);
+                });
+                
+                // Active day container listeners
+                const activeDayContainer = document.getElementById(appState.currentDay);
+                if (activeDayContainer) {
+                    activeDayContainer.querySelectorAll('.view-switch-btn').forEach(btn => btn.addEventListener('click', handleViewSwitch));
+                    activeDayContainer.querySelector('.prev-btn').addEventListener('click', () => handleSlideNavigation('prev'));
+                    activeDayContainer.querySelector('.next-btn').addEventListener('click', () => handleSlideNavigation('next'));
+                    activeDayContainer.querySelectorAll('.check-answer-btn').forEach(btn => btn.addEventListener('click', handleCheckAnswer));
+                    activeDayContainer.querySelectorAll('.try-again-btn').forEach(btn => btn.addEventListener('click', handleTryAgain));
+                    
+                    // Drag and Drop
+                    activeDayContainer.querySelectorAll('.draggable').forEach(item => {
+                        item.setAttribute('draggable', true);
+                        item.addEventListener('dragstart', handleDragStart);
+                        item.addEventListener('dragend', handleDragEnd);
+                    });
+                    activeDayContainer.querySelectorAll('.drop-target').forEach(target => {
+                        target.addEventListener('dragover', handleDragOver);
+                        target.addEventListener('dragleave', handleDragLeave);
+                        target.addEventListener('drop', handleDrop);
+                    });
+
+                    // Assessment Completion
+                    const teacherBtn = activeDayContainer.querySelector('.teacher-view-btn');
+                    if (teacherBtn) teacherBtn.addEventListener('click', handleTeacherView);
+                    const goBackBtn = activeDayContainer.querySelector('.go-back-btn');
+                    if (goBackBtn) goBackBtn.addEventListener('click', handleGoBack);
+                }
+
+                document.getElementById('download-html-btn').addEventListener('click', handleDownloadHTML);
+                document.getElementById('download-pdf-btn').addEventListener('click', handleDownloadPDF);
+            }
+
+            // --- EVENT HANDLERS (MODIFIED FOR SYNC) ---
+            function handleTabClick(event) {
+                appState.currentDay = event.target.dataset.day;
+                saveProgress();
+                renderApp();
+                if (IS_TEACHER) pushRoomState();
+            }
+
+            function handleViewSwitch(event) {
+                const dayState = appState[appState.currentDay];
+                dayState.view = event.target.dataset.view;
+                saveProgress();
+                renderApp();
+                if (IS_TEACHER) pushRoomState();
+            }
+
+            function handleSlideNavigation(direction) {
+                const dayState = appState[appState.currentDay];
+                const view = dayState.view;
+                const slideContainer = document.querySelector(`#${appState.currentDay} .slides-container-${view}`);
+                const slides = slideContainer.querySelectorAll('.slide');
+                let currentIndex = view === 'lesson' ? dayState.lessonSlideIndex : dayState.assessmentSlideIndex;
+                const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+
+                if (newIndex >= 0 && newIndex < slides.length) {
+                    slides[currentIndex].classList.add('slide-transition-out');
+                    setTimeout(() => {
+                        slides[currentIndex].classList.remove('active', 'slide-transition-out');
+                        if (view === 'lesson') {
+                            dayState.lessonSlideIndex = newIndex;
+                        } else {
+                            dayState.assessmentSlideIndex = newIndex;
+                        }
+                        slides[newIndex].classList.add('active', 'slide-transition-in');
+                        saveProgress();
+                        
+                        const progressPercent = (newIndex / (slides.length - 1)) * 100;
+                        document.querySelector(`#${appState.currentDay} .bg-blue-600.h-2\\.5`).style.width = `${progressPercent}%`;
+                        document.querySelector(`#${appState.currentDay} .prev-btn`).disabled = newIndex === 0;
+                        document.querySelector(`#${appState.currentDay} .next-btn`).disabled = newIndex === slides.length - 1;
+
+                        if (IS_TEACHER) pushRoomState();
+                    }, 300);
+                }
+            }
+            
+            function handleCheckAnswer(event) {
+                // ... (This function is unchanged)
+                const button = event.target;
+                const questionContainer = button.closest('.question-slide');
+                const questionId = questionContainer.dataset.questionId;
+                const questionType = questionContainer.dataset.questionType;
+
+                const dayData = lessonData[appState.currentDay];
+                const allQuestions = [...dayData.iDo, ...dayData.weDo, ...dayData.youDo, ...dayData.assessment];
+                const question = allQuestions.find(q => q.id === questionId);
+                
+                let userAnswer;
+                let isCorrect = false;
+
+                switch (questionType) {
+                    case 'mc':
+                    case 'true-false':
+                        const selectedRadio = questionContainer.querySelector(`input[name="${questionId}"]:checked`);
+                        userAnswer = selectedRadio ? selectedRadio.value : null;
+                        isCorrect = userAnswer === question.correct;
+                        break;
+                    case 'multi-select':
+                        const selectedCheckboxes = Array.from(questionContainer.querySelectorAll(`input[name="${questionId}"]:checked`));
+                        userAnswer = selectedCheckboxes.map(cb => cb.value);
+                        isCorrect = question.correct.length === userAnswer.length && [...question.correct].sort().every((val, i) => val === [...userAnswer].sort()[i]);
+                        break;
+                    case 'text-box':
+                        userAnswer = questionContainer.querySelector('textarea').value.trim();
+                        isCorrect = userAnswer.toLowerCase() === question.correct.toLowerCase();
+                        break;
+                    case 'drag-drop-match': {
+                        userAnswer = {};
+                        let allTargetsFilled = true;
+                        questionContainer.querySelectorAll('.drop-target').forEach(target => {
+                            const droppedItem = target.querySelector('.draggable');
+                            if (droppedItem) {
+                                userAnswer[droppedItem.textContent] = target.dataset.target;
+                            } else {
+                                allTargetsFilled = false;
+                            }
+                        });
+                        
+                        isCorrect = allTargetsFilled && 
+                                    Object.keys(question.correct).length === Object.keys(userAnswer).length &&
+                                    Object.keys(question.correct).every(key => question.correct[key] === userAnswer[key]);
+                        break;
+                    }
+                    case 'drag-drop-sort': {
+                        userAnswer = {};
+                        question.data.categories.forEach(cat => userAnswer[cat] = []);
+
+                        questionContainer.querySelectorAll('.drop-target').forEach(target => {
+                            const category = target.dataset.target;
+                            const droppedItems = Array.from(target.querySelectorAll('.draggable'));
+                            if (droppedItems.length > 0) {
+                                userAnswer[category] = droppedItems.map(item => item.textContent);
+                            }
+                        });
+
+                        const sortedUserAnswer = {};
+                        const sortedCorrectAnswer = {};
+                        Object.keys(userAnswer).sort().forEach(key => {
+                            sortedUserAnswer[key] = userAnswer[key].sort();
+                        });
+                        Object.keys(question.correct).sort().forEach(key => {
+                            sortedCorrectAnswer[key] = question.correct[key].sort();
+                        });
+
+                        isCorrect = JSON.stringify(sortedUserAnswer) === JSON.stringify(sortedCorrectAnswer);
+                        break;
+                    }
+                }
+
+                appState[appState.currentDay].answers[questionId] = userAnswer;
+                saveProgress();
+                
+                showFeedback(questionContainer, isCorrect);
+            }
+
+            function showFeedback(container, isCorrect) {
+                 // ... (unchanged)
+                const feedbackBanner = container.querySelector('.feedback-banner');
+                const checkBtn = container.querySelector('.check-answer-btn');
+                const tryAgainBtn = container.querySelector('.try-again-btn');
+
+                if (isCorrect) {
+                    feedbackBanner.textContent = POSITIVE_AFFIRMATIONS[Math.floor(Math.random() * POSITIVE_AFFIRMATIONS.length)];
+                    feedbackBanner.className = 'feedback-banner absolute top-0 left-0 right-0 p-2 text-white font-bold text-center rounded-t-lg bg-green-500 show';
+                    checkBtn.disabled = true;
+                    container.querySelectorAll('input, textarea').forEach(el => el.disabled = true);
+                } else {
+                    feedbackBanner.textContent = GENTLE_NUDGES[Math.floor(Math.random() * GENTLE_NUDGES.length)];
+                    feedbackBanner.className = 'feedback-banner absolute top-0 left-0 right-0 p-2 text-white font-bold text-center rounded-t-lg bg-red-500 show';
+                    checkBtn.style.display = 'none';
+                    tryAgainBtn.style.display = 'inline-block';
                 }
             }
 
-            const canvas = await html2canvas(clone, { scale: 2 });
-            document.body.removeChild(clone);
+            function handleTryAgain(event) {
+                 // ... (unchanged)
+                const button = event.target;
+                const questionContainer = button.closest('.question-slide');
+                const feedbackBanner = questionContainer.querySelector('.feedback-banner');
+                const checkBtn = questionContainer.querySelector('.check-answer-btn');
 
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            const imgProps = pdf.getImageProperties(imgData);
-            const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            let heightLeft = imgHeight;
-            let position = 0;
-
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-            heightLeft -= pdfHeight;
-
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-                heightLeft -= pdfHeight;
+                feedbackBanner.classList.remove('show');
+                checkBtn.style.display = 'inline-block';
+                button.style.display = 'none';
             }
-            pdf.save('rpg-word-problems-log.pdf');
-        };
+            
+            // Drag and Drop Handlers
+            let draggedItem = null;
+            let sourceContainer = null;
 
-        // --- START THE APP ---
-        init();
-    });
+            function handleDragStart(event) { // ... (unchanged)
+                draggedItem = event.target;
+                sourceContainer = draggedItem.parentNode;
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', draggedItem.textContent);
+                draggedItem.classList.add('dragging');
+            }
+            function handleDragOver(event) { // ... (unchanged)
+                event.preventDefault();
+                const dropTarget = event.target.closest('.drop-target');
+                if(dropTarget) {
+                    dropTarget.classList.add('drag-over');
+                }
+            }
+            function handleDragLeave(event) { // ... (unchanged)
+                const dropTarget = event.target.closest('.drop-target');
+                if(dropTarget) {
+                    dropTarget.classList.remove('drag-over');
+                }
+            }
+            function handleDrop(event) { // ... (unchanged)
+                event.preventDefault();
+                const dropTarget = event.target.closest('.drop-target');
+                if (dropTarget && draggedItem) {
+                    dropTarget.classList.remove('drag-over');
+                    
+                    if (dropTarget.children.length > 0) {
+                       const questionType = draggedItem.closest('.question-slide').dataset.questionType;
+                       if(questionType === 'drag-drop-match') {
+                           const existingItem = dropTarget.children[0];
+                           sourceContainer.appendChild(existingItem);
+                       }
+                    }
+                    dropTarget.appendChild(draggedItem);
+                }
+            }
+            function handleDragEnd(event) { // ... (unchanged)
+                if (draggedItem) {
+                    draggedItem.classList.remove('dragging');
+                }
+                draggedItem = null;
+                sourceContainer = null;
+            }
+            
+            // ... (Other handlers like handleGoBack, handleTeacherView, handleDownloadHTML, handleDownloadPDF are unchanged)
+            function handleGoBack() {
+                const dayState = appState[appState.currentDay];
+                dayState.assessmentSlideIndex = 0;
+                saveProgress();
+                renderApp();
+                if (IS_TEACHER) pushRoomState();
+            }
+
+            function handleTeacherView() {
+                const password = prompt("Please enter the teacher password:");
+                if (password === "2026") {
+                    const dayKey = appState.currentDay;
+                    const summaryContainer = document.getElementById(`score-summary-${dayKey}`);
+                    const dayData = lessonData[dayKey];
+                    const userAnswers = appState[dayKey].answers;
+                    let correctCount = 0;
+                    
+                    let summaryHTML = `<h3 class="font-bold text-lg mb-2">Score Summary</h3><ul>`;
+                    dayData.assessment.forEach((q, index) => {
+                        const userAnswer = userAnswers[q.id];
+                        let isCorrect = JSON.stringify(userAnswer) === JSON.stringify(q.correct);
+                        if (isCorrect) correctCount++;
+                        summaryHTML += `<li class="mb-1">
+                            <strong>Q${index+1}:</strong> ${isCorrect ? '<span class="text-green-600">Correct</span>' : '<span class="text-red-600">Incorrect</span>'}
+                            (Your answer: ${JSON.stringify(userAnswer || 'N/A')})
+                        </li>`;
+                    });
+                    summaryHTML += `</ul><p class="font-bold mt-4">Total Score: ${correctCount} / ${dayData.assessment.length}</p>`;
+
+                    summaryContainer.innerHTML = summaryHTML;
+                    summaryContainer.classList.remove('hidden');
+                } else {
+                    alert("Incorrect password.");
+                }
+            }
+            function handleDownloadHTML() {
+                saveProgress();
+                const currentStateJSON = JSON.stringify(appState, null, 2);
+                let fileContent = document.documentElement.outerHTML;
+                const scriptTagRegex = /<script id="progress-data" type="application\/json">[\s\S]*?<\/script>/;
+                const newScriptTag = `<script id="progress-data" type="application/json">${currentStateJSON}<\/script>`;
+                if (scriptTagRegex.test(fileContent)) {
+                    fileContent = fileContent.replace(scriptTagRegex, newScriptTag);
+                } else {
+                    fileContent = fileContent.replace('</body>', `${newScriptTag}</body>`);
+                }
+                const blob = new Blob([fileContent], { type: 'text/html' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'math_detective_progress.html';
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+            function handleDownloadPDF() {
+                alert("Preparing PDF. This may take a moment...");
+                const { jsPDF } = window.jspdf;
+                const dayKey = appState.currentDay;
+                const dayContent = document.getElementById(dayKey);
+                if (!dayContent) return;
+                
+                const printContainer = document.createElement('div');
+                printContainer.style.position = 'absolute';
+                printContainer.style.left = '-9999px';
+                printContainer.style.width = '800px';
+
+                const allSlides = Array.from(dayContent.querySelectorAll('.slide'));
+                allSlides.forEach((slide, index) => {
+                    const clone = slide.cloneNode(true);
+                    clone.querySelectorAll('input, textarea, button').forEach(el => {
+                        if (el.type === 'radio' || el.type === 'checkbox') {
+                            const label = el.closest('label');
+                            if (el.checked) {
+                                label.style.backgroundColor = '#dcfce7';
+                                label.style.fontWeight = 'bold';
+                            }
+                            el.style.display = 'none';
+                        } else if (el.tagName === 'TEXTAREA') {
+                           const p = document.createElement('p');
+                           p.textContent = el.value;
+                           p.className = 'p-2 bg-gray-100 rounded border';
+                           el.parentNode.replaceChild(p, el);
+                        } else {
+                           el.remove();
+                        }
+                    });
+                    
+                    clone.style.display = 'block';
+                    clone.style.marginBottom = '20px';
+                    printContainer.appendChild(clone);
+                });
+                
+                document.body.appendChild(printContainer);
+
+                html2canvas(printContainer, { scale: 2 }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const ratio = canvas.width / pdfWidth;
+                    const scaledHeight = canvas.height / ratio;
+                    let position = 0;
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, scaledHeight);
+                    let heightLeft = scaledHeight - pdfHeight;
+                    while (heightLeft > 0) {
+                        position -= pdfHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledHeight);
+                        heightLeft -= pdfHeight;
+                    }
+                    pdf.save(`math_detective_${dayKey}_report.pdf`);
+                    document.body.removeChild(printContainer);
+                }).catch(e => {
+                    console.error("PDF generation failed:", e);
+                    document.body.removeChild(printContainer);
+                });
+            }
+
+
+            // --- INITIALIZATION ---
+            async function init() {
+                document.getElementById('role-room-badge').textContent = `${IS_TEACHER ? 'Teacher' : 'Student'} • room: ${ROOM_ID}`;
+                const syncBtn = document.getElementById('sync-toggle');
+                if (!IS_TEACHER) {
+                    syncBtn.style.display = 'none';
+                } else {
+                    syncBtn.addEventListener('click', async () => {
+                        if (!IS_TEACHER) return;
+                        const pwd = prompt('Enter teacher password:');
+                        if (pwd !== '2026') { alert('Incorrect password'); return; }
+
+                        ALLOW_FREE_EXPLORE = !ALLOW_FREE_EXPLORE;
+                        syncBtn.textContent = `Sync: ${ALLOW_FREE_EXPLORE ? 'OFF (Free Explore)' : 'ON'}`;
+                        await pushRoomState();
+                    });
+                }
+
+                loadProgress();
+                renderApp();
+                await initFirebaseSync();
+            }
+
+            init();
+        });
     </script>
 </body>
 </html>
+
+
