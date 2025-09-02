@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desert Explorer Survival Mission</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <style>
+        body { font-family: 'Nunito', sans-serif; }
+        h1, h2, h3, .font-title { font-family: 'Luckiest Guy', cursive; }
+        .bg-desert-tan { background-color: #F4A460; }
+        .bg-oasis-blue { background-color: #4682B4; }
+        .bg-cactus-green { background-color: #2E8B57; }
+        .bg-sun-yellow { background-color: #FFD700; }
+        .text-desert-tan { color: #F4A460; }
+        .text-oasis-blue { color: #4682B4; }
+        .text-cactus-green { color: #2E8B57; }
+        .text-sun-yellow { color: #FFD700; }
+        
+        /* Slide transitions */
+        .slide { display: none; animation: slideIn 0.5s forwards; }
+        .slide.active { display: block; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        /* Custom styles for interactive elements */
+        .draggable { cursor: grab; }
+        .drop-target { border: 2px dashed #4682B4; min-height: 50px; }
+        .drop-target.drag-over { background-color: rgba(70, 130, 180, 0.2); }
+        .option-button { transition: all 0.2s ease-in-out; }
+        .option-button:hover { transform: scale(1.05); }
+        .option-button.selected { background-color: #FFD700; color: #333; }
+
+        /* Drawing canvas styles */
+        .drawing-canvas { border: 2px solid #ccc; cursor: crosshair; }
+        .color-palette button { width: 30px; height: 30px; border-radius: 50%; }
+
+        /* Hide scrollbar but allow scrolling */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Sync styles */
+        .disabled-nav { pointer-events: none; opacity: 0.5; }
+        #setup-modal { backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="bg-desert-tan text-gray-800 antialiased">
+    <!-- Student progress data will be injected here -->
+    <script id="progress-data" type="application/json"></script>
+
+    <!-- Hidden file input for image uploads -->
+    <input type="file" id="image-uploader" class="hidden" accept="image/*">
+
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md text-center">
+            <h2 class="text-3xl font-title text-oasis-blue mb-6">Join Session</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="font-bold block mb-2">Select Your Role:</label>
+                    <div class="flex justify-center gap-4">
+                        <label class="flex items-center gap-2 p-3 border-2 rounded-lg has-[:checked]:bg-yellow-100 has-[:checked]:border-yellow-400">
+                            <input type="radio" name="role" value="Student" class="form-radio" checked> Student
+                        </label>
+                        <label class="flex items-center gap-2 p-3 border-2 rounded-lg has-[:checked]:bg-yellow-100 has-[:checked]:border-yellow-400">
+                            <input type="radio" name="role" value="Teacher" class="form-radio"> Teacher
+                        </label>
+                    </div>
+                </div>
+                <div id="teacher-password-container" class="hidden">
+                    <label for="teacher-password" class="font-bold block mb-2">Teacher Password:</label>
+                    <input type="password" id="teacher-password" class="w-full p-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="room-name" class="font-bold block mb-2">Room Name:</label>
+                    <input type="text" id="room-name" class="w-full p-2 border rounded-md" placeholder="e.g., class-a">
+                </div>
+                <p id="setup-error" class="text-red-500 h-4"></p>
+                <button id="open-lesson-btn" class="w-full bg-cactus-green text-white py-3 px-6 rounded-lg font-title text-xl shadow-md hover:bg-green-700 transition transform hover:scale-105">Start Lesson</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="max-w-4xl mx-auto p-4 flex flex-col h-screen hidden">
+        <header class="text-center mb-4 text-white bg-oasis-blue p-4 rounded-lg shadow-lg relative">
+            <div class="absolute top-2 right-2 text-xs flex flex-col items-end gap-1">
+                <div id="role-room-badge" class="bg-white/20 px-2 py-1 rounded-full"></div>
+                <button id="change-role-room-btn" class="hover:underline">Change</button>
+            </div>
+             <div class="absolute top-2 left-2 text-sm hidden" id="sync-toggle-label">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="sync-toggle" class="form-checkbox h-5 w-5 rounded">
+                    <span class="font-bold">Sync to Students</span>
+                </label>
+            </div>
+            <h1 class="text-4xl tracking-wider">Desert Explorer Survival Mission</h1>
+            <p id="unit-subtitle" class="text-lg"></p>
+        </header>
+        
+        <!-- Main navigation tabs -->
+        <nav id="day-tabs" class="flex justify-center mb-4 bg-white/50 rounded-lg p-2 gap-2">
+            <!-- Day tabs will be generated here -->
+        </nav>
+
+        <main id="content-area" class="flex-grow bg-white rounded-lg shadow-2xl p-6 overflow-y-auto no-scrollbar">
+            <!-- Content for each day will be injected here -->
+        </main>
+
+        <footer class="mt-4 flex justify-between items-center">
+             <div class="flex gap-2">
+                <button id="download-html-btn" class="bg-cactus-green text-white py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition transform hover:scale-105">
+                    <i class="fas fa-save mr-2"></i>Download Work
+                </button>
+                <button id="download-pdf-btn" class="bg-sun-yellow text-gray-800 py-2 px-4 rounded-lg shadow-md hover:bg-yellow-500 transition transform hover:scale-105">
+                    <i class="fas fa-file-pdf mr-2"></i>Download as PDF
+                </button>
+            </div>
+            <div id="admin-controls" class="hidden">
+                 <button id="admin-btn" class="text-xs text-gray-500 hover:underline">Admin</button>
+            </div>
+        </footer>
+    </div>
+    
+    <script>
+    // --- START OF APPLICATION LOGIC ---
+    
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+      authDomain: "lesson-sync-a223a.firebaseapp.com",
+      projectId: "lesson-sync-a223a",
+      storageBucket: "lesson-sync-a223a.firebasestorage.app",
+      messagingSenderId: "906128715071",
+      appId: "1:906128715071:web:347ea08f4d864fde02778a"
+    };
+
+    // Global Firebase variables
+    let db;
+    let firestoreUnsubscribe = null;
+    let _isApplyingRemote = false;
+
+    // Application State Management
+    const appState = {
+        lessonData: null,
+        userProgress: {}, // { "d1_q1": { answer: "...", status: "correct" }, ... }
+        currentDay: 1,
+        currentView: 'lesson', // 'lesson' or 'assessment'
+        currentSlide: { lesson: 0, assessment: 0 },
+        customImages: {}, // { "d1_q1": "data:image/png;base64,..." }
+        activeTab: 1,
+        // Sync state
+        userRole: null,
+        roomName: null,
+        allowFreeExplore: false, // Default to teacher-led
+    };
+    
+    // Positive affirmations for correct answers
+    const affirmations = [
+        "Awesome exploring!", "You're a natural survivalist!", "Path cleared!",
+        "Excellent work, explorer!", "Great discovery!", "You're on the right trail!"
+    ];
+
+    // Main initialization function
+    document.addEventListener('DOMContentLoaded', () => {
+        setupModalListeners();
+        loadLessonData();
+    });
+    
+    function setupModalListeners() {
+        document.querySelectorAll('input[name="role"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                document.getElementById('teacher-password-container').style.display = e.target.value === 'Teacher' ? 'block' : 'none';
+            });
+        });
+        document.getElementById('open-lesson-btn').addEventListener('click', handleStartLesson);
+    }
+
+    function handleStartLesson() {
+        const role = document.querySelector('input[name="role"]:checked').value;
+        const room = document.getElementById('room-name').value.trim().toLowerCase();
+        const password = document.getElementById('teacher-password').value;
+        const errorEl = document.getElementById('setup-error');
+
+        errorEl.textContent = '';
+
+        if (!room) {
+            errorEl.textContent = 'Please enter a room name.';
+            return;
+        }
+
+        if (role === 'Teacher' && password !== '2026') {
+            errorEl.textContent = 'Incorrect teacher password.';
+            return;
+        }
+        
+        appState.userRole = role;
+        appState.roomName = room;
+        localStorage.setItem('explorerRole', role);
+        localStorage.setItem('explorerRoom', room);
+
+        document.getElementById('setup-modal').classList.add('hidden');
+        document.getElementById('app-container').classList.remove('hidden');
+
+        initializeApp();
+    }
+    
+    function initializeApp() {
+        hydrateState();
+        initFirebase();
+        renderApp();
+        initEventListeners();
+    }
+
+    /**
+     * Loads the lesson data from the embedded JSON.
+     */
+    function loadLessonData() {
+        const lessonDataString = `{
+          "unitTitle": "Desert Explorer Survival Mission",
+          "days": [
+            {
+              "day": 1,
+              "title": "The First Steps: Learning to Count On",
+              "standard": "1.PAFR.1.3 - Solve real-world addition situations to find sums within 20.",
+              "lessonSections": [
+                 { "type": "Hook", "title": "Let's Get Started!"},
+                 { "type": "iDo", "title": "Watch Me: I Do" },
+                 { "type": "weDo", "title": "Our Turn: We Do" },
+                 { "type": "youDo", "title": "Your Turn: You Do" }
+              ],
+              "iDo": [
+                { "id": "d1_iDo_q1", "type": "text-box", "prompt": "Let's solve 9 + 5. I put the bigger number, 9, in my head. Now I'll count on 5 more. 10, 11, 12, 13, 14. The answer is:", "visual": "A number 9 inside a cartoon brain icon, followed by five cactus icons in a row.", "data": { "size": 2 }, "correct": "14" },
+                { "id": "d1_iDo_q2", "type": "text-box", "prompt": "Now for 7 + 3. I hold 7 in my head. I count on 3 more times... 8, 9, 10. What is the total?", "visual": "icon:fa-solid fa-hand-holding-heart", "data": { "size": 2 }, "correct": "10" },
+                { "id": "d1_iDo_q3", "type": "text-box", "prompt": "Let's try a bigger one: 14 + 2. I'll grab 14 and count up two steps... 15, 16. What is the answer?", "visual": "Two explorer boot print icons next to each other.", "data": { "size": 2 }, "correct": "16" }
+              ],
+              "weDo": [
+                { "id": "d1_weDo_q1", "type": "text-box", "prompt": "Let's solve together! 6 + 4 = ?", "visual": "emoji:🌵", "data": { "size": 2 }, "correct": "10" },
+                { "id": "d1_weDo_q2", "type": "text-box", "prompt": "Teamwork! 8 + 5 = ?", "visual": "emoji:🦎", "data": { "size": 2 }, "correct": "13" },
+                { "id": "d1_weDo_q3", "type": "text-box", "prompt": "What is 11 + 2?", "visual": "emoji:🦂", "data": { "size": 2 }, "correct": "13" },
+                { "id": "d1_weDo_q4", "type": "text-box", "prompt": "Let's count on! 9 + 3 = ?", "visual": "emoji:☀️", "data": { "size": 2 }, "correct": "12" },
+                { "id": "d1_weDo_q5", "type": "text-box", "prompt": "You've got it! 13 + 4 = ?", "visual": "emoji:💧", "data": { "size": 2 }, "correct": "17" },
+                { "id": "d1_weDo_q6", "type": "text-box", "prompt": "Keep going! 15 + 5 = ?", "visual": "A simple drawing of a desert flower with five petals.", "data": { "size": 2 }, "correct": "20" },
+                { "id": "d1_weDo_q7", "type": "text-box", "prompt": "Almost there! 10 + 6 = ?", "visual": "emoji:🧭", "data": { "size": 2 }, "correct": "16" },
+                { "id": "d1_weDo_q8", "type": "text-box", "prompt": "Great job! 7 + 5 = ?", "visual": "emoji:🗺️", "data": { "size": 2 }, "correct": "12" },
+                { "id": "d1_weDo_q9", "type": "text-box", "prompt": "Two more! 12 + 7 = ?", "visual": "emoji:🎒", "data": { "size": 2 }, "correct": "19" },
+                { "id": "d1_weDo_q10", "type": "text-box", "prompt": "Last one! 16 + 3 = ?", "visual": "emoji:⛺", "data": { "size": 2 }, "correct": "19" }
+              ],
+              "youDo": [
+                { "id": "d1_youDo_q1", "type": "text-box", "prompt": "Your turn! Solve 6 + 5 = ?. Use the canteens to help you count on.", "visual": "A water canteen icon.", "data": { "size": 2 }, "correct": "11" },
+                { "id": "d1_youDo_q2", "type": "text-box", "prompt": "Solve 11 + 4 = ?. Use the tortoises to help you count on.", "visual": "emoji:🐢", "data": { "size": 2 }, "correct": "15" },
+                { "id": "d1_youDo_q3", "type": "text-box", "prompt": "Solve 13 + 5 = ?. Use the suns to help you count on.", "visual": "emoji:☀️", "data": { "size": 2 }, "correct": "18" },
+                { "id": "d1_youDo_q4", "type": "text-box", "prompt": "You're doing great! Solve 8 + 6 = ?", "visual": "icon:fa-solid fa-hat-cowboy-side", "data": { "size": 2 }, "correct": "14" },
+                { "id": "d1_youDo_q5", "type": "text-box", "prompt": "Last practice problem: 15 + 3 = ?", "visual": "icon:fa-solid fa-binoculars", "data": { "size": 2 }, "correct": "18" }
+              ],
+              "assessment": [
+                { "id": "d1_assess_q1", "type": "mc", "prompt": "Sarah the Explorer found 12 shiny rocks. She then found 4 more. How many rocks does she have in total?", "visual": "A simple drawing of a shiny rock.", "data": { "options": ["15", "16", "17"] }, "correct": "16" },
+                { "id": "d1_assess_q2", "type": "text-box", "prompt": "What is 11 + 5? Use the space below to draw or write your strategy.", "visual": "A drawing canvas for student work.", "data": { "size": 2 }, "correct": "16" },
+                { "id": "d1_assess_q3", "type": "mc", "prompt": "Part A: Which number sentence matches the story? \\"Leo the Lizard started at his rock, which is number 8 on the path. He walked 5 steps forward.\\"", "visual": "emoji:🦎", "data": { "options": ["8 - 5 = 3", "5 + 5 = 10", "8 + 5 = 13"] }, "correct": "8 + 5 = 13", "ebsr_part_b": { "prompt": "Part B: Which statement best explains why you chose that answer?", "visual": "emoji:🤔", "data": { "options": ["Because Leo is taking away steps.", "Because 'walked forward' means you are adding more.", "Because the numbers in the story were 8 and 3."] }, "correct": "Because 'walked forward' means you are adding more." } },
+                { "id": "d1_assess_q4", "type": "multi-select", "prompt": "Which of the following are good strategies to solve 7 + 9? Select ALL that apply.", "visual": "icon:fa-solid fa-lightbulb", "data": { "options": ["Start at 7 and count on 9 times.", "Start at 9 and count on 7 times.", "Count every number from 1 up to 16.", "Start at 7 and count backwards."] }, "correct": ["Start at 7 and count on 9 times.", "Start at 9 and count on 7 times."] },
+                { "id": "d1_assess_q5", "type": "drag-drop-sort", "prompt": "Solve 14 + 3. Drag the suns into the box to count on, then type the answer.", "visual": "", "data": { "items": ["☀️", "☀️", "☀️", "☀️", "☀️"], "categories": ["Count On Box"] }, "correct": {"Count On Box": ["☀️", "☀️", "☀️"]}, "requires_text_answer": { "prompt": "Answer:", "data": { "size": 2 }, "correct": "17" } }
+              ]
+            },
+            {
+              "day": 2,
+              "title": "Reading the Map: Counting on a Number Line",
+              "standard": "1.PAFR.1.3 - Solve real-world addition situations to find sums within 20.",
+              "lessonSections": [ { "type": "Hook", "title": "Let's Get Started!"}, { "type": "iDo", "title": "Watch Me: I Do" }, { "type": "weDo", "title": "Our Turn: We Do" }, { "type": "youDo", "title": "Your Turn: You Do" } ],
+              "iDo": [
+                { "id": "d2_iDo_q1", "type": "text-box", "prompt": "To solve 13 + 5, I find 13 on the map. Then I make 5 jumps forward. 14, 15, 16, 17, 18. Where did I land?", "visual": "A number line from 0 to 20 with a blue dot on 13 and 5 red arcs jumping forward, landing on 18.", "data": { "size": 2 }, "correct": "18" },
+                { "id": "d2_iDo_q2", "type": "text-box", "prompt": "To solve 9 + 6, I start at 9 and make 6 jumps. What is the answer?", "visual": "A number line from 0 to 20 with an explorer icon on 9 and 6 arrows pointing to the right.", "data": { "size": 2 }, "correct": "15" },
+                { "id": "d2_iDo_q3", "type": "text-box", "prompt": "Let's solve 8 + 7. I'll circle 8 and draw 7 jumps forward. Where do I end up?", "visual": "A number line from 0 to 20 with a circle on 8 and 7 arcs jumping forward, landing on 15.", "data": { "size": 2 }, "correct": "15" }
+              ],
+              "weDo": [
+                { "id": "d2_weDo_q1", "type": "text-box", "prompt": "Let's solve together! 5 + 8 = ?", "visual": "A number line from 0 to 20.", "data": { "size": 2 }, "correct": "13" },
+                { "id": "d2_weDo_q2", "type": "text-box", "prompt": "Teamwork! 12 + 6 = ?", "visual": "A number line from 0 to 20.", "data": { "size": 2 }, "correct": "18" },
+                { "id": "d2_weDo_q3", "type": "text-box", "prompt": "What is 9 + 4?", "visual": "A number line from 0 to 20.", "data": { "size": 2 }, "correct": "13" },
+                { "id": "d2_weDo_q4", "type": "text-box", "prompt": "Keep going! 10 + 7 = ?", "visual": "A number line from 0 to 20.", "data": { "size": 2 }, "correct": "17" },
+                { "id": "d2_weDo_q5", "type": "text-box", "prompt": "You've got this! 6 + 6 = ?", "visual": "A number line from 0 to 20.", "data": { "size": 2 }, "correct": "12" },
+                { "id": "d2_weDo_q6", "type": "text-box", "prompt": "Let's use the map. 14 + 5 = ?", "visual": "A number line from 0 to 20.", "data": { "size": 2 }, "correct": "19" },
+                { "id": "d2_weDo_q7", "type": "text-box", "prompt": "Another one! 8 + 8 = ?", "visual": "A number line from 0 to 20.", "data": { "size": 2 }, "correct": "16" },
+                { "id": "d2_weDo_q8", "type": "text-box", "prompt": "Great map reading! 11 + 7 = ?", "visual": "A number line from 0 to 20.", "data": { "size": 2 }, "correct": "18" },
+                { "id": "d2_weDo_q9", "type": "text-box", "prompt": "Two more! 9 + 9 = ?", "visual": "A number line from 0 to 20.", "data": { "size": 2 }, "correct": "18" },
+                { "id": "d2_weDo_q10", "type": "text-box", "prompt": "Last one as a team! 13 + 6 = ?", "visual": "A number line from 0 to 20.", "data": { "size": 2 }, "correct": "19" }
+              ],
+              "youDo": [
+                { "id": "d2_youDo_q1", "type": "text-box", "prompt": "Solve 12 + 5 using your number line tool.", "visual": "An interactive number line from 0 to 20.", "data": { "size": 2 }, "correct": "17" },
+                { "id": "d2_youDo_q2", "type": "text-box", "prompt": "Solve 7 + 6 using your number line tool.", "visual": "An interactive number line from 0 to 20.", "data": { "size": 2 }, "correct": "13" },
+                { "id": "d2_youDo_q3", "type": "text-box", "prompt": "Solve 15 + 4 using your number line tool.", "visual": "An interactive number line from 0 to 20.", "data": { "size": 2 }, "correct": "19" },
+                { "id": "d2_youDo_q4", "type": "text-box", "prompt": "What is 8 + 9? Use the number line to help.", "visual": "An interactive number line from 0 to 20.", "data": { "size": 2 }, "correct": "17" },
+                { "id": "d2_youDo_q5", "type": "text-box", "prompt": "Final practice map: 11 + 5 = ?", "visual": "An interactive number line from 0 to 20.", "data": { "size": 2 }, "correct": "16" }
+              ],
+              "assessment": [
+                { "id": "d2_assess_q1", "type": "text-box", "prompt": "Draw jumps on the number line to solve 13 + 4. What is the answer?", "visual": "A drawing canvas with a number line from 0-20 pre-drawn.", "data": { "size": 2 }, "correct": "17" },
+                { "id": "d2_assess_q2", "type": "mc", "prompt": "Which number line correctly shows how to solve 9 + 7?", "visual": "A number line from 0 to 20.", "data": { "options": ["Image: Start at 9, 7 jumps forward to 16", "Image: Start at 7, 7 jumps forward to 14", "Image: Start at 9, 7 jumps backward to 2"] }, "correct": "Image: Start at 9, 7 jumps forward to 16" },
+                { "id": "d2_assess_q3", "type": "drag-drop-sort", "prompt": "An explorer is on mile 6. They walk 8 more miles. Drag the explorer to the start and drag arrows to show the journey. What mile marker do they reach?", "visual": "A number line from 0 to 20.", "data": { "items": ["Explorer", "->", "->", "->", "->", "->", "->", "->", "->"], "categories": ["Start Point (6)", "Path"] }, "correct": {"Start Point (6)": ["Explorer"], "Path": ["->", "->", "->", "->", "->", "->", "->", "->"]}, "requires_text_answer": { "prompt": "They reach mile marker:", "data": { "size": 2 }, "correct": "14" } },
+                { "id": "d2_assess_q4", "type": "multi-select", "prompt": "A problem was solved on a number line. The drawing shows a dot on 11 and 6 jumps forward, landing on 17. Which statements are TRUE? Select ALL that apply.", "visual": "A number line from 0 to 20 with a blue dot on 11 and 6 red arcs jumping forward to 17.", "data": { "options": ["The problem is 11 + 6 = 17.", "The answer is 6.", "You could also solve by starting at 6 and making 11 jumps.", "The first number is 17."] }, "correct": ["The problem is 11 + 6 = 17.", "You could also solve by starting at 6 and making 11 jumps."] },
+                { "id": "d2_assess_q5", "type": "mc", "prompt": "Part A: Look at the number line, which shows a journey starting at 12 and ending at 19. How many jumps were made?", "visual": "A number line from 0 to 20 with a dot on 12 and arcs jumping to 19.", "data": { "options": ["12", "19", "7"] }, "correct": "7", "ebsr_part_b": { "prompt": "Part B: Which number sentence describes the journey on the number line?", "visual": "emoji:🤔", "data": { "options": ["12 + 7 = 19", "12 + 19 = 31", "19 - 12 = 7"] }, "correct": "12 + 7 = 19" } }
+              ]
+            },
+            {
+              "day": 3,
+              "title": "Solving Riddles for Water: Addition Stories",
+              "standard": "1.PAFR.1.3 - Solve real-world addition situations to find sums within 20.",
+              "lessonSections": [ { "type": "Hook", "title": "Let's Get Started!"}, { "type": "iDo", "title": "Watch Me: I Do" }, { "type": "weDo", "title": "Our Turn: We Do" }, { "type": "youDo", "title": "Your Turn: You Do" } ],
+               "iDo": [
+                { "id": "d3_iDo_q1", "type": "text-box", "prompt": "Riddle: A desert fox saw 8 beetles, then 6 more. How many in all? The parts are 8 and 6. 'In all' means add. 8 + 6 = ?", "visual": "A part-part-whole mat with 8 in one part and 6 in the other part.", "data": { "size": 2 }, "correct": "14" },
+                { "id": "d3_iDo_q2", "type": "text-box", "prompt": "A camel ate 11 dates, then 5 more. I see the parts are 11 and 5. The equation is 11 + 5. What is the answer?", "visual": "emoji:🐪", "data": { "size": 2 }, "correct": "16" },
+                { "id": "d3_iDo_q3", "type": "text-box", "prompt": "I collected 13 smooth stones and 3 rough stones. How many stones total? The number sentence is 13 + 3 = ?", "visual": "A group of 13 grey circles and a group of 3 brown, rough-textured circles.", "data": { "size": 2 }, "correct": "16" }
+              ],
+              "weDo": [
+                { "id": "d3_weDo_q1", "type": "text-box", "prompt": "Solve the riddle: 6 lizards and 5 snakes. How many animals in all?", "visual": "emoji:🦎 + 🐍", "data": { "size": 2 }, "correct": "11" },
+                { "id": "d3_weDo_q2", "type": "text-box", "prompt": "You have 10 coins and find 7 more. How many coins now?", "visual": "icon:fa-solid fa-coins", "data": { "size": 2 }, "correct": "17" },
+                { "id": "d3_weDo_q3", "type": "text-box", "prompt": "There are 9 tents and 5 backpacks. How many items total?", "visual": "emoji:⛺ + 🎒", "data": { "size": 2 }, "correct": "14" },
+                { "id": "d3_weDo_q4", "type": "text-box", "prompt": "An explorer walks 12 miles, then 4 more. What is the total miles walked?", "visual": "emoji:🚶", "data": { "size": 2 }, "correct": "16" },
+                { "id": "d3_weDo_q5", "type": "text-box", "prompt": "You drink 8 cups of water, then 8 more. How much water did you drink?", "visual": "emoji:💧", "data": { "size": 2 }, "correct": "16" },
+                { "id": "d3_weDo_q6", "type": "text-box", "prompt": "Your map has 15 landmarks. You discover 3 new ones. How many landmarks now?", "visual": "emoji:🗺️", "data": { "size": 2 }, "correct": "18" },
+                { "id": "d3_weDo_q7", "type": "text-box", "prompt": "You see 7 vultures and 7 scorpions. How many creatures did you see?", "visual": "A simple drawing of a vulture + emoji:🦂", "data": { "size": 2 }, "correct": "14" },
+                { "id": "d3_weDo_q8", "type": "text-box", "prompt": "You pack 13 snacks and your friend packs 7. How many snacks altogether?", "visual": "A simple drawing of a granola bar.", "data": { "size": 2 }, "correct": "20" },
+                { "id": "d3_weDo_q9", "type": "text-box", "prompt": "There are 11 cacti on a hill and 8 in the valley. How many cacti in all?", "visual": "emoji:🌵", "data": { "size": 2 }, "correct": "19" },
+                { "id": "d3_weDo_q10", "type": "text-box", "prompt": "You have 9 pairs of socks and buy 2 more. How many pairs do you have?", "visual": "emoji:🧦", "data": { "size": 2 }, "correct": "11" }
+              ],
+              "youDo": [
+                { "id": "d3_youDo_q1", "type": "text-box", "prompt": "There are 8 palm trees near the oasis. 7 more grow on the hill. How many palm trees are there altogether?", "visual": "icon:fa-solid fa-tree", "data": { "size": 2 }, "correct": "15" },
+                { "id": "d3_youDo_q2", "type": "text-box", "prompt": "A scorpion crawled 11 inches. Then it crawled 6 more inches. How many inches did it crawl in all?", "visual": "emoji:🦂", "data": { "size": 2 }, "correct": "17" },
+                { "id": "d3_youDo_q3", "type": "text-box", "prompt": "You packed 9 granola bars and 9 juice boxes for your trip. How many items did you pack in all?", "visual": "A granola bar icon and a juice box icon.", "data": { "size": 2 }, "correct": "18" },
+                { "id": "d3_youDo_q4", "type": "mc", "prompt": "There are 14 explorers in my group. 5 more explorers join us. Which equation matches this story?", "visual": "icon:fa-solid fa-users", "data": { "options": ["14 - 5 = 9", "14 + 5 = 19", "5 + 5 = 10"] }, "correct": "14 + 5 = 19" },
+                { "id": "d3_youDo_q5", "type": "true-false", "prompt": "Is this an addition story? 'I have 12 water bottles and I drink 3.'", "visual": "emoji:💧", "data": { "options": ["True", "False"] }, "correct": "False" }
+              ],
+              "assessment": [
+                { "id": "d3_assess_q1", "type": "mc", "prompt": "You find 11 fossils. Your friend finds 6 fossils. How many fossils do you have in all?", "visual": "icon:fa-solid fa-bone", "data": { "options": ["16", "5", "17"] }, "correct": "17" },
+                { "id": "d3_assess_q2", "type": "text-box", "prompt": "There are 9 camels resting. 9 more camels come to join them. How many camels are there now? Show your work.", "visual": "A drawing canvas for student work.", "data": { "size": 2 }, "correct": "18" },
+                { "id": "d3_assess_q3", "type": "multi-select", "prompt": "Read the story: 'The explorers had 12 maps. They found 8 more maps. They now have 20 maps altogether.' Which equations match this story? Select ALL that apply.", "visual": "emoji:🗺️", "data": { "options": ["12 + 8 = 20", "20 - 12 = 8", "8 + 12 = 20", "12 - 8 = 4"] }, "correct": ["12 + 8 = 20", "8 + 12 = 20"] },
+                { "id": "d3_assess_q4", "type": "mc", "prompt": "Part A: There are 13 green cacti and 5 flowering cacti. How many cacti are there in total?", "visual": "emoji:🌵", "data": { "options": ["8", "18", "135"] }, "correct": "18", "ebsr_part_b": { "prompt": "Part B: Which sentence explains how to solve the problem?", "visual": "emoji:🤔", "data": { "options": ["You need to take 5 away from 13.", "You need to start at 13 and count on 5 more.", "You need to write the numbers 13 and 5 next to each other."] }, "correct": "You need to start at 13 and count on 5 more." } },
+                { "id": "d3_assess_q5", "type": "drag-drop-match", "prompt": "Read the riddle. Drag the numbers and symbol to make the equation. Then solve. 'An oasis has 10 palm trees on one side and 7 on the other. How many trees in total?'", "visual": "icon:fa-solid fa-tree", "data": { "draggables": ["10", "7", "+"], "dropTargets": ["First Number", "Symbol", "Second Number"] }, "correct": {"10": "First Number", "+": "Symbol", "7": "Second Number"}, "requires_text_answer": { "prompt": "Answer:", "data": { "size": 2 }, "correct": "17" } }
+              ]
+            },
+            {
+              "day": 4,
+              "title": "The Final Trek: How Many More Steps to Camp?",
+              "standard": "1.PAFR.1.3 - Solve real-world addition situations to find sums within 20.",
+              "lessonSections": [ { "type": "Hook", "title": "Let's Get Started!"}, { "type": "iDo", "title": "Watch Me: I Do" }, { "type": "weDo", "title": "Our Turn: We Do" }, { "type": "youDo", "title": "Your Turn: You Do" } ],
+              "iDo": [
+                { "id": "d4_iDo_q1", "type": "text-box", "prompt": "Let's solve 7 + ? = 12. I'll start at 7 and count my jumps to 12. (8, 9, 10, 11, 12). That was 5 jumps. What is the missing number?", "visual": "A number line from 0 to 20 with a dot on 7 and a star on 12. There are 5 arcs connecting them.", "data": { "size": 2 }, "correct": "5" },
+                { "id": "d4_iDo_q2", "type": "text-box", "prompt": "To solve 11 + ? = 18, I can use counters. I start with 11 blue counters. I add yellow ones until I have 18 total. I added 7 yellow counters. The missing part is:", "visual": "A group of 11 blue circles and 7 yellow circles.", "data": { "size": 2 }, "correct": "7" },
+                { "id": "d4_iDo_q3", "type": "text-box", "prompt": "Let's solve 13 + ? = 20. I'll put 13 in my head and count up to 20 on my fingers. (14, 15, 16, 17, 18, 19, 20). I have 7 fingers up. The missing number is:", "visual": "icon:fa-solid fa-hand-paper", "data": { "size": 2 }, "correct": "7" }
+              ],
+              "weDo": [
+                { "id": "d4_weDo_q1", "type": "text-box", "prompt": "Let's solve together! 8 + ? = 15", "visual": "A part-part-whole mat with 15 in the whole and 8 in one part.", "data": { "size": 2 }, "correct": "7" },
+                { "id": "d4_weDo_q2", "type": "text-box", "prompt": "Teamwork! 10 + ? = 19", "visual": "A part-part-whole mat with 19 in the whole and 10 in one part.", "data": { "size": 2 }, "correct": "9" },
+                { "id": "d4_weDo_q3", "type": "text-box", "prompt": "What is the missing number? 5 + ? = 13", "visual": "A number line with a dot on 5 and a star on 13.", "data": { "size": 2 }, "correct": "8" },
+                { "id": "d4_weDo_q4", "type": "text-box", "prompt": "Keep going! 9 + ? = 18", "visual": "A number line with a dot on 9 and a star on 18.", "data": { "size": 2 }, "correct": "9" },
+                { "id": "d4_weDo_q5", "type": "text-box", "prompt": "You've got this! 12 + ? = 20", "visual": "A part-part-whole mat with 20 in the whole and 12 in one part.", "data": { "size": 2 }, "correct": "8" },
+                { "id": "d4_weDo_q6", "type": "text-box", "prompt": "Find the missing part. 7 + ? = 16", "visual": "A part-part-whole mat with 16 in the whole and 7 in one part.", "data": { "size": 2 }, "correct": "9" },
+                { "id": "d4_weDo_q7", "type": "text-box", "prompt": "Another one! 4 + ? = 11", "visual": "A number line with a dot on 4 and a star on 11.", "data": { "size": 2 }, "correct": "7" },
+                { "id": "d4_weDo_q8", "type": "text-box", "prompt": "Great work! 15 + ? = 19", "visual": "A part-part-whole mat with 19 in the whole and 15 in one part.", "data": { "size": 2 }, "correct": "4" },
+                { "id": "d4_weDo_q9", "type": "text-box", "prompt": "Two more! 6 + ? = 15", "visual": "A number line with a dot on 6 and a star on 15.", "data": { "size": 2 }, "correct": "9" },
+                { "id": "d4_weDo_q10", "type": "text-box", "prompt": "Last one as a team! 11 + ? = 11", "visual": "A part-part-whole mat with 11 in the whole and 11 in one part.", "data": { "size": 2 }, "correct": "0" }
+              ],
+              "youDo": [
+                { "id": "d4_youDo_q1", "type": "text-box", "prompt": "Find the missing number: 9 + ___ = 17.", "visual": "", "data": { "size": 2 }, "correct": "8" },
+                { "id": "d4_youDo_q2", "type": "text-box", "prompt": "How many more to make 19? 12 + ___ = 19.", "visual": "", "data": { "size": 2 }, "correct": "7" },
+                { "id": "d4_youDo_q3", "type": "text-box", "prompt": "Use the number line to solve 8 + ? = 16.", "visual": "An interactive number line from 0 to 20.", "data": { "size": 2 }, "correct": "8" },
+                { "id": "d4_youDo_q4", "type": "mc", "prompt": "You need 15 water bottles. You have 11. How many more do you need?", "visual": "emoji:💧", "data": { "options": ["11", "4", "15"] }, "correct": "4" },
+                { "id": "d4_youDo_q5", "type": "mc", "prompt": "Complete the equation: 7 + ___ = 13.", "visual": "", "data": { "options": ["5", "6", "7"] }, "correct": "6" }
+              ],
+              "assessment": [
+                { "id": "d4_assess_q1", "type": "mc", "prompt": "Which number makes the equation true? 11 + ___ = 19", "visual": "", "data": { "options": ["8", "9", "7"] }, "correct": "8" },
+                { "id": "d4_assess_q2", "type": "text-box", "prompt": "You need 15 special rocks. You have 8 so far. How many more rocks do you need? Show your work.", "visual": "A drawing canvas for student work.", "data": { "size": 2 }, "correct": "7" },
+                { "id": "d4_assess_q3", "type": "text-box", "prompt": "The journey to camp is 18 miles. You have traveled 10 miles. Use the number line to find how many more miles you need to travel.", "visual": "A drawing canvas with a number line from 0-20 pre-drawn, a dot on 10, and a star on 18.", "data": { "size": 2 }, "correct": "8" },
+                { "id": "d4_assess_q4", "type": "mc", "prompt": "Part A: To solve 9 + ? = 16, a student started at 16 and counted on 9 more. Is this strategy correct?", "visual": "emoji:🤯", "data": { "options": ["Yes, that is the right way to do it.", "No, that strategy will not find the right answer."] }, "correct": "No, that strategy will not find the right answer.", "ebsr_part_b": { "prompt": "Part B: Which sentence best explains why?", "visual": "emoji:🤔", "data": { "options": ["Because adding the two numbers is how you solve it.", "Because you should start at the part (9) and count up to the whole (16).", "Because the student should have used a number line."] }, "correct": "Because you should start at the part (9) and count up to the whole (16)." } },
+                { "id": "d4_assess_q5", "type": "multi-select", "prompt": "Which stories would be solved with 8 + ? = 14? Select ALL that apply.", "visual": "icon:fa-solid fa-book-open", "data": { "options": ["I have 8 coins. My friend has 14. How many altogether?", "I need to walk 14 steps. I've walked 8. How many more steps?", "I have 14 snacks. I ate 8. How many are left?", "There are 8 lizards. More come. Now there are 14. How many more came?"] }, "correct": ["I need to walk 14 steps. I've walked 8. How many more steps?", "There are 8 lizards. More come. Now there are 14. How many more came?"] }
+              ]
+            }
+          ]
+        }`;
+        appState.lessonData = JSON.parse(lessonDataString);
+    }
+    
+    /**
+     * Hydrates the app state from embedded JSON or localStorage.
+     */
+    function hydrateState() {
+        const progressDataElement = document.getElementById('progress-data');
+        if (progressDataElement && progressDataElement.textContent.trim() !== "") {
+            try {
+                const savedState = JSON.parse(progressDataElement.textContent);
+                appState.userProgress = savedState.userProgress || {};
+                appState.customImages = savedState.customImages || {};
+                appState.activeTab = savedState.activeTab || 1;
+                appState.currentSlide = savedState.currentSlide || { lesson: 0, assessment: 0 };
+            } catch (e) {
+                console.error("Failed to parse saved progress:", e);
+                initializeProgress();
+            }
+        } else {
+             // Fallback to localStorage if needed
+            const savedStateJSON = localStorage.getItem('explorerAppState');
+            if (savedStateJSON) {
+                const savedState = JSON.parse(savedStateJSON);
+                appState.userProgress = savedState.userProgress || {};
+                appState.customImages = savedState.customImages || {};
+                appState.activeTab = savedState.activeTab || 1;
+                appState.currentSlide = savedState.currentSlide || { lesson: 0, assessment: 0 };
+            } else {
+                initializeProgress();
+            }
+        }
+        appState.currentDay = appState.activeTab;
+    }
+
+    /**
+     * Initializes progress if none is found.
+     */
+    function initializeProgress() {
+        appState.userProgress = {};
+        appState.customImages = {};
+        appState.lessonData.days.forEach(day => {
+            const allQuestions = [...day.iDo, ...day.weDo, ...day.youDo, ...day.assessment];
+            allQuestions.forEach(q => {
+                appState.userProgress[q.id] = { answer: null, status: 'unanswered' };
+                 if(q.ebsr_part_b) {
+                     appState.userProgress[q.id + '_b'] = { answer: null, status: 'unanswered' };
+                 }
+            });
+        });
+    }
+
+    /**
+     * Saves the current state to localStorage.
+     */
+    function saveState() {
+        const stateToSave = {
+            userProgress: appState.userProgress,
+            customImages: appState.customImages,
+            activeTab: appState.activeTab,
+            currentSlide: appState.currentSlide
+        };
+        localStorage.setItem('explorerAppState', JSON.stringify(stateToSave));
+    }
+
+
+    /**
+     * Renders the entire application based on the current state.
+     */
+    function renderApp() {
+        updateHeaderUI();
+        renderDayTabs();
+        renderContent();
+    }
+    
+    function updateHeaderUI() {
+        document.getElementById('role-room-badge').textContent = `${appState.userRole} • room: ${appState.roomName}`;
+        const syncToggleLabel = document.getElementById('sync-toggle-label');
+        if (appState.userRole === 'Teacher') {
+            syncToggleLabel.classList.remove('hidden');
+            document.getElementById('sync-toggle').checked = !appState.allowFreeExplore;
+        } else {
+            syncToggleLabel.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Renders the main day navigation tabs.
+     */
+    function renderDayTabs() {
+        const tabsContainer = document.getElementById('day-tabs');
+        tabsContainer.innerHTML = appState.lessonData.days.map(day => {
+            const isActive = day.day === appState.currentDay;
+            return `<button 
+                        data-day="${day.day}" 
+                        class="day-tab-btn flex-grow text-lg font-title py-3 px-4 rounded-md transition-all duration-300 ${isActive ? 'bg-sun-yellow text-gray-800 shadow-lg scale-105' : 'bg-oasis-blue text-white hover:bg-blue-500'}"
+                    >
+                        Day ${day.day}
+                    </button>`;
+        }).join('');
+    }
+
+    /**
+     * Renders the content area for the current day and view (lesson/assessment).
+     */
+    function renderContent() {
+        const contentArea = document.getElementById('content-area');
+        const dayData = appState.lessonData.days.find(d => d.day === appState.currentDay);
+        
+        if (!dayData) {
+            console.error(`Could not find data for day ${appState.currentDay}. Aborting render.`);
+            return;
+        }
+
+        const modeSwitchButton = appState.currentView === 'lesson'
+            ? `<button id="go-to-assessment-btn" class="bg-cactus-green text-white font-title py-2 px-6 rounded-lg text-xl shadow-md hover:bg-green-700 transition transform hover:scale-105">Go to Assessment</button>`
+            : `<button id="back-to-lesson-btn" class="bg-oasis-blue text-white font-title py-2 px-6 rounded-lg text-xl shadow-md hover:bg-blue-500 transition transform hover:scale-105">Back to Lesson</button>`;
+
+        let slidesHTML;
+        let slideData;
+        let totalSlides;
+        
+        if (appState.currentView === 'lesson') {
+            slideData = [...dayData.iDo, ...dayData.weDo, ...dayData.youDo];
+            totalSlides = slideData.length;
+            slidesHTML = slideData.map((question, index) => renderSlide(question, index, totalSlides, 'lesson')).join('');
+        } else {
+            slideData = [...dayData.assessment];
+            totalSlides = slideData.length + 1; // +1 for completion screen
+            slidesHTML = slideData.map((question, index) => renderSlide(question, index, totalSlides, 'assessment')).join('');
+            slidesHTML += renderCompletionSlide(totalSlides -1, totalSlides);
+        }
+
+        const streakCounterHTML = appState.currentView === 'assessment' ? `<div id="streak-counter" class="text-2xl font-bold text-orange-500"></div>` : '';
+
+        contentArea.innerHTML = `
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h2 class="text-3xl font-title text-oasis-blue">${dayData.title}</h2>
+                    <p class="text-sm text-gray-500">${dayData.standard}</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    ${streakCounterHTML}
+                    ${modeSwitchButton}
+                </div>
+            </div>
+            <div id="slides-container" class="relative">
+                ${slidesHTML}
+            </div>
+        `;
+        
+        updateActiveSlide();
+        attachInteractiveHandlers();
+        updateStreakCounter();
+        document.getElementById('admin-controls').style.display = appState.currentView === 'assessment' ? 'block' : 'none';
+        
+        // Apply navigation lock if needed
+        toggleNavLock(appState.userRole === 'Student' && !appState.allowFreeExplore);
+    }
+
+    /**
+     * Renders a single slide.
+     */
+    function renderSlide(question, index, total, view) {
+        const currentSlideIndex = appState.currentSlide[view];
+        const isActive = index === currentSlideIndex;
+        
+        let contentHTML = '';
+        switch (question.type) {
+            case 'mc':
+            case 'true-false':
+                contentHTML = renderMultipleChoice(question);
+                break;
+            case 'multi-select':
+                contentHTML = renderMultiSelect(question);
+                break;
+            case 'text-box':
+                contentHTML = renderTextBox(question);
+                break;
+            case 'drag-drop-match':
+                contentHTML = renderDragDropMatch(question);
+                break;
+            case 'drag-drop-sort':
+                contentHTML = renderDragDropSort(question);
+                break;
+            default:
+                contentHTML = `<p class="text-red-500">Error: Unknown question type "${question.type}"</p>`;
+        }
+
+        const speakButtonHTML = (view === 'assessment')
+            ? `<button class="read-aloud-btn text-2xl text-oasis-blue hover:text-blue-700" data-text-to-read="${escape(question.prompt)}"><i class="fas fa-volume-up"></i></button>`
+            : '';
+
+        const progressPercent = ((index + 1) / total) * 100;
+
+        return `
+            <div id="slide-${view}-${index}" class="slide ${isActive ? 'active' : ''}" data-question-id="${question.id}">
+                <div class="bg-gray-50 p-6 rounded-lg shadow-inner min-h-[350px] flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-start gap-4 mb-4">
+                             ${speakButtonHTML}
+                            <p class="text-xl flex-grow">${question.prompt}</p>
+                        </div>
+                        <div class="flex flex-col md:flex-row gap-6 items-center">
+                            <div class="w-full md:w-1/3 flex justify-center items-center">
+                                ${generateVisual(question.visual, question.id)}
+                            </div>
+                            <div class="w-full md:w-2/3">
+                                ${contentHTML}
+                            </div>
+                        </div>
+                    </div>
+                     <div class="mt-4" id="feedback-container-${question.id}"></div>
+                     ${question.ebsr_part_b ? renderEbsrPartB(question) : ''}
+                </div>
+                <div class="mt-6 flex justify-between items-center">
+                    <button class="prev-slide-btn bg-oasis-blue text-white py-2 px-5 rounded-lg disabled:opacity-50" ${index === 0 ? 'disabled' : ''}>&larr; Previous</button>
+                    <div class="text-gray-600">${index + 1} / ${total}</div>
+                    <button class="next-slide-btn bg-oasis-blue text-white py-2 px-5 rounded-lg" ${index === total - 1 && view === 'lesson' ? 'id="go-to-assessment-from-lesson-btn"' : ''}>
+                        ${index === total - 1 ? (view === 'lesson' ? 'Go to Assessment' : 'Finish') : 'Next &rarr;'}
+                    </button>
+                </div>
+                 <div class="w-full h-4 bg-gray-200 rounded-full mt-4 overflow-hidden">
+                    <div class="h-full bg-cactus-green rounded-full" style="width: ${progressPercent}%"></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    function renderEbsrPartB(question) {
+        const partB = question.ebsr_part_b;
+        const partBId = question.id + '_b';
+        const speakButtonHTML = `<button class="read-aloud-btn text-2xl text-oasis-blue hover:text-blue-700" data-text-to-read="${escape(partB.prompt)}"><i class="fas fa-volume-up"></i></button>`;
+
+        return `
+            <div class="mt-6 pt-6 border-t-2 border-dashed border-gray-300" data-question-id="${partBId}">
+                <div class="flex items-start gap-4 mb-4">
+                    ${speakButtonHTML}
+                    <p class="text-xl flex-grow">${partB.prompt}</p>
+                </div>
+                <div class="space-y-3">
+                    ${partB.data.options.map(option => `
+                        <div class="flex items-center gap-3">
+                            <button class="read-aloud-btn text-xl text-oasis-blue hover:text-blue-700" data-text-to-read="${escape(option)}"><i class="fas fa-volume-up"></i></button>
+                            <button class="option-button w-full text-left p-3 bg-gray-100 rounded-lg hover:bg-yellow-200" data-option="${option}">
+                                ${option}
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="mt-4" id="feedback-container-${partBId}"></div>
+                <div class="text-right mt-4">
+                    <button class="check-answer-btn bg-sun-yellow text-gray-800 py-2 px-6 rounded-lg font-title text-lg" data-question-id="${partBId}" data-question-type="mc">Check Answer</button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Renders multiple choice or true/false options.
+     */
+    function renderMultipleChoice(question) {
+        const isAssessment = appState.currentView === 'assessment';
+        return `
+            <div class="space-y-3">
+                ${question.data.options.map(option => {
+                    const speakButtonHTML = isAssessment
+                        ? `<button class="read-aloud-btn text-xl text-oasis-blue hover:text-blue-700" data-text-to-read="${escape(option)}"><i class="fas fa-volume-up"></i></button>`
+                        : '';
+                    return `
+                        <div class="flex items-center gap-3">
+                           ${speakButtonHTML}
+                            <button class="option-button w-full text-left p-3 bg-gray-100 rounded-lg hover:bg-yellow-200" data-option="${option}">
+                                ${option.startsWith('Image:') ? `<img src="https://placehold.co/400x100?text=${option.replace('Image: ', '')}" alt="${option}" class="rounded-md">` : option}
+                            </button>
+                        </div>
+                    `
+                }).join('')}
+            </div>
+            <div class="text-right mt-4">
+                <button class="check-answer-btn bg-sun-yellow text-gray-800 py-2 px-6 rounded-lg font-title text-lg" data-question-id="${question.id}" data-question-type="${question.type}">Check Answer</button>
+            </div>
+        `;
+    }
+
+    /**
+     * Renders multi-select options.
+     */
+    function renderMultiSelect(question) {
+        const isAssessment = appState.currentView === 'assessment';
+        return `
+            <p class="text-sm text-gray-500 mb-2">Select all that apply.</p>
+            <div class="space-y-3">
+                ${question.data.options.map(option => {
+                     const speakButtonHTML = isAssessment
+                        ? `<button class="read-aloud-btn text-xl text-oasis-blue hover:text-blue-700" data-text-to-read="${escape(option)}"><i class="fas fa-volume-up"></i></button>`
+                        : '';
+                    return `
+                         <div class="flex items-center gap-3">
+                            ${speakButtonHTML}
+                            <button class="option-button w-full text-left p-3 bg-gray-100 rounded-lg hover:bg-yellow-200" data-option="${option}">
+                                ${option}
+                            </button>
+                        </div>
+                    `
+                }).join('')}
+            </div>
+             <div class="text-right mt-4">
+                <button class="check-answer-btn bg-sun-yellow text-gray-800 py-2 px-6 rounded-lg font-title text-lg" data-question-id="${question.id}" data-question-type="${question.type}">Check Answer</button>
+            </div>
+        `;
+    }
+    
+    /**
+     * Renders a text box input.
+     */
+    function renderTextBox(question) {
+        return `
+            <textarea
+                class="w-full p-2 border-2 border-gray-300 rounded-lg focus:border-oasis-blue focus:ring-oasis-blue text-2xl"
+                rows="1"
+                maxlength="${question.data.size}"
+                placeholder="Type here..."
+                oninput="this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px';"
+            ></textarea>
+            <div class="text-right mt-4">
+                <button class="check-answer-btn bg-sun-yellow text-gray-800 py-2 px-6 rounded-lg font-title text-lg" data-question-id="${question.id}" data-question-type="${question.type}">Check Answer</button>
+            </div>
+        `;
+    }
+
+    /**
+     * Renders a drag-and-drop matching interface.
+     */
+    function renderDragDropMatch(question) {
+        // Shuffle draggables for a challenge
+        const draggables = [...question.data.draggables].sort(() => Math.random() - 0.5);
+        return `
+            <div class="flex flex-col md:flex-row gap-6">
+                <div class="w-full md:w-1/3 p-4 bg-gray-100 rounded-lg">
+                    <h4 class="font-bold text-center mb-2">Drag These:</h4>
+                    <div class="space-y-2">
+                        ${draggables.map(item => `
+                            <div class="draggable p-3 bg-white rounded shadow text-center" draggable="true" data-item="${item}">${item}</div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="w-full md:w-2/3 p-4">
+                     <h4 class="font-bold mb-2">To These Targets:</h4>
+                    <div class="space-y-4">
+                        ${question.data.dropTargets.map(target => `
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold w-1/2">${target}:</span>
+                                <div class="drop-target w-1/2 p-3 rounded-lg bg-gray-50" data-target="${target}"></div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+             <div class="text-right mt-4">
+                <button class="check-answer-btn bg-sun-yellow text-gray-800 py-2 px-6 rounded-lg font-title text-lg" data-question-id="${question.id}" data-question-type="${question.type}">Check Answer</button>
+            </div>
+            ${renderOptionalTextInput(question)}
+        `;
+    }
+
+     /**
+     * Renders a drag-and-drop sorting interface.
+     */
+    function renderDragDropSort(question) {
+        const items = [...question.data.items].sort(() => Math.random() - 0.5);
+        return `
+            <div class="flex flex-col gap-4">
+                <div>
+                    <h4 class="font-bold text-center mb-2">Items to Sort:</h4>
+                    <div class="flex flex-wrap gap-2 p-3 bg-gray-100 rounded-lg justify-center drop-target initial-pool">
+                         ${items.map(item => `
+                            <div class="draggable p-2 px-4 bg-white rounded-full shadow" draggable="true" data-item="${item}">${item}</div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="flex justify-around gap-4 mt-4">
+                    ${question.data.categories.map(cat => `
+                        <div class="w-full">
+                            <h4 class="font-bold text-center mb-2">${cat}</h4>
+                            <div class="drop-target p-3 bg-gray-50 rounded-lg min-h-[80px]" data-target="${cat}"></div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="text-right mt-4">
+                <button class="check-answer-btn bg-sun-yellow text-gray-800 py-2 px-6 rounded-lg font-title text-lg" data-question-id="${question.id}" data-question-type="${question.type}">Check Answer</button>
+            </div>
+            ${renderOptionalTextInput(question)}
+        `;
+    }
+
+    function renderOptionalTextInput(question) {
+        if (!question.requires_text_answer) return '';
+        const textData = question.requires_text_answer;
+        return `
+            <div class="mt-4 pt-4 border-t">
+                <p class="font-bold">${textData.prompt}</p>
+                 <textarea
+                    class="w-full p-2 border-2 border-gray-300 rounded-lg focus:border-oasis-blue focus:ring-oasis-blue text-2xl optional-text-input"
+                    rows="1"
+                    maxlength="${textData.data.size}"
+                    placeholder="Type here..."
+                    oninput="this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px';"
+                ></textarea>
+            </div>
+        `;
+    }
+
+     /**
+     * Renders the completion slide for assessments.
+     */
+    function renderCompletionSlide(index, total) {
+        const isActive = index === appState.currentSlide.assessment;
+        const progressPercent = ((index + 1) / total) * 100;
+        return `
+            <div id="slide-assessment-${index}" class="slide ${isActive ? 'active' : ''}">
+                 <div class="bg-gray-50 p-6 rounded-lg shadow-inner min-h-[350px] flex flex-col justify-center items-center text-center">
+                    <h3 class="text-4xl font-title text-cactus-green">Great work, Explorer!</h3>
+                    <p class="text-xl mt-2">You've completed the assessment for this day.</p>
+                    <p class="mt-4">Your report is ready for your teacher.</p>
+                     <div class="text-6xl mt-6">🥳</div>
+                </div>
+                 <div class="mt-6 flex justify-between items-center">
+                    <button class="prev-slide-btn bg-oasis-blue text-white py-2 px-5 rounded-lg">&larr; Previous</button>
+                    <div class="text-gray-600">${index + 1} / ${total}</div>
+                    <button class="next-slide-btn bg-oasis-blue text-white py-2 px-5 rounded-lg" disabled>Finish</button>
+                </div>
+                 <div class="w-full h-4 bg-gray-200 rounded-full mt-4 overflow-hidden">
+                    <div class="h-full bg-cactus-green rounded-full" style="width: ${progressPercent}%"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Master function to attach event listeners after rendering.
+     */
+    function attachInteractiveHandlers() {
+        // Navigation buttons
+        document.querySelectorAll('.day-tab-btn').forEach(btn => btn.addEventListener('click', handleDayTabClick));
+        document.querySelector('#go-to-assessment-btn, #go-to-assessment-from-lesson-btn')?.addEventListener('click', () => switchView('assessment'));
+        document.querySelector('#back-to-lesson-btn')?.addEventListener('click', () => switchView('lesson'));
+        document.querySelectorAll('.prev-slide-btn').forEach(btn => btn.addEventListener('click', navigateSlides));
+        document.querySelectorAll('.next-slide-btn').forEach(btn => btn.addEventListener('click', navigateSlides));
+        
+        // Interactive elements
+        document.querySelectorAll('.option-button').forEach(btn => btn.addEventListener('click', handleOptionClick));
+        document.querySelectorAll('.check-answer-btn').forEach(btn => btn.addEventListener('click', handleCheckAnswer));
+
+        // Drag and Drop
+        document.querySelectorAll('.draggable').forEach(draggable => {
+            draggable.addEventListener('dragstart', handleDragStart);
+        });
+        document.querySelectorAll('.drop-target').forEach(target => {
+            target.addEventListener('dragover', handleDragOver);
+            target.addEventListener('dragleave', handleDragLeave);
+            target.addEventListener('drop', handleDrop);
+        });
+        
+        // Drawing Canvases
+        document.querySelectorAll('.drawing-canvas').forEach(initDrawingCanvas);
+        
+        // Read Aloud
+        document.querySelectorAll('.read-aloud-btn').forEach(btn => btn.addEventListener('click', handleReadAloud));
+
+        // Image upload triggers
+        document.querySelectorAll('.visual-wrapper.upload-trigger').forEach(wrapper => {
+            wrapper.addEventListener('click', () => {
+                const questionId = wrapper.dataset.questionId;
+                const uploader = document.getElementById('image-uploader');
+                uploader.onchange = (e) => handleImageUpload(e, questionId);
+                uploader.click();
+            });
+        });
+        document.querySelectorAll('.remove-custom-img-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleRemoveCustomImage(e.target.dataset.questionId);
+            });
+        });
+    }
+
+    /**
+     * Handles clicks on the main day navigation tabs.
+     */
+    function handleDayTabClick(event) {
+        const day = parseInt(event.currentTarget.dataset.day);
+        if (day !== appState.currentDay) {
+            _isApplyingRemote = true; // Prevent sync loop if student is in free explore
+            appState.currentDay = day;
+            appState.activeTab = day;
+            appState.currentView = 'lesson';
+            appState.currentSlide = { lesson: 0, assessment: 0 };
+            saveState();
+            renderApp();
+             if (appState.userRole === 'Teacher') {
+                syncPush();
+            }
+            _isApplyingRemote = false;
+        }
+    }
+
+    /**
+     * Switches between 'lesson' and 'assessment' views.
+     */
+    function switchView(view) {
+        _isApplyingRemote = true;
+        appState.currentView = view;
+        saveState();
+        renderContent();
+        if (appState.userRole === 'Teacher') {
+            syncPush();
+        }
+        _isApplyingRemote = false;
+    }
+
+    /**
+     * Handles slide navigation (previous/next).
+     */
+    function navigateSlides(event) {
+        _isApplyingRemote = true;
+        const isNext = event.currentTarget.classList.contains('next-slide-btn');
+        const view = appState.currentView;
+        const dayData = appState.lessonData.days.find(d => d.day === appState.currentDay);
+        const slideCount = view === 'lesson'
+            ? [...dayData.iDo, ...dayData.weDo, ...dayData.youDo].length
+            : dayData.assessment.length + 1;
+        
+        if (isNext) {
+            if (appState.currentSlide[view] < slideCount - 1) {
+                appState.currentSlide[view]++;
+            }
+        } else {
+            if (appState.currentSlide[view] > 0) {
+                appState.currentSlide[view]--;
+            }
+        }
+        saveState();
+        updateActiveSlide();
+        if (appState.userRole === 'Teacher') {
+            syncPush();
+        }
+        _isApplyingRemote = false;
+    }
+
+    /**
+     * Updates which slide is visible.
+     */
+    function updateActiveSlide() {
+        const view = appState.currentView;
+        document.querySelectorAll(`#slides-container .slide`).forEach((slide, index) => {
+            slide.classList.toggle('active', index === appState.currentSlide[view]);
+        });
+    }
+    
+    /**
+     * Handles clicking on a multiple choice or multi-select option.
+     */
+    function handleOptionClick(event) {
+        const button = event.currentTarget;
+        const parent = button.closest('[data-question-id]');
+        const questionId = parent.dataset.questionId;
+        const question = findQuestionById(questionId);
+        
+        if (question && question.type === 'multi-select') {
+            button.classList.toggle('selected');
+        } else {
+            parent.querySelectorAll('.option-button').forEach(btn => btn.classList.remove('selected'));
+            button.classList.add('selected');
+        }
+    }
+
+    // --- EVENT LISTENERS ---
+    function initEventListeners() {
+        document.getElementById('download-html-btn').addEventListener('click', downloadHTML);
+        document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
+        document.getElementById('admin-btn')?.addEventListener('click', showTeacherView);
+        document.getElementById('change-role-room-btn').addEventListener('click', handleChangeRoleRoom);
+        document.getElementById('sync-toggle').addEventListener('change', handleSyncToggle);
+    }
+    
+    /**
+     * Finds a question object by its ID.
+     */
+    function findQuestionById(id) {
+        for (const day of appState.lessonData.days) {
+            const allQuestions = [...day.iDo, ...day.weDo, ...day.youDo, ...day.assessment];
+            for(const q of allQuestions) {
+                if (q.id === id) return q;
+                if(q.ebsr_part_b && q.id + '_b' === id) {
+                    return { id: id, type: 'mc', correct: q.ebsr_part_b.correct };
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Handles the "Check Answer" button click and validation logic.
+     */
+    function handleCheckAnswer(event) {
+        const button = event.currentTarget;
+        const questionId = button.dataset.questionId;
+        const questionType = button.dataset.questionType;
+        const question = findQuestionById(questionId);
+        const parentSlide = button.closest('.slide, .pt-6'); 
+        
+        if (!question) {
+            console.error("Could not find question for ID:", questionId);
+            return;
+        }
+
+        let userAnswer = null;
+        let isCorrect = false;
+
+        // --- GATHER USER's ANSWER ---
+        switch (questionType) {
+            case 'mc':
+            case 'true-false':
+                const selectedOption = parentSlide.querySelector('.option-button.selected');
+                userAnswer = selectedOption ? selectedOption.dataset.option : null;
+                isCorrect = userAnswer === question.correct;
+                break;
+            case 'multi-select':
+                const selectedOptions = Array.from(parentSlide.querySelectorAll('.option-button.selected')).map(btn => btn.dataset.option);
+                userAnswer = selectedOptions;
+                isCorrect = JSON.stringify(userAnswer.sort()) === JSON.stringify(question.correct.sort());
+                break;
+            case 'text-box':
+                userAnswer = parentSlide.querySelector('textarea').value.trim();
+                isCorrect = userAnswer.toLowerCase() === question.correct.toLowerCase();
+                break;
+            case 'drag-drop-match':
+                userAnswer = {};
+                parentSlide.querySelectorAll('.drop-target').forEach(target => {
+                    const droppedItem = target.querySelector('.draggable');
+                    if (droppedItem) {
+                        userAnswer[droppedItem.dataset.item] = target.dataset.target;
+                    }
+                });
+                isCorrect = JSON.stringify(userAnswer) === JSON.stringify(question.correct);
+                break;
+            case 'drag-drop-sort':
+                 userAnswer = {};
+                 parentSlide.querySelectorAll('.drop-target').forEach(target => {
+                     const category = target.dataset.target;
+                     const items = Array.from(target.querySelectorAll('.draggable')).map(item => item.dataset.item);
+                     userAnswer[category] = items;
+                 });
+                 isCorrect = true;
+                 for (const category in question.correct) {
+                     if (!userAnswer[category] || JSON.stringify(userAnswer[category].sort()) !== JSON.stringify(question.correct[category].sort())) {
+                         isCorrect = false;
+                         break;
+                     }
+                 }
+                 const optionalInput = parentSlide.querySelector('.optional-text-input');
+                 if (optionalInput && question.requires_text_answer) {
+                     const textAnswer = optionalInput.value.trim();
+                     if (textAnswer.toLowerCase() !== question.requires_text_answer.correct.toLowerCase()) {
+                         isCorrect = false;
+                     }
+                     userAnswer.textAnswer = textAnswer;
+                 }
+                 break;
+        }
+        
+        appState.userProgress[questionId] = { answer: userAnswer, status: isCorrect ? 'correct' : 'incorrect' };
+        saveState();
+        
+        const feedbackContainer = document.getElementById(`feedback-container-${questionId}`);
+        if (isCorrect) {
+            const affirmation = affirmations[Math.floor(Math.random() * affirmations.length)];
+            feedbackContainer.innerHTML = `<p class="text-green-600 font-bold text-lg text-center mt-2">${affirmation}</p>`;
+            button.style.backgroundColor = '#2E8B57';
+            button.style.color = 'white';
+            button.disabled = true;
+            if (appState.currentView === 'assessment') {
+                 updateStreakCounter(true);
+            }
+        } else {
+            feedbackContainer.innerHTML = `<p class="text-red-600 font-bold text-lg text-center mt-2">Map Check! Try another path.</p>`;
+            button.style.backgroundColor = '#CD5C5C';
+            parentSlide.classList.add('animate-shake');
+            setTimeout(() => {
+                parentSlide.classList.remove('animate-shake');
+                 button.style.backgroundColor = '';
+            }, 800);
+            if(appState.currentView === 'assessment') {
+                updateStreakCounter(false);
+            }
+        }
+    }
+    
+    function updateStreakCounter(wasCorrect) {
+         if (appState.currentView !== 'assessment') return;
+         const streakCounter = document.getElementById('streak-counter');
+         if (!streakCounter) return;
+
+         let streak = 0;
+         const assessmentQs = appState.lessonData.days.find(d => d.day === appState.currentDay).assessment;
+         for (const q of assessmentQs) {
+             if (appState.userProgress[q.id]?.status === 'correct') {
+                 streak++;
+             } else if (appState.userProgress[q.id]?.status === 'incorrect') {
+                 streak = 0;
+             }
+         }
+
+         if (streak > 0) {
+             streakCounter.innerHTML = `<i class="fas fa-fire"></i> ${streak}`;
+             if(wasCorrect) {
+                streakCounter.classList.add('animate-ping');
+                setTimeout(() => streakCounter.classList.remove('animate-ping'), 500);
+             }
+         } else {
+             streakCounter.innerHTML = '';
+         }
+    }
+
+    /**
+     * Generates a visual element based on a string descriptor.
+     */
+    function generateVisual(visualString, questionId) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'visual-wrapper w-full h-48 flex justify-center items-center bg-gray-100 rounded-lg p-4 relative';
+        
+        if (appState.customImages[questionId]) {
+            wrapper.innerHTML = `
+                <img src="${appState.customImages[questionId]}" class="max-w-full max-h-full object-contain">
+                <button data-question-id="${questionId}" class="remove-custom-img-btn absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">&times;</button>
+            `;
+            return wrapper.outerHTML;
+        }
+
+        wrapper.classList.add('upload-trigger');
+        wrapper.dataset.questionId = questionId;
+        wrapper.style.cursor = 'pointer';
+
+        if (visualString.startsWith('emoji:')) {
+            wrapper.innerHTML = `<span class="text-7xl">${visualString.substring(6)}</span>`;
+        } else if (visualString.startsWith('icon:')) {
+            wrapper.innerHTML = `<i class="${visualString.substring(5)} text-7xl text-oasis-blue"></i>`;
+        } else if (visualString.includes('drawing canvas')) {
+            wrapper.innerHTML = `
+                <div class="w-full text-center">
+                    <canvas class="drawing-canvas bg-white" width="250" height="150"></canvas>
+                    <div class="flex justify-center gap-1 mt-1">
+                        <button class="color-palette-btn bg-black" data-color="black"></button>
+                        <button class="color-palette-btn bg-red-500" data-color="red"></button>
+                        <button class="color-palette-btn bg-blue-500" data-color="blue"></button>
+                        <button class="brush-size-btn text-xs border p-1" data-size="2">S</button>
+                        <button class="brush-size-btn text-base border p-1" data-size="5">M</button>
+                        <button class="eraser-btn border p-1"><i class="fas fa-eraser"></i></button>
+                        <button class="clear-canvas-btn border p-1"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `;
+        } else {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            svg.setAttribute("viewBox", "0 0 220 60");
+            svg.setAttribute("width", "100%");
+            svg.setAttribute("height", "100%");
+            try {
+                if (visualString.includes('number line')) {
+                    const startX = 10, endX = 210, yPos = 30, range = 20;
+                    const stepX = (endX - startX) / range;
+                    const getX = val => startX + val * stepX;
+
+                    const line = document.createElementNS(svgNS, 'line');
+                    line.setAttribute('x1', startX); line.setAttribute('y1', yPos);
+                    line.setAttribute('x2', endX); line.setAttribute('y2', yPos);
+                    line.setAttribute('stroke', 'black'); line.setAttribute('stroke-width', '1.5');
+                    svg.appendChild(line);
+
+                    for (let i = 0; i <= 20; i++) {
+                        const x = getX(i);
+                        const tick = document.createElementNS(svgNS, 'line');
+                        tick.setAttribute('x1', x); tick.setAttribute('y1', yPos - 5);
+                        tick.setAttribute('x2', x); tick.setAttribute('y2', yPos + 5);
+                        tick.setAttribute('stroke', 'black');
+                        svg.appendChild(tick);
+                        if (i % 5 === 0 || i === 20) {
+                            const label = document.createElementNS(svgNS, 'text');
+                            label.setAttribute('x', x); label.setAttribute('y', yPos + 20);
+                            label.setAttribute('text-anchor', 'middle'); label.setAttribute('font-size', '10');
+                            label.textContent = i;
+                            svg.appendChild(label);
+                        }
+                    }
+
+                    const dotMatch = visualString.match(/(dot|circle) on (\d+)/);
+                    const jumpsMatch = visualString.match(/(\d+) (jumps|arcs|arrows)/);
+                    let startNum = dotMatch ? parseInt(dotMatch[2]) : null;
+
+                    if (startNum !== null && startNum <= 20) {
+                        const startCircle = document.createElementNS(svgNS, 'circle');
+                        startCircle.setAttribute('cx', getX(startNum)); startCircle.setAttribute('cy', yPos);
+                        startCircle.setAttribute('r', '4'); startCircle.setAttribute('fill', 'blue');
+                        svg.appendChild(startCircle);
+
+                        if (jumpsMatch) {
+                            const numJumps = parseInt(jumpsMatch[1]);
+                            for (let i = 0; i < numJumps; i++) {
+                                if (startNum + i + 1 > 20) break;
+                                const jumpStartX = getX(startNum + i), jumpEndX = getX(startNum + i + 1);
+                                const arcPath = document.createElementNS(svgNS, 'path');
+                                arcPath.setAttribute('d', `M ${jumpStartX},${yPos} A ${stepX / 2},10 0 0,1 ${jumpEndX},${yPos}`);
+                                arcPath.setAttribute('stroke', 'red'); arcPath.setAttribute('stroke-width', '1.5');
+                                arcPath.setAttribute('fill', 'none');
+                                svg.appendChild(arcPath);
+                            }
+                            const endNum = startNum + numJumps;
+                            if (endNum <= 20) {
+                                const endCircle = document.createElementNS(svgNS, 'circle');
+                                endCircle.setAttribute('cx', getX(endNum)); endCircle.setAttribute('cy', yPos);
+                                endCircle.setAttribute('r', '4'); endCircle.setAttribute('fill', 'green');
+                                svg.appendChild(endCircle);
+                            }
+                        }
+                    }
+                } else if (visualString.includes('part-part-whole mat')) {
+                     const rectWhole = document.createElementNS(svgNS, 'rect');
+                     rectWhole.setAttribute('x', '20'); rectWhole.setAttribute('y', '5');
+                     rectWhole.setAttribute('width', '60'); rectWhole.setAttribute('height', '15');
+                     rectWhole.setAttribute('fill', 'none'); rectWhole.setAttribute('stroke', 'black');
+                     svg.appendChild(rectWhole);
+                     const rectPart1 = document.createElementNS(svgNS, 'rect');
+                     rectPart1.setAttribute('x', '5'); rectPart1.setAttribute('y', '30');
+                     rectPart1.setAttribute('width', '40'); rectPart1.setAttribute('height', '15');
+                     rectPart1.setAttribute('fill', 'none'); rectPart1.setAttribute('stroke', 'black');
+                     svg.appendChild(rectPart1);
+                     const rectPart2 = document.createElementNS(svgNS, 'rect');
+                     rectPart2.setAttribute('x', '55'); rectPart2.setAttribute('y', '30');
+                     rectPart2.setAttribute('width', '40'); rectPart2.setAttribute('height', '15');
+                     rectPart2.setAttribute('fill', 'none'); rectPart2.setAttribute('stroke', 'black');
+                     svg.appendChild(rectPart2);
+                }
+                if (svg.hasChildNodes()) {
+                    wrapper.appendChild(svg);
+                }
+            } catch (e) {
+                console.error("SVG generation failed:", e);
+                wrapper.innerHTML = `<p class="text-xs text-center text-gray-500">${visualString}</p>`;
+            }
+        }
+        return wrapper.outerHTML;
+    }
+
+    // --- DRAG AND DROP LOGIC ---
+    let draggedItem = null;
+
+    function handleDragStart(e) {
+        draggedItem = e.target;
+        setTimeout(() => { e.target.style.display = 'none'; }, 0);
+    }
+    function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+    function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+    function handleDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        if (e.currentTarget.classList.contains('drop-target')) {
+            if (e.currentTarget.children.length === 0 || !e.currentTarget.closest('[data-question-type="drag-drop-match"]')) {
+                draggedItem.style.display = 'block';
+                e.currentTarget.appendChild(draggedItem);
+            } else {
+                const existingItem = e.currentTarget.firstChild;
+                const originalContainer = draggedItem.parentElement;
+                originalContainer.appendChild(existingItem);
+                e.currentTarget.appendChild(draggedItem);
+                draggedItem.style.display = 'block';
+            }
+        }
+    }
+    
+    // --- DRAWING CANVAS LOGIC ---
+    function initDrawingCanvas(canvas) {
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false, lastX = 0, lastY = 0, brushColor = 'black', brushSize = 5;
+
+        function draw(e) {
+            if (!isDrawing) return;
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            const rect = canvas.getBoundingClientRect();
+            const x = e.offsetX || e.touches[0].clientX - rect.left;
+            const y = e.offsetY || e.touches[0].clientY - rect.top;
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = brushColor; ctx.lineWidth = brushSize;
+            ctx.lineCap = 'round'; ctx.stroke();
+            [lastX, lastY] = [x, y];
+        }
+
+        canvas.addEventListener('mousedown', (e) => { isDrawing = true; [lastX, lastY] = [e.offsetX, e.offsetY]; });
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mouseout', () => isDrawing = false);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; const r = canvas.getBoundingClientRect(); [lastX, lastY] = [e.touches[0].clientX - r.left, e.touches[0].clientY - r.top]; });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+        canvas.addEventListener('touchend', () => isDrawing = false);
+
+        const parent = canvas.parentElement;
+        parent.querySelector('.clear-canvas-btn').addEventListener('click', () => ctx.clearRect(0, 0, canvas.width, canvas.height));
+        parent.querySelector('.eraser-btn').addEventListener('click', () => brushColor = 'white');
+        parent.querySelectorAll('.color-palette-btn').forEach(btn => btn.addEventListener('click', () => brushColor = btn.dataset.color));
+        parent.querySelectorAll('.brush-size-btn').forEach(btn => btn.addEventListener('click', () => brushSize = parseInt(btn.dataset.size)));
+    }
+
+    // --- READ ALOUD LOGIC ---
+    function handleReadAloud(event) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(unescape(event.currentTarget.dataset.textToRead));
+            utterance.lang = 'en-US';
+            speechSynthesis.speak(utterance);
+        } else {
+            alert('Sorry, your browser does not support text-to-speech.');
+        }
+    }
+
+    // --- TEACHER VIEW/ADMIN LOGIC ---
+    function showTeacherView() {
+        const password = prompt("Enter teacher password:");
+        if (password === "2026") {
+            const dayData = appState.lessonData.days.find(d => d.day === appState.currentDay);
+            let score = 0, total = 0, reportHTML = `<h3 class="text-2xl font-bold mb-4">Day ${appState.currentDay} Assessment Report</h3>`;
+            dayData.assessment.forEach(q => {
+                if (q.type !== 'text-box' || q.visual.includes('canvas')) {
+                     total++;
+                     if (appState.userProgress[q.id]?.status === 'correct') {
+                         score++;
+                         reportHTML += `<p class="text-green-600"><strong>Q: ${q.prompt.substring(0,30)}...</strong> Correct</p>`;
+                     } else {
+                         reportHTML += `<p class="text-red-500"><strong>Q: ${q.prompt.substring(0,30)}...</strong> Incorrect</p>`;
+                     }
+                 }
+            });
+            reportHTML += `<hr class="my-4"><p class="text-xl font-bold">Total Score: ${score} / ${total}</p>`;
+            document.getElementById('content-area').innerHTML = reportHTML;
+        } else if (password) { alert("Incorrect password."); }
+    }
+    
+     // --- IMAGE UPLOAD LOGIC ---
+    function handleImageUpload(event, questionId) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            appState.customImages[questionId] = e.target.result;
+            saveState();
+            renderContent();
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    function handleRemoveCustomImage(questionId) {
+        delete appState.customImages[questionId];
+        saveState();
+        renderContent();
+    }
+
+
+    // --- EXPORT/DOWNLOAD LOGIC ---
+    function downloadHTML() {
+        const stateToSave = { userProgress: appState.userProgress, customImages: appState.customImages, activeTab: appState.activeTab, currentSlide: appState.currentSlide };
+        const jsonString = JSON.stringify(stateToSave);
+        const fullHTML = document.documentElement.outerHTML;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(fullHTML, 'text/html');
+        doc.getElementById('progress-data').textContent = jsonString;
+        const blob = new Blob([doc.documentElement.outerHTML], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'desert-explorer-progress.html';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    async function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const contentArea = document.getElementById('content-area');
+        const clone = contentArea.cloneNode(true);
+        clone.style.position = 'absolute'; clone.style.left = '-9999px';
+        clone.style.width = contentArea.offsetWidth + 'px'; clone.style.height = 'auto';
+        document.body.appendChild(clone);
+
+        clone.querySelectorAll('textarea').forEach(el => { const p = document.createElement('p'); p.textContent = el.value; p.className = 'border p-2 rounded bg-yellow-100'; el.parentNode.replaceChild(p, el); });
+        clone.querySelectorAll('canvas.drawing-canvas').forEach(el => { const img = document.createElement('img'); img.src = el.toDataURL('image/png'); img.className = 'border'; el.parentNode.replaceChild(img, el); });
+        clone.querySelectorAll('button, .remove-custom-img-btn').forEach(btn => btn.remove());
+        
+        const canvas = await html2canvas(clone, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { width: imgWidth, height: imgHeight } = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgHeight * pdfWidth) / imgWidth;
+        let heightLeft = pdfHeight, position = 0;
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pdf.internal.pageSize.getHeight();
+        while (heightLeft >= 0) {
+            position = heightLeft - pdfHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pdf.internal.pageSize.getHeight();
+        }
+        pdf.save('desert-explorer-work.pdf');
+        document.body.removeChild(clone);
+    }
+    
+    // --- FIREBASE SYNC LOGIC ---
+    function initFirebase() {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.firestore();
+        
+        firebase.auth().signInAnonymously().then(() => {
+            if (appState.userRole === 'Teacher') {
+                setupTeacherSync();
+            } else {
+                setupStudentSync();
+            }
+        }).catch(error => console.error("Firebase auth failed:", error));
+    }
+
+    function setupTeacherSync() {
+        // Teacher pushes initial state
+        syncPush();
+    }
+    
+    function setupStudentSync() {
+        if (firestoreUnsubscribe) firestoreUnsubscribe(); // Unsubscribe from previous listener if any
+        const roomRef = db.collection('rooms').doc(appState.roomName);
+        firestoreUnsubscribe = roomRef.onSnapshot(doc => {
+            if (_isApplyingRemote || !doc.exists) return;
+            
+            const data = doc.data();
+            if (!data || !data.day) {
+                console.warn("Received sync data with invalid day, ignoring.", data);
+                return;
+            }
+
+            appState.allowFreeExplore = data.allowFreeExplore;
+            toggleNavLock(!data.allowFreeExplore);
+
+            if (!data.allowFreeExplore) {
+                _isApplyingRemote = true;
+                const needsRender = appState.currentDay !== data.day || appState.currentView !== data.view;
+                
+                appState.currentDay = data.day;
+                appState.activeTab = data.day;
+                appState.currentView = data.view;
+                appState.currentSlide[data.view] = data.slide;
+                
+                if (needsRender) {
+                    renderApp(); // Full re-render if day or view changed
+                } else {
+                    updateActiveSlide(); // Just update slide if on same page
+                }
+                
+                setTimeout(() => _isApplyingRemote = false, 50);
+            }
+        });
+    }
+    
+    function syncPush() {
+        if (appState.userRole !== 'Teacher' || !appState.roomName) return;
+        const roomRef = db.collection('rooms').doc(appState.roomName);
+        const stateToPush = {
+            day: appState.currentDay,
+            slide: appState.currentSlide[appState.currentView],
+            view: appState.currentView,
+            allowFreeExplore: appState.allowFreeExplore,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        roomRef.set(stateToPush).catch(error => console.error("Error writing to Firestore: ", error));
+    }
+    
+    function disconnectFirebase() {
+        if (firestoreUnsubscribe) {
+            firestoreUnsubscribe();
+            firestoreUnsubscribe = null;
+        }
+    }
+    
+    function handleChangeRoleRoom() {
+        disconnectFirebase();
+        localStorage.removeItem('explorerRole');
+        localStorage.removeItem('explorerRoom');
+        document.getElementById('app-container').classList.add('hidden');
+        document.getElementById('setup-modal').classList.remove('hidden');
+    }
+    
+    function handleSyncToggle(event) {
+        const checkbox = event.currentTarget;
+        const password = prompt("Enter teacher password to change sync mode:");
+        if (password === '2026') {
+            appState.allowFreeExplore = !checkbox.checked;
+            syncPush();
+        } else {
+            if (password) alert('Incorrect password.');
+            checkbox.checked = !checkbox.checked; // Revert visual change
+        }
+    }
+
+    function toggleNavLock(isLocked) {
+        const navElements = document.querySelectorAll('.day-tab-btn, .prev-slide-btn, .next-slide-btn, #go-to-assessment-btn, #go-to-assessment-from-lesson-btn, #back-to-lesson-btn');
+        navElements.forEach(el => {
+            el.classList.toggle('disabled-nav', isLocked);
+        });
+    }
+
+    </script>
+</body>
+</html>
+
