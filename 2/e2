@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escape the Math Room! (Subtraction)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .slide { display: none; }
+        .slide.active { display: block; }
+        .choice-btn { transition: transform 0.2s ease, background-color 0.2s ease; }
+        .choice-btn.selected {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+        .progress-bar-fill { transition: width 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .feedback-message { animation: fadeIn 0.3s ease-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .shake-error { animation: shake 0.5s ease-in-out; }
+        .hidden { display: none !important; }
+        
+        /* New Styles for Sync Feature */
+        #setup-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .disabled-nav {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        #sync-toggle:checked ~ .dot {
+            transform: translateX(100%);
+            background-color: #48bb78; /* Tailwind green-500 */
+        }
+        #sync-toggle:checked + .block {
+            background-color: #a0aec0; /* Tailwind gray-400 */
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-800 flex flex-col items-center justify-center min-h-screen">
+    
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="hidden">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md mx-4">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-700">Lesson Setup</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select your role:</label>
+                    <div class="flex gap-4">
+                        <label for="role-student" class="flex items-center p-3 border rounded-lg has-[:checked]:bg-blue-50 has-[:checked]:border-blue-500 cursor-pointer flex-1">
+                            <input type="radio" id="role-student" name="role" value="student" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500" checked>
+                            <span class="ml-3 text-sm font-medium text-gray-700">Student</span>
+                        </label>
+                        <label for="role-teacher" class="flex items-center p-3 border rounded-lg has-[:checked]:bg-blue-50 has-[:checked]:border-blue-500 cursor-pointer flex-1">
+                            <input type="radio" id="role-teacher" name="role" value="teacher" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <span class="ml-3 text-sm font-medium text-gray-700">Teacher</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="teacher-password-container" class="hidden">
+                    <label for="teacher-password" class="block text-sm font-medium text-gray-700">Teacher Password</label>
+                    <input type="password" id="teacher-password" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div>
+                    <label for="room-name" class="block text-sm font-medium text-gray-700">Room Name</label>
+                    <input type="text" id="room-name" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., class-a">
+                </div>
+            </div>
+            <button id="open-lesson-btn" class="mt-6 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Start Lesson</button>
+        </div>
+    </div>
+
+    <div id="app-container" class="w-full max-w-2xl mx-auto p-6 md:p-8 hidden">
+        <!-- Header -->
+        <header class="mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <div id="role-room-badge" class="text-sm font-semibold bg-gray-200 text-gray-700 px-3 py-1 rounded-full"></div>
+                <button id="change-role-room-btn" class="text-sm text-blue-600 hover:underline">Change</button>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-bold text-center text-blue-600">Escape the Math Room! (Subtraction)</h1>
+            <p class="text-center text-gray-500 mt-2">Solve the subtraction problems to find the secret codes and unlock the doors!</p>
+            
+            <!-- Progress and Score -->
+            <div class="mt-6 space-y-3">
+                <div class="flex justify-between items-center font-semibold text-sm">
+                    <span id="progress-text">Progress: 0 / 54</span>
+                    <span id="score-text" class="text-green-600">Score: 0</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div id="progress-bar" class="bg-blue-500 h-4 rounded-full progress-bar-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+             <!-- Teacher Sync Toggle -->
+            <div class="mt-4 text-center">
+                <label id="sync-toggle-label" for="sync-toggle" class="hidden items-center justify-center cursor-pointer">
+                    <span class="mr-3 font-semibold text-gray-700">Allow Free Explore</span>
+                     <div class="relative">
+                        <input type="checkbox" id="sync-toggle" class="sr-only">
+                        <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
+                        <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                    </div>
+                </label>
+            </div>
+        </header>
+
+        <!-- Practice Center -->
+        <main id="practice-center" class="relative min-h-[250px] md:min-h-[300px]">
+            <!-- Questions will be dynamically injected here -->
+        </main>
+        
+        <!-- Lock Panel -->
+        <div id="lock-panel" class="hidden text-center p-6 bg-gray-100 border-4 border-gray-700 rounded-lg shadow-lg">
+             <div class="flex justify-center items-center text-gray-600 mb-4">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" viewBox="0 0 20 20" fill="currentColor">
+                     <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" />
+                 </svg>
+             </div>
+             <h2 id="lock-title" class="text-2xl font-bold text-gray-800 mb-2">Unlock Door 1</h2>
+             <p class="mb-6 text-gray-600">Enter the three secret numbers you collected.</p>
+             <div class="flex justify-center gap-4 mb-6">
+                 <input type="number" id="code-1" class="w-20 h-20 text-4xl text-center font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" min="0" max="9">
+                 <input type="number" id="code-2" class="w-20 h-20 text-4xl text-center font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" min="0" max="9">
+                 <input type="number" id="code-3" class="w-20 h-20 text-4xl text-center font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" min="0" max="9">
+             </div>
+             <button id="unlock-btn" class="bg-yellow-500 text-white font-bold py-3 px-8 rounded-lg text-lg hover:bg-yellow-600 transition-colors">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                 Unlock
+             </button>
+             <div id="lock-feedback" class="mt-4 min-h-[30px] font-semibold"></div>
+        </div>
+
+        <!-- Navigation -->
+        <footer id="main-navigation" class="mt-6 flex items-center justify-between border-t pt-4">
+              <button id="prev-btn" class="bg-gray-300 text-gray-700 font-bold py-2 px-6 rounded-lg hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Previous</button>
+              <span id="question-counter" class="text-sm font-medium text-gray-500">Question 1 of 54</span>
+              <button id="next-btn" class="bg-blue-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Next</button>
+        </footer>
+
+        <!-- Action Buttons -->
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button id="download-html-btn" class="w-full sm:w-auto bg-green-500 text-white font-semibold py-2 px-5 rounded-lg hover:bg-green-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h10a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>
+                Save My Work (.html)
+            </button>
+            <button id="download-pdf-btn" class="w-full sm:w-auto bg-red-500 text-white font-semibold py-2 px-5 rounded-lg hover:bg-red-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-fromv-4a1 1 0 00-1-1H8a1 1 0 00-1 1v4H4a1 1 0 110-2V4zm2 0v4h8V4H6z" clip-rule="evenodd" /></svg>
+                Download as PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Data Hydration Script -->
+    <script id="progress-data" type="application/json"></script>
+
+    <!-- Main Application Script -->
+    <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // --- NEW: Sync Feature Constants & State ---
+        const TEACHER_PASSWORD = '2026';
+        const firebaseConfig = {
+            apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+            authDomain: "lesson-sync-a223a.firebaseapp.com",
+            projectId: "lesson-sync-a223a",
+            storageBucket: "lesson-sync-a223a.firebasestorage.app",
+            messagingSenderId: "906128715071",
+            appId: "1:906128715071:web:347ea08f4d864fde02778a"
+        };
+        const appState = {
+            role: null,
+            room: null,
+            db: null,
+            roomUnsubscribe: null,
+            allowFreeExplore: false, 
+            _isApplyingRemote: false,
+        };
+
+        // --- NEW: Sync Feature DOM Elements ---
+        const setupModal = document.getElementById('setup-modal');
+        const appContainer = document.getElementById('app-container');
+        const openLessonBtn = document.getElementById('open-lesson-btn');
+        const roleRadios = document.querySelectorAll('input[name="role"]');
+        const teacherPasswordContainer = document.getElementById('teacher-password-container');
+        const roleRoomBadge = document.getElementById('role-room-badge');
+        const changeRoleRoomBtn = document.getElementById('change-role-room-btn');
+        const syncToggleLabel = document.getElementById('sync-toggle-label');
+        const syncToggle = document.getElementById('sync-toggle');
+
+        // --- App Constants ---
+        const TOTAL_QUESTIONS = 54;
+        const QUESTIONS_PER_DOOR = 9;
+
+        // --- DOM Elements ---
+        const practiceCenter = document.getElementById('practice-center');
+        const lockPanel = document.getElementById('lock-panel');
+        const mainNavigation = document.getElementById('main-navigation');
+        const nextBtn = document.getElementById('next-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const questionCounter = document.getElementById('question-counter');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const scoreText = document.getElementById('score-text');
+        const unlockBtn = document.getElementById('unlock-btn');
+
+        // --- State ---
+        let questions = [];
+        let studentProgress = {};
+        let currentIndex = 0;
+        const positiveFeedback = ["Awesome! ✨", "You got it! 🎉", "Superstar! 🌟", "Great job! 👍", "Correct! 😊"];
+        const negativeFeedback = ["Not quite, try again!", "Give it another shot!", "So close!"];
+
+        // --- NEW: Firebase & Sync Functions ---
+        async function initFirebase() {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            appState.db = firebase.firestore();
+            try {
+                await firebase.auth().signInAnonymously();
+                if (appState.role === 'teacher') {
+                    syncPush();
+                } else {
+                    startStudentListener();
+                }
+            } catch (error) {
+                console.error("Firebase auth error:", error);
+                alert("Could not connect to the classroom session.");
+            }
+        }
+        
+        function syncPush() {
+            if (appState.role !== 'teacher' || !appState.room || appState._isApplyingRemote) return;
+            const roomRef = appState.db.collection('rooms').doc(appState.room);
+            const payload = {
+                slide: currentIndex,
+                allowFreeExplore: appState.allowFreeExplore,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            roomRef.set(payload, { merge: true }).catch(err => console.error("Error syncing state:", err));
+        }
+
+        function startStudentListener() {
+            if (appState.roomUnsubscribe) appState.roomUnsubscribe();
+            const roomRef = appState.db.collection('rooms').doc(appState.room);
+            appState.roomUnsubscribe = roomRef.onSnapshot(doc => {
+                if (!doc.exists) return;
+                const data = doc.data();
+                
+                appState.allowFreeExplore = data.allowFreeExplore === true;
+                updateNavControls(appState.allowFreeExplore);
+
+                if (!appState.allowFreeExplore) {
+                    appState._isApplyingRemote = true;
+                    if (currentIndex !== data.slide) {
+                        currentIndex = data.slide;
+                        renderCurrentState();
+                    }
+                    appState._isApplyingRemote = false;
+                }
+            }, err => console.error("Error in listener:", err));
+        }
+
+        function disconnectFirebase() {
+            if (appState.roomUnsubscribe) {
+                appState.roomUnsubscribe();
+                appState.roomUnsubscribe = null;
+            }
+        }
+
+        function updateNavControls(enabled) {
+            if (enabled) {
+                mainNavigation.classList.remove('disabled-nav');
+            } else {
+                mainNavigation.classList.add('disabled-nav');
+            }
+        }
+
+        // --- NEW: Setup & UI Functions ---
+        function showSetupModal() {
+            appContainer.classList.add('hidden');
+            setupModal.classList.remove('hidden');
+            setupModal.classList.add('flex');
+        }
+
+        function handleSessionStart() {
+            const role = document.querySelector('input[name="role"]:checked').value;
+            const room = document.getElementById('room-name').value.trim().toLowerCase();
+            const password = document.getElementById('teacher-password').value;
+
+            if (!room) {
+                alert('Please enter a room name.');
+                return;
+            }
+            if (role === 'teacher' && password !== TEACHER_PASSWORD) {
+                alert('Incorrect teacher password.');
+                return;
+            }
+
+            localStorage.setItem('lessonRole', role);
+            localStorage.setItem('lessonRoom', room);
+            startLesson(role, room);
+        }
+
+        function startLesson(role, room) {
+            appState.role = role;
+            appState.room = room;
+
+            setupModal.classList.add('hidden');
+            setupModal.classList.remove('flex');
+            appContainer.classList.remove('hidden');
+            
+            roleRoomBadge.textContent = `${role.charAt(0).toUpperCase() + role.slice(1)} • room: ${room}`;
+            
+            if (role === 'teacher') {
+                syncToggleLabel.classList.remove('hidden');
+                syncToggleLabel.classList.add('inline-flex');
+                syncToggle.checked = !appState.allowFreeExplore;
+            } else {
+                syncToggleLabel.classList.add('hidden');
+                syncToggleLabel.classList.remove('inline-flex');
+            }
+
+            initFirebase();
+            initLesson();
+        }
+
+        function setupModalListeners() {
+            roleRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    if (document.querySelector('input[name="role"]:checked').value === 'teacher') {
+                        teacherPasswordContainer.classList.remove('hidden');
+                    } else {
+                        teacherPasswordContainer.classList.add('hidden');
+                    }
+                });
+            });
+            openLessonBtn.addEventListener('click', handleSessionStart);
+            changeRoleRoomBtn.addEventListener('click', () => {
+                disconnectFirebase();
+                localStorage.removeItem('lessonRole');
+                localStorage.removeItem('lessonRoom');
+                location.reload(); 
+            });
+            syncToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                const enteredPassword = prompt('Enter teacher password to change sync mode:');
+                if (enteredPassword === TEACHER_PASSWORD) {
+                    syncToggle.checked = !syncToggle.checked;
+                    appState.allowFreeExplore = !syncToggle.checked;
+                    syncPush();
+                    if (appState.role === 'student') updateNavControls(appState.allowFreeExplore);
+                } else if (enteredPassword !== null) {
+                    alert('Incorrect password.');
+                }
+            });
+        }
+        
+        // --- Modified Original init() to initLesson() ---
+        function initLesson() {
+            practiceCenter.innerHTML = '<p class="text-center text-gray-500">Loading adventure...</p>';
+            loadProgress(); 
+            generateQuestionsData();
+            renderCurrentState();
+            setupLessonEventListeners();
+        }
+        
+        function renderCurrentState() {
+            const currentQuestion = questions[currentIndex];
+            const isLockQuestion = (currentIndex + 1) % QUESTIONS_PER_DOOR === 0;
+            const isAnsweredCorrectly = currentQuestion && studentProgress[currentQuestion.id]?.status === 'correct';
+
+            if (isLockQuestion && isAnsweredCorrectly && currentIndex < TOTAL_QUESTIONS - 1) {
+                showLockPanel();
+            } else if (currentIndex >= TOTAL_QUESTIONS) {
+                showCompletionScreen();
+            } else {
+                renderQuestion(currentIndex);
+            }
+        }
+
+        function showCompletionScreen(){
+            practiceCenter.innerHTML = `<div class="text-center p-8"><h2 class="text-3xl font-bold text-green-600">You've Escaped!</h2><p class="mt-2 text-gray-700">Congratulations on solving all the puzzles!</p></div>`;
+            mainNavigation.classList.add('hidden');
+            lockPanel.classList.add('hidden');
+        }
+
+        function setupLessonEventListeners() {
+            nextBtn.addEventListener('click', () => {
+                if (currentIndex < TOTAL_QUESTIONS - 1) {
+                    currentIndex++;
+                    renderCurrentState();
+                    if (appState.role === 'teacher') syncPush();
+                }
+            });
+            prevBtn.addEventListener('click', () => {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    renderCurrentState();
+                    if (appState.role === 'teacher') syncPush();
+                }
+            });
+            practiceCenter.addEventListener('click', (e) => {
+                const questionContainer = e.target.closest('.question-container');
+                if (!questionContainer) return;
+                const questionId = questionContainer.parentElement.id;
+                if (e.target.classList.contains('choice-btn')) handleChoiceSelection(questionContainer, questionId, e.target);
+                if (e.target.classList.contains('check-answer-btn')) handleAnswerCheck(questionContainer, questionId);
+            });
+            unlockBtn.addEventListener('click', handleUnlock);
+            document.getElementById('download-html-btn').addEventListener('click', downloadHTML);
+            document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
+        }
+        
+        // MODIFIED FOR SUBTRACTION (ALWAYS FROM 10)
+        generateQuestionsData = function() {
+            questions = []; // Clear previous questions
+            for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+                const num1 = 10;
+                let num2;
+                const positionInBlock = (i % QUESTIONS_PER_DOOR) + 1;
+
+                // For secret number questions (every 3rd question in a block), the answer must be a single digit (0-9).
+                // With 10 - num2, this means num2 cannot be 0 for these specific questions.
+                if (positionInBlock % 3 === 0) {
+                    num2 = Math.floor(Math.random() * 10) + 1; // A number from 1 to 10, making the answer 0-9.
+                } else {
+                    num2 = Math.floor(Math.random() * 11); // A number from 0 to 10 for regular questions.
+                }
+                
+                const correctAnswer = num1 - num2;
+                const choices = generateChoices(correctAnswer);
+                questions.push({ 
+                    id: `q${i}`, 
+                    prompt: `${num1} - ${num2} = ___`, 
+                    correctAnswer: correctAnswer, 
+                    choices: choices 
+                });
+            }
+        }
+        
+        // No changes needed here
+        generateChoices = function(correctAnswer) {
+            const choices = new Set([correctAnswer]);
+            while (choices.size < 4) {
+                const wrongChoice = Math.floor(Math.random() * 11);
+                if (wrongChoice !== correctAnswer) { choices.add(wrongChoice); }
+            }
+            return Array.from(choices).sort(() => Math.random() - 0.5);
+        }
+
+        renderQuestion = function(index) {
+            if (!questions[index]) {
+                 if (index >= TOTAL_QUESTIONS) { showCompletionScreen(); } 
+                 else { console.error('Invalid question index:', index); }
+                return;
+            }
+            lockPanel.classList.add('hidden');
+            practiceCenter.classList.remove('hidden');
+            mainNavigation.classList.remove('hidden');
+            const q = questions[index];
+            practiceCenter.innerHTML = `<div id="${q.id}" class="slide active p-4" data-index="${index}"><div class="question-container text-center"><p class="text-4xl md:text-5xl font-bold tracking-wider mb-8">${q.prompt.replace('___', '<span class="text-blue-500">?</span>')}</p><div class="grid grid-cols-2 gap-4 max-w-xs mx-auto">${q.choices.map(choice => `<button class="choice-btn w-full bg-gray-200 text-2xl font-bold p-4 rounded-lg hover:bg-blue-200" data-value="${choice}">${choice}</button>`).join('')}</div><button class="check-answer-btn mt-8 bg-green-500 text-white font-bold py-3 px-8 rounded-lg text-lg hover:bg-green-600 transition-colors">Check Answer</button><div class="feedback-container mt-4 min-h-[30px]"></div></div></div>`;
+            setTimeout(() => restoreQuestionState(q), 0);
+            updateNavigation();
+            updateProgressAndScore();
+        }
+        showLockPanel = function() {
+            const doorNumber = Math.floor(currentIndex / QUESTIONS_PER_DOOR) + 1;
+            practiceCenter.classList.add('hidden');
+            mainNavigation.classList.add('hidden');
+            lockPanel.classList.remove('hidden');
+            document.getElementById('lock-title').textContent = `Unlock Door ${doorNumber}`;
+            document.getElementById('lock-feedback').innerHTML = '';
+            const codeInputs = [document.getElementById('code-1'), document.getElementById('code-2'), document.getElementById('code-3')];
+            codeInputs.forEach(input => input.value = '');
+            codeInputs[0].focus();
+        }
+        updateNavigation = function() {
+            prevBtn.disabled = currentIndex === 0;
+            nextBtn.disabled = currentIndex >= TOTAL_QUESTIONS - 1 || studentProgress[questions[currentIndex]?.id]?.status !== 'correct';
+            questionCounter.textContent = `Question ${currentIndex + 1} of ${TOTAL_QUESTIONS}`;
+        }
+        updateProgressAndScore = function() {
+            const answeredCount = Object.values(studentProgress).filter(p => p.status).length;
+            const score = Object.values(studentProgress).filter(p => p.status === 'correct').length;
+            const progressPercent = (answeredCount / TOTAL_QUESTIONS) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            progressText.textContent = `Progress: ${answeredCount} / ${TOTAL_QUESTIONS}`;
+            scoreText.textContent = `Score: ${score}`;
+        }
+        handleChoiceSelection = function(container, qId, selectedBtn) {
+            if (studentProgress[qId]?.status === 'correct') return;
+            container.querySelectorAll('.choice-btn').forEach(btn => btn.classList.remove('selected'));
+            selectedBtn.classList.add('selected');
+            studentProgress[qId] = { ...studentProgress[qId], selected: parseInt(selectedBtn.dataset.value) };
+            saveProgress();
+        }
+        handleAnswerCheck = function(container, qId) {
+            const questionData = questions.find(q => q.id === qId);
+            const progress = studentProgress[qId];
+            const feedbackContainer = container.querySelector('.feedback-container');
+            if (progress?.selected === undefined) {
+                feedbackContainer.innerHTML = `<p class="feedback-message text-orange-500 font-semibold">Please select an answer first!</p>`;
+                return;
+            }
+            const isCorrect = progress.selected === questionData.correctAnswer;
+            progress.status = isCorrect ? 'correct' : 'incorrect';
+            if (isCorrect) {
+                let feedback = positiveFeedback[Math.floor(Math.random() * positiveFeedback.length)];
+                const questionIndex = questions.findIndex(q => q.id === qId);
+                const positionInBlock = (questionIndex % QUESTIONS_PER_DOOR) + 1;
+                if (positionInBlock % 3 === 0) {
+                     const numberPosition = positionInBlock / 3 === 1 ? 'first' : positionInBlock / 3 === 2 ? 'second' : 'third';
+                     feedback += `<br><strong class="text-indigo-600">The ${numberPosition} secret number is ${questionData.correctAnswer}!</strong>`;
+                }
+                feedbackContainer.innerHTML = `<p class="feedback-message text-green-600 font-bold text-lg">${feedback}</p>`;
+                container.querySelectorAll('.choice-btn').forEach(btn => btn.disabled = true);
+                container.querySelector('.check-answer-btn').disabled = true;
+                setTimeout(() => { renderCurrentState(); }, 1000);
+            } else {
+                const feedback = negativeFeedback[Math.floor(Math.random() * negativeFeedback.length)];
+                feedbackContainer.innerHTML = `<p class="feedback-message text-red-500 font-semibold">${feedback}</p>`;
+            }
+            updateButtonStyles(container, questionData, progress);
+            saveProgress();
+            updateProgressAndScore();
+            updateNavigation();
+        }
+        handleUnlock = function() {
+            const doorIndex = Math.floor(currentIndex / QUESTIONS_PER_DOOR);
+            const codeIndex1 = doorIndex * QUESTIONS_PER_DOOR + 2; const codeIndex2 = doorIndex * QUESTIONS_PER_DOOR + 5; const codeIndex3 = doorIndex * QUESTIONS_PER_DOOR + 8;
+            const correctCode = [questions[codeIndex1].correctAnswer, questions[codeIndex2].correctAnswer, questions[codeIndex3].correctAnswer];
+            const codeInputs = [document.getElementById('code-1'), document.getElementById('code-2'), document.getElementById('code-3')];
+            const userCode = codeInputs.map(input => parseInt(input.value));
+            const lockFeedback = document.getElementById('lock-feedback');
+            if (JSON.stringify(correctCode) === JSON.stringify(userCode)) {
+                lockFeedback.innerHTML = `<p class="text-green-600 animate-pulse text-xl">Door Unlocked! Well done.</p>`;
+                setTimeout(() => {
+                    if (currentIndex < TOTAL_QUESTIONS - 1) { 
+                        currentIndex++; 
+                        renderCurrentState();
+                        if (appState.role === 'teacher') syncPush();
+                    } else { 
+                        showCompletionScreen(); 
+                    }
+                }, 1500);
+            } else {
+                lockFeedback.innerHTML = `<p class="text-red-500">Incorrect code. Check your clues and try again!</p>`;
+                lockPanel.classList.add('shake-error');
+                codeInputs.forEach(input => input.value = '');
+                codeInputs[0].focus();
+                setTimeout(() => lockPanel.classList.remove('shake-error'), 500);
+            }
+        }
+        saveProgress = function() {
+            const state = { progress: studentProgress, currentIndex: currentIndex };
+            localStorage.setItem('make10Progress', JSON.stringify(state));
+        }
+        loadProgress = function() {
+            let savedState = null;
+            const progressDataElement = document.getElementById('progress-data');
+            if (progressDataElement && progressDataElement.textContent.trim()) { try { savedState = JSON.parse(progressDataElement.textContent); } catch (e) { console.error('Error parsing embedded progress data:', e); } }
+            if (!savedState) { const savedProgress = localStorage.getItem('make10Progress'); if (savedProgress) savedState = JSON.parse(savedProgress); }
+            studentProgress = savedState?.progress || {};
+            currentIndex = savedState?.currentIndex || 0;
+        }
+        updateButtonStyles = function(container, questionData, progress) {
+             container.querySelectorAll('.choice-btn').forEach(btn => {
+                 const btnValue = parseInt(btn.dataset.value);
+                 btn.classList.remove('bg-red-400', 'bg-green-400', 'text-white');
+                 if (progress.status === 'correct') { if (btnValue === questionData.correctAnswer) { btn.classList.add('bg-green-400', 'text-white'); } }
+                 else if (progress.status === 'incorrect') { if (btnValue === questionData.correctAnswer) { btn.classList.add('bg-green-400', 'text-white'); } else if (btnValue === progress.selected) { btn.classList.add('bg-red-400', 'text-white'); } }
+             });
+        }
+        restoreQuestionState = function(question) {
+            const questionElement = document.getElementById(question.id);
+            if (!questionElement) return;
+            const progress = studentProgress[question.id];
+            if (!progress) return;
+            const container = questionElement.querySelector('.question-container');
+            if (progress.selected !== undefined) { const selectedBtn = container.querySelector(`.choice-btn[data-value="${progress.selected}"]`); if(selectedBtn) selectedBtn.classList.add('selected'); }
+            if (progress.status === 'correct' || progress.status === 'incorrect') {
+                const feedbackContainer = container.querySelector('.feedback-container');
+                const isCorrect = progress.status === 'correct';
+                 if (isCorrect) {
+                     let feedback = "You got this one right!";
+                      const questionIndex = questions.findIndex(q => q.id === question.id);
+                      const positionInBlock = (questionIndex % QUESTIONS_PER_DOOR) + 1;
+                      if (positionInBlock % 3 === 0) {
+                           const numberPosition = positionInBlock / 3 === 1 ? 'first' : positionInBlock / 3 === 2 ? 'second' : 'third';
+                           feedback += `<br><strong class="text-indigo-600">The ${numberPosition} secret number was ${question.correctAnswer}!</strong>`;
+                      }
+                     feedbackContainer.innerHTML = `<p class="feedback-message text-green-600 font-bold text-lg">${feedback}</p>`;
+                     container.querySelectorAll('.choice-btn').forEach(btn => btn.disabled = true);
+                     container.querySelector('.check-answer-btn').disabled = true;
+                 } else { feedbackContainer.innerHTML = `<p class="feedback-message text-red-500 font-semibold">You answered this one incorrectly.</p>`; }
+                 updateButtonStyles(container, question, progress);
+            }
+        }
+        downloadHTML = function() {
+            const state = { progress: studentProgress, currentIndex: currentIndex };
+            const progressJSON = JSON.stringify(state);
+            const pageHTML = document.documentElement.outerHTML;
+            const finalHTML = pageHTML.replace(/<script id="progress-data" type="application\/json">.*?<\/script>/, `<script id="progress-data" type="application\/json">${progressJSON}<\/script>`);
+            const blob = new Blob([finalHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'my-math-escape-room.html';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        downloadPDF = async function() {
+            if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') { alert('Could not download PDF. A required library failed to load. Please check your internet connection and try again.'); return; }
+            const { jsPDF } = window.jspdf;
+            const printContainer = document.createElement('div');
+            printContainer.style.position = 'absolute'; printContainer.style.left = '-9999px'; printContainer.style.width = '800px'; printContainer.style.padding = '20px'; printContainer.style.backgroundColor = 'white';
+            let contentHTML = `<h1 style="font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 20px;">Escape the Math Room - Student Work</h1><hr style="margin-bottom: 20px;">`;
+            questions.forEach((q, index) => {
+                const progress = studentProgress[q.id];
+                if (!progress || !progress.status) return;
+                let choiceStatus = progress.status === 'correct' ? `<strong style="color: green;">(Correct)</strong>` : `<strong style="color: red;">(Incorrect)</strong>`;
+                contentHTML += `<div style="margin-bottom: 25px; page-break-inside: avoid;"><p style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Question ${index + 1}: ${q.prompt}</p><p style="font-size: 16px;">Your Answer: _**${progress.selected}**_ ${choiceStatus}</p>${progress.status === 'incorrect' ? `<p style="font-size: 16px;">Correct Answer: _**${q.correctAnswer}**_</p>` : ''}</div>`;
+            });
+            printContainer.innerHTML = contentHTML;
+            document.body.appendChild(printContainer);
+            try {
+                const canvas = await html2canvas(printContainer, { scale: 2 });
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
+                const pdfWidth = pdf.internal.pageSize.getWidth(); const pdfHeight = pdf.internal.pageSize.getHeight();
+                const ratio = canvas.width / pdfWidth; const scaledHeight = canvas.height / ratio;
+                let position = 0;
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledHeight);
+                let heightLeft = scaledHeight - pdfHeight;
+                while (heightLeft > 0) { position = -heightLeft; pdf.addPage(); pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledHeight); heightLeft -= pdfHeight; }
+                pdf.save('math-escape-room-work.pdf');
+            } catch (error) { console.error("Error generating PDF:", error); alert("Sorry, there was an error creating the PDF.");
+            } finally { document.body.removeChild(printContainer); }
+        }
+        
+        // --- NEW: Main App Initializer ---
+        function init() {
+            const savedRole = localStorage.getItem('lessonRole');
+            const savedRoom = localStorage.getItem('lessonRoom');
+
+            if (savedRole && savedRoom) {
+                startLesson(savedRole, savedRoom);
+            } else {
+                showSetupModal();
+            }
+            setupModalListeners();
+        }
+
+        // --- Start the App ---
+        init();
+    });
+    </script>
+</body>
+</html>
+
