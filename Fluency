@@ -1,1 +1,40 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS Integration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body{font-family:'Nunito',sans-serif;background-color:#f0f8ff;margin:0;padding:20px;color:#333;text-align:center}.header{margin-bottom:40px}.header h1{font-size:3em;color:#2c5282;margin-bottom:10px}.header .back-link{color:#ff6347;text-decoration:none;font-weight:700;font-size:1.1em}.lesson-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:30px;max-width:1100px;margin:0 auto}.card{background-color:#fff;border-radius:15px;padding:25px;box-shadow:0 4px 10px rgba(0,0,0,0.1);transition:transform .2s,box-shadow .2s;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;cursor:pointer}.card:hover{transform:translateY(-8px);box-shadow:0 8px 20px rgba(0,0,0,0.15)}.card-icon{font-size:4em;margin-bottom:15px}.card h3{font-size:1.5em;color:#ff6347;margin:10px 0}.card p{font-size:1em;color:#555}.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:rgba(0,0,0,0.6);display:none;justify-content:center;align-items:center;z-index:1000}.modal-content{background-color:#fff;border-radius:15px;padding:20px;width:90%;height:85%;max-width:1200px;box-shadow:0 5px 25px rgba(0,0,0,0.3);position:relative;display:flex;flex-direction:column}.close-button{position:absolute;top:-15px;right:-15px;background-color:#ff6347;color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:24px;font-weight:700;cursor:pointer;display:flex;justify-content:center;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,0.2)}#lesson-iframe{width:100%;height:100%;border:none;border-radius:10px}
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>CS Integration</h1>
+        <a href="index.html" class="back-link">← Back to All Grades</a>
+    </header>
+    <main>
+        <div class="lesson-grid">
+            <!-- Edit these 4 cards for your lessons -->
+            <div class="card" data-lesson-src="CS/mat-generator.html">
+                <div class="card-icon">💻</div>
+                <h3>Math Fluency Practice</h3>
+               
+            </div>
+            
+        </div>
+    </main>
+    <div id="lesson-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button id="close-modal" class="close-button">&times;</button>
+            <iframe id="lesson-iframe" src="" title="Interactive Lesson"></iframe>
+        </div>
+    </div>
+    <script>
+        const lessonCards=document.querySelectorAll('.card:not(.placeholder)'),modal=document.getElementById('lesson-modal'),iframe=document.getElementById('lesson-iframe'),closeModalButton=document.getElementById('close-modal');function openModal(e){iframe.src=e,modal.style.display='flex'}function closeModal(){modal.style.display='none',iframe.src=''}lessonCards.forEach(e=>{e.addEventListener('click',()=>{const o=e.getAttribute('data-lesson-src');o&&openModal(o)})}),closeModalButton.addEventListener('click',closeModal),modal.addEventListener('click',e=>{e.target===modal&&closeModal()});
+    </script>
+</body>
+</html>
