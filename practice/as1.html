@@ -16,7 +16,6 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-        /* Removed .screen and .screen.active rules */
         .setup-btn.selected {
             background-color: #3b82f6; /* blue-500 */
             color: white;
@@ -28,11 +27,6 @@
             cursor: not-allowed;
             background-color: #f3f4f6;
             border-color: #e5e7eb;
-        }
-        .tab-btn.active {
-            border-color: #3b82f6;
-            color: #3b82f6;
-            background-color: #eff6ff;
         }
         #answer-input:focus {
             outline: none;
@@ -72,14 +66,13 @@
             top: 0; left: 0; right: 0; bottom: 0;
             background-color: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(4px);
-            /* display: flex; <-- Removed to prevent CSS specificity conflicts */
             align-items: center;
             justify-content: center;
             z-index: 10;
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 flex items-center justify-center min-h-screen">
+<body class="bg-slate-50 text-slate-800 flex items-center justify-center min-h-screen p-4">
 
     <!-- Screen 0: Landing Page -->
     <div id="landing-screen" class="text-center p-8 bg-white rounded-2xl shadow-xl w-full max-w-lg">
@@ -161,16 +154,28 @@
     </div>
 
     <!-- Screen 3: The Scoreboard (Results Screen) -->
-    <div id="results-screen" class="hidden text-center p-8 bg-white rounded-2xl shadow-xl w-full max-w-lg relative overflow-hidden">
+    <div id="results-screen" class="hidden text-center p-8 bg-white rounded-2xl shadow-xl w-full max-w-3xl relative overflow-hidden">
         <canvas id="fireworks-canvas"></canvas>
         <h2 class="text-5xl font-bold text-blue-600 mb-4">Time's Up!</h2>
-        <div class="bg-slate-100 p-6 rounded-lg mb-8">
-            <p class="text-slate-600 text-xl">Your Final Score:</p>
-            <p id="final-score" class="text-8xl font-bold my-2"></p>
-        </div>
-        <div class="text-left space-y-3 text-lg">
-            <p id="total-answered" class="text-slate-700"></p>
-            <p id="accuracy" class="text-slate-700"></p>
+        <div class="flex flex-col md:flex-row gap-6">
+            <!-- Individual Score -->
+            <div class="flex-1">
+                <div class="bg-slate-100 p-6 rounded-lg mb-6">
+                    <p class="text-slate-600 text-xl">Your Final Score:</p>
+                    <p id="final-score" class="text-8xl font-bold my-2"></p>
+                </div>
+                <div class="text-left space-y-3 text-lg">
+                    <p id="total-answered" class="text-slate-700"></p>
+                    <p id="accuracy" class="text-slate-700"></p>
+                </div>
+            </div>
+            <!-- Classroom Leaderboard -->
+            <div id="scoreboard-container" class="flex-1 hidden">
+                <h3 class="text-3xl font-bold text-slate-700 mb-4">🏆 Leaderboard</h3>
+                <div class="bg-slate-100 p-4 rounded-lg">
+                    <ol id="scoreboard-list" class="space-y-2 text-left"></ol>
+                </div>
+            </div>
         </div>
         <button id="play-again-btn" class="w-full bg-blue-600 text-white font-bold py-4 mt-8 rounded-lg text-xl transition-colors hover:bg-blue-700">Play Again</button>
     </div>
@@ -221,6 +226,8 @@
             const totalAnswered = document.getElementById('total-answered');
             const accuracyDisplay = document.getElementById('accuracy');
             const playAgainBtn = document.getElementById('play-again-btn');
+            const scoreboardContainer = document.getElementById('scoreboard-container');
+            const scoreboardList = document.getElementById('scoreboard-list');
 
             // --- App State ---
             const appState = {
@@ -229,6 +236,7 @@
                 room: null,
                 studentName: '',
                 dbUnsubscribe: null,
+                scoreboardUnsubscribe: null,
                 gameStartedByTeacher: false,
             };
 
@@ -245,16 +253,8 @@
 
             // --- Screen Management ---
             function showScreen(screenName) {
-                // Hide all screens first
-                Object.values(screens).forEach(screen => {
-                    screen.classList.add('hidden');
-                });
-                
-                // The role modal uses flex, so it needs special handling
+                Object.values(screens).forEach(screen => screen.classList.add('hidden'));
                 screens.roleModal.classList.remove('flex');
-
-
-                // Show the target screen
                 const targetScreen = screens[screenName];
                 if (targetScreen) {
                     targetScreen.classList.remove('hidden');
@@ -269,14 +269,11 @@
 
             // --- Landing Page Logic ---
             independentBtn.addEventListener('click', () => {
-                // --- THOROUGH RESET FOR INDEPENDENT MODE ---
                 appState.mode = 'independent';
                 appState.role = 'student'; 
                 appState.room = null;
-                if (appState.dbUnsubscribe) {
-                    appState.dbUnsubscribe();
-                    appState.dbUnsubscribe = null;
-                }
+                if (appState.dbUnsubscribe) { appState.dbUnsubscribe(); appState.dbUnsubscribe = null; }
+                if (appState.scoreboardUnsubscribe) { appState.scoreboardUnsubscribe(); appState.scoreboardUnsubscribe = null; }
                 roleRoomBadge.textContent = "Independent Practice";
                 waitingOverlay.classList.add('hidden');
                 waitingOverlay.classList.remove('flex');
@@ -295,7 +292,6 @@
 
             classroomBtn.addEventListener('click', () => {
                 appState.mode = 'classroom';
-                // Reset role modal to default student view
                 document.querySelector('input[name="role"][value="student"]').checked = true;
                 studentNameInput.classList.remove('hidden');
                 teacherPasswordField.classList.add('hidden');
@@ -329,24 +325,12 @@
                 const role = document.querySelector('input[name="role"]:checked').value;
                 const password = teacherPasswordField.value;
                 const studentName = studentNameInput.value.trim();
-
-                if (!room) {
-                    alert('Please provide a room code.');
-                    return;
+                if (!room || (role === 'student' && !studentName) || (role === 'teacher' && password !== TEACHER_PASSWORD)) {
+                    alert('Please fill out all fields correctly.'); return;
                 }
-                if (role === 'student' && !studentName) {
-                    alert('Please enter your name.');
-                    return;
-                }
-                if (role === 'teacher' && password !== TEACHER_PASSWORD) {
-                    alert('Incorrect teacher password.');
-                    return;
-                }
-                
                 appState.role = role;
                 appState.room = room;
                 appState.studentName = studentName;
-                
                 showScreen('setup');
                 setupClassroomMode();
             });
@@ -361,11 +345,7 @@
                 
                 if (appState.role === 'teacher') {
                     startBtn.textContent = 'Start Challenge for Everyone';
-                    syncStateToFirebase({
-                        gameMode: null,
-                        timeLimit: null,
-                        gameStatus: 'waiting'
-                    });
+                    syncStateToFirebase({ gameMode: null, timeLimit: null, gameStatus: 'waiting' });
                 } else { // Student
                     waitingOverlay.classList.remove('hidden');
                     waitingOverlay.classList.add('flex');
@@ -378,24 +358,16 @@
             function syncStateToFirebase(data) {
                 if (appState.role !== 'teacher' || !appState.room) return;
                 const roomRef = db.collection('rooms').doc(appState.room);
-                roomRef.set({
-                    ...data,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
+                roomRef.set({ ...data, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
             }
 
             function listenForGameChanges() {
                 if (appState.role !== 'student' || !appState.room) return;
                 const roomRef = db.collection('rooms').doc(appState.room);
                 appState.dbUnsubscribe = roomRef.onSnapshot(doc => {
-                    if (!doc.exists) {
-                        console.log("Waiting for teacher to create the room...");
-                        return;
-                    }
+                    if (!doc.exists) return;
                     const data = doc.data();
-                    
                     updateStudentSetupUI(data);
-
                     if (data.gameStatus === 'running' && !appState.gameStartedByTeacher) {
                         appState.gameStartedByTeacher = true;
                         gameState.currentMode = data.gameMode;
@@ -411,12 +383,10 @@
                 modeSelectionContainer.querySelectorAll('.setup-btn').forEach(btn => {
                     btn.classList.toggle('selected', btn.dataset.mode === data.gameMode);
                 });
-                
                 if(data.gameMode) {
                     timeSelectionStep.classList.remove('hidden-step');
                     timeSelectionStep.classList.add('visible-step');
                 }
-
                 timeSelectionContainer.querySelectorAll('.setup-btn').forEach(btn => {
                     btn.classList.toggle('selected', parseInt(btn.dataset.time) === data.timeLimit);
                 });
@@ -427,16 +397,17 @@
             modeSelectionContainer.addEventListener('click', (e) => {
                 if (appState.mode === 'classroom' && appState.role === 'student') return;
                 if (e.target.classList.contains('setup-btn')) {
+                    // This is a single-select challenge now, not multi-select
                     modeSelectionContainer.querySelectorAll('.setup-btn').forEach(btn => btn.classList.remove('selected'));
                     e.target.classList.add('selected');
                     gameState.currentMode = e.target.dataset.mode;
                     gameState.currentModeText = e.target.textContent;
                     timeSelectionStep.classList.remove('hidden-step');
                     timeSelectionStep.classList.add('visible-step');
-
                     if (appState.mode === 'classroom') {
                         syncStateToFirebase({ gameMode: gameState.currentMode });
                     }
+                    checkIfReadyToStart();
                 }
             });
 
@@ -446,18 +417,24 @@
                     timeSelectionContainer.querySelectorAll('.setup-btn').forEach(btn => btn.classList.remove('selected'));
                     e.target.classList.add('selected');
                     gameState.timeLimit = parseInt(e.target.dataset.time);
-                    startBtn.disabled = false;
-                    startBtn.classList.remove('bg-slate-300', 'cursor-not-allowed');
-                    startBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-
                     if (appState.mode === 'classroom') {
                         syncStateToFirebase({ timeLimit: gameState.timeLimit });
                     }
+                    checkIfReadyToStart();
                 }
             });
+            
+            function checkIfReadyToStart() {
+                const isReady = gameState.currentMode && gameState.timeLimit > 0;
+                 startBtn.disabled = !isReady;
+                startBtn.classList.toggle('bg-slate-300', !isReady);
+                startBtn.classList.toggle('cursor-not-allowed', !isReady);
+                startBtn.classList.toggle('bg-blue-600', isReady);
+                startBtn.classList.toggle('hover:bg-blue-700', isReady);
+            }
 
             startBtn.addEventListener('click', () => {
-                if (gameState.timeLimit > 0 && gameState.currentMode) {
+                if (!startBtn.disabled) {
                     if (appState.mode === 'classroom' && appState.role === 'teacher') {
                         syncStateToFirebase({ gameStatus: 'running' });
                     }
@@ -504,32 +481,11 @@
 
             function generateProblem() {
                 let num1, num2, problemString;
-                
                 switch (gameState.currentMode) {
-                    case 'add10':
-                        num1 = Math.floor(Math.random() * 11);
-                        num2 = Math.floor(Math.random() * (11 - num1));
-                        gameState.correctAnswer = num1 + num2;
-                        problemString = `${num1} + ${num2} =`;
-                        break;
-                    case 'sub10':
-                        num1 = Math.floor(Math.random() * 11);
-                        num2 = Math.floor(Math.random() * (num1 + 1));
-                        gameState.correctAnswer = num1 - num2;
-                        problemString = `${num1} - ${num2} =`;
-                        break;
-                    case 'add20':
-                        num1 = Math.floor(Math.random() * 21);
-                        num2 = Math.floor(Math.random() * (21 - num1));
-                        gameState.correctAnswer = num1 + num2;
-                        problemString = `${num1} + ${num2} =`;
-                        break;
-                    case 'sub20':
-                        num1 = Math.floor(Math.random() * 21);
-                        num2 = Math.floor(Math.random() * (num1 + 1));
-                        gameState.correctAnswer = num1 - num2;
-                        problemString = `${num1} - ${num2} =`;
-                        break;
+                    case 'add10': num1 = Math.floor(Math.random() * 11); num2 = Math.floor(Math.random() * (11 - num1)); gameState.correctAnswer = num1 + num2; problemString = `${num1} + ${num2} =`; break;
+                    case 'sub10': num1 = Math.floor(Math.random() * 11); num2 = Math.floor(Math.random() * (num1 + 1)); gameState.correctAnswer = num1 - num2; problemString = `${num1} - ${num2} =`; break;
+                    case 'add20': num1 = Math.floor(Math.random() * 21); num2 = Math.floor(Math.random() * (21 - num1)); gameState.correctAnswer = num1 + num2; problemString = `${num1} + ${num2} =`; break;
+                    case 'sub20': num1 = Math.floor(Math.random() * 21); num2 = Math.floor(Math.random() * (num1 + 1)); gameState.correctAnswer = num1 - num2; problemString = `${num1} - ${num2} =`; break;
                 }
                 problemText.textContent = problemString;
                 answerInput.value = '';
@@ -561,18 +517,58 @@
                 setTimeout(() => answerInput.classList.remove(className), 400);
             }
 
+            // --- End Game & Scoreboard Logic ---
             function endGame() {
                 clearInterval(gameState.timerInterval);
-                if (appState.dbUnsubscribe) appState.dbUnsubscribe(); // Stop listening
+                if (appState.dbUnsubscribe) appState.dbUnsubscribe();
                 finalScore.textContent = gameState.score;
                 totalAnswered.innerHTML = `You correctly answered <strong>${gameState.score}</strong> questions.`;
                 const accuracy = gameState.totalAttempts > 0 ? Math.round((gameState.score / gameState.totalAttempts) * 100) : 0;
                 accuracyDisplay.innerHTML = `Your accuracy was <strong>${accuracy}%</strong>.`;
+                
+                if (appState.mode === 'classroom' && appState.role !== 'teacher') {
+                    submitAndShowScoreboard();
+                }
+
                 showScreen('results');
                 startFireworks();
             }
 
+            function submitAndShowScoreboard() {
+                const scoresRef = db.collection('rooms').doc(appState.room).collection('scores');
+                scoresRef.doc(appState.studentName).set({
+                    name: appState.studentName,
+                    score: gameState.score
+                }).then(() => {
+                    scoreboardContainer.classList.remove('hidden');
+                    appState.scoreboardUnsubscribe = scoresRef.orderBy('score', 'desc').limit(5).onSnapshot(snapshot => {
+                        scoreboardList.innerHTML = '';
+                        if (snapshot.empty) {
+                            scoreboardList.innerHTML = '<li class="text-slate-500">No scores yet. You are the first!</li>';
+                            return;
+                        }
+                        let rank = 1;
+                        snapshot.forEach(doc => {
+                            const data = doc.data();
+                            const li = document.createElement('li');
+                            li.className = 'flex justify-between items-center p-2 rounded-md';
+                            if (data.name === appState.studentName) {
+                                li.classList.add('bg-blue-100');
+                            }
+                            li.innerHTML = `
+                                <span class="font-bold text-blue-600">${rank}. ${data.name}</span>
+                                <span class="font-semibold text-slate-700">${data.score}</span>
+                            `;
+                            scoreboardList.appendChild(li);
+                            rank++;
+                        });
+                    });
+                }).catch(err => console.error("Error submitting score:", err));
+            }
+
+
             playAgainBtn.addEventListener('click', () => {
+                if (appState.scoreboardUnsubscribe) appState.scoreboardUnsubscribe();
                 location.reload();
             });
 
@@ -590,11 +586,9 @@
                 requestAnimationFrame(animateFireworks);
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
                 ctx.fillRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
-                [...fireworks, ...particles].forEach((obj, index) => {
-                    if (obj.done) {
-                        if (obj instanceof Firework) fireworks.splice(index, 1);
-                        else particles.splice(index, 1);
-                    } else { obj.update(); obj.draw(); }
+                [...fireworks, ...particles].forEach((obj, index, arr) => {
+                    if (obj.done) { arr.splice(index, 1); } 
+                    else { obj.update(); obj.draw(); }
                 });
             }
             class Firework { 
