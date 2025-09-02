@@ -3,919 +3,1164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Great Math Escape</title>
+    <title>Escape the Math Mansion</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Lato&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" xintegrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoVBL5gI9kLmbG4dGxdFTDSrPT0Ldg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/973d52cf34.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" xintegrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoVBL5gI9kLmbG4WdKxgImTTJHiVig==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" xintegrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
     <style>
-        body { font-family: 'Lato', sans-serif; background-color: #1a202c; }
-        .font-title { font-family: 'Cinzel Decorative', cursive; }
-        .tab-active { background-color: #fcd34d; color: #1e293b; }
-        .tab-inactive { background-color: #4a5568; color: #e2e8f0; }
-        .slide { display: none; }
-        .slide.active { display: block; animation: fadeIn 0.5s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .feedback { display: none; }
-        .drop-target { border: 2px dashed #4a5568; min-height: 40px; transition: background-color 0.2s; }
-        .drop-target.over { background-color: #374151; }
-        .draggable { cursor: grab; user-select: none; }
-        .draggable:active { cursor: grabbing; }
-        .correct-answer { border: 2px solid #34d399 !important; background-color: #103c2b !important; }
-        .incorrect-answer { border: 2px solid #ef4444 !important; background-color: #450a0a !important; }
-        .btn-glow { box-shadow: 0 0 5px #fcd34d, 0 0 10px #fcd34d; transition: box-shadow 0.3s; }
-        .btn-glow:hover { box-shadow: 0 0 10px #fcd34d, 0 0 20px #fcd34d; }
-        textarea { resize: none; overflow: hidden; }
-        .speaker-icon { cursor: pointer; color: #9ca3af; transition: color 0.2s; }
-        .speaker-icon:hover { color: #fcd34d; }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Lora', serif; }
+        .tab-active { border-color: #FBBF24; color: #FBBF24; background-color: rgba(251, 191, 36, 0.1); }
+        .slide-container { transition: transform 0.3s ease-in-out; }
+        .feedback-correct { border: 2px solid #22C55E; animation: correct-flash 0.5s ease; }
+        .feedback-incorrect { border: 2px solid #EF4444; animation: incorrect-shake 0.4s ease; }
+        @keyframes correct-flash { 0% { box-shadow: 0 0 10px #22C55E; } 100% { box-shadow: none; } }
+        @keyframes incorrect-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .draggable-item { touch-action: none; }
+        .drop-target-active { background-color: rgba(251, 191, 36, 0.2); border-style: dashed; }
+        .disabled-nav { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
-<body class="text-gray-200">
-
-    <div id="app" class="max-w-4xl mx-auto p-4">
-        <h1 class="font-title text-4xl text-center text-yellow-300 mb-4">The Great Math Escape</h1>
-
-        <!-- Main Navigation -->
-        <div id="main-nav" class="flex justify-center mb-4 border-b-2 border-gray-700">
-            <!-- Tabs will be inserted here -->
-        </div>
-
-        <!-- Content Area -->
-        <div id="content-area" class="bg-gray-800 p-6 rounded-lg shadow-lg min-h-[500px]">
-            <!-- Day content will be inserted here -->
-        </div>
-        
-        <div class="flex justify-center gap-4 mt-4">
-            <button id="download-html-btn" class="bg-purple-600 text-white px-4 py-2 rounded btn-glow">Download Work (HTML)</button>
-            <button id="download-pdf-btn" class="bg-teal-600 text-white px-4 py-2 rounded btn-glow">Download as PDF</button>
+<body class="bg-gray-800 text-gray-100 antialiased">
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-gray-800 border border-gray-700 rounded-lg p-8 max-w-sm w-full shadow-2xl">
+            <h2 class="text-2xl font-bold text-center text-amber-300 mb-6">Join Session</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-gray-400">Select Role:</label>
+                    <div class="flex items-center space-x-4 mt-2">
+                        <label class="flex items-center">
+                            <input type="radio" name="role" value="Student" class="form-radio h-4 w-4 text-amber-500 bg-gray-700 border-gray-600 focus:ring-amber-500" checked>
+                            <span class="ml-2">Student</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="role" value="Teacher" class="form-radio h-4 w-4 text-amber-500 bg-gray-700 border-gray-600 focus:ring-amber-500">
+                            <span class="ml-2">Teacher</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="teacher-password-container" class="hidden">
+                    <label for="teacher-password" class="text-gray-400">Teacher Password:</label>
+                    <input type="password" id="teacher-password" class="w-full mt-1 p-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-400">
+                </div>
+                <div>
+                    <label for="room-name" class="text-gray-400">Room Name:</label>
+                    <input type="text" id="room-name" class="w-full mt-1 p-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="e.g., class-a">
+                </div>
+                <button id="open-lesson-btn" class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold rounded-lg transition-colors">Start Lesson</button>
+            </div>
         </div>
     </div>
 
-    <!-- Hidden file input for image uploads -->
-    <input type="file" id="image-uploader" class="hidden" accept="image/*">
+    <div id="app-container" class="max-w-5xl mx-auto p-4 md:p-6 lg:p-8 hidden">
+        <header class="text-center mb-6 p-4 rounded-lg bg-gray-900/50 backdrop-blur-sm border border-gray-700">
+            <div class="flex justify-between items-center">
+                <div class="text-left">
+                    <span id="role-room-badge" class="px-3 py-1 bg-gray-700 text-sm rounded-full"></span>
+                    <button id="change-role-room-btn" class="ml-2 text-xs text-amber-400 hover:underline">Change</button>
+                </div>
+                 <div id="teacher-controls" class="hidden items-center space-x-3">
+                     <label for="sync-toggle" class="text-sm font-medium text-gray-300">Sync Students:</label>
+                    <input type="checkbox" id="sync-toggle" class="form-checkbox h-5 w-5 text-amber-500 bg-gray-700 border-gray-600 rounded focus:ring-amber-500 cursor-pointer">
+                </div>
+                <div></div>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-bold text-amber-300 -mt-4">Escape the Math Mansion</h1>
+            <div id="progress-locks" class="flex justify-center space-x-6 text-3xl mt-4 text-gray-500">
+                <!-- Progress locks will be rendered here -->
+            </div>
+        </header>
 
-    <!-- JSON Data -->
-    <script id="lesson-data" type="application/json">
-    {
-      "title": "The Great Math Escape",
-      "days": [
-        {
-          "id": "day1",
-          "title": "Day 1",
-          "lesson": {
-            "title": "The Code-Cracking Challenge",
-            "standard": "4.PAFR.1.1 - Use a strategy to accurately compute sums and differences of whole numbers up to 100,000.",
-            "slides": [
-              { "type": "hook", "title": "A Secret Message!", "content": "Welcome, Detective! Your first challenge is to solve a word problem to find the first number of the secret code. The message says: 'If you have 5 keys and find 3 more, what number key opens the first lock?' What is the story about? How can we turn this into a math problem?" },
-              { "type": "discussion", "title": "The Strategy: Story-Number Sentence-Answer", "content": "To be a great detective, we use a three-step strategy:\n1. **Understand the Story:** What's happening? Are things being joined or taken away?\n2. **Write a Number Sentence:** Turn the story into math using numbers and a '?' for the unknown part.\n3. **Solve for the Answer:** Do the math and check if your answer makes sense!" },
-              { "type": "i-do", "title": "I Do: Watch Me Solve a Clue", "content": "Here's a clue: 'The team collected 2,150 gold coins and then found 1,230 more. How many coins do they have in all?'\n**Story:** The team is joining two groups of coins, so I'll add.\n**Number Sentence:** 2,150 + 1,230 = ?\n**Answer:** 3,380 coins. Now you try some practice steps with me." },
-              { "id": "d1_l1_q1", "type": "mc", "prompt": "The problem says 'A dragon has 1,450 gems and gives 310 away.' What is the action in this story?", "visual": "emoji:🐉", "data": { "options": ["Joining gems", "Separating gems", "Counting gems"] }, "correct": "Separating gems" },
-              { "id": "d1_l1_q2", "type": "drag-drop-match", "prompt": "Drag the parts to make the correct number sentence for that story.", "visual": "icon:fa-solid fa-equals", "data": { "draggables": ["1,450", "310", "-", "=", "?"], "dropTargets": ["Box1", "Box2", "Box3", "Box4", "Box5"] }, "correct": { "1,450": "Box1", "-": "Box2", "310": "Box3", "=": "Box4", "?": "Box5" } },
-              { "id": "d1_l1_q3", "type": "text-box", "prompt": "What is the final answer to the dragon's gem problem?", "visual": "emoji:💎", "data": { "size": 10 }, "correct": "1140" },
-              { "type": "we-do", "title": "We Do: Let's Solve Together", "content": "Work with your team to solve these clues. For each one, talk about the story and the number sentence before you answer." },
-              { "id": "d1_l2_q1", "type": "mc", "prompt": "A dragon has 3,456 gems and gives away 1,234. Is the story about joining or separating?", "visual": "icon:fa-solid fa-right-left", "data": { "options": ["Joining", "Separating"] }, "correct": "Separating" },
-              { "id": "d1_l2_q2", "type": "text-box", "prompt": "Write the number sentence for the dragon problem.", "visual": "icon:fa-solid fa-pen-to-square", "data": { "size": 30 }, "correct": "3456 - 1234 = ?" },
-              { "id": "d1_l2_q3", "type": "drag-drop-sort", "prompt": "Sort the story actions.", "visual": "icon:fa-solid fa-sort", "data": { "items": ["Finding a total", "Losing something", "Giving something away", "Combining two things"], "categories": ["Addition", "Subtraction"] }, "correct": { "Addition": ["Finding a total", "Combining two things"], "Subtraction": ["Losing something", "Giving something away"] } },
-              { "id": "d1_l2_q4", "type": "true-false", "prompt": "The number sentence for 'The difference between 8,999 and 4,500' is 8,999 + 4,500 = ?. True or False?", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "id": "d1_l2_q5", "type": "mc", "prompt": "A castle has 4,500 rooms. 1,250 are empty. How many are full?", "visual": "icon:fa-solid fa-castle", "data": { "options": ["5,750", "3,250", "3,350"] }, "correct": "3250" },
-              { "id": "d1_l2_q6", "type": "text-box", "prompt": "Write the number sentence for the castle problem.", "visual": "icon:fa-solid fa-pen-to-square", "data": { "size": 30 }, "correct": "4500 - 1250 = ?" },
-              { "id": "d1_l2_q7", "type": "mc", "prompt": "The word 'sum' means the answer to a(n) ______ problem.", "visual": "emoji:➕", "data": { "options": ["addition", "subtraction", "multiplication"] }, "correct": "addition" },
-              { "id": "d1_l2_q8", "type": "true-false", "prompt": "The story is: A wizard is 987 years old and a gnome is 345. We want to know how much older the wizard is. The number sentence should use addition. True or False?", "visual": "emoji:🧙", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "id": "d1_l2_q9", "type": "drag-drop-match", "prompt": "Match the story to the operation.", "visual": "icon:fa-solid fa-right-left", "data": { "draggables": ["Gaining 1,000 points", "Losing 500 points"], "dropTargets": ["Addition", "Subtraction"] }, "correct": { "Gaining 1,000 points": "Addition", "Losing 500 points": "Subtraction" } },
-              { "id": "d1_l2_q10", "type": "text-box", "prompt": "Solve: 7,654 - 3,210 = ?", "visual": "emoji:🟰", "data": { "size": 10 }, "correct": "4444" },
-              { "type": "you-do", "title": "You Do: Your Turn to Crack the Code!", "content": "Now it's your turn to work as a solo detective. Solve these problems to find the digits for the passcode." },
-              { "id": "d1_l3_q1", "type": "mc", "prompt": "The royal bakery made 2,468 cupcakes. The queen bought 1,234. How many are left?", "visual": "emoji:🧁", "data": { "options": ["1,234", "3,702", "1,232"] }, "correct": "1234" },
-              { "id": "d1_l3_q2", "type": "text-box", "prompt": "A knight polished 3,450 shields on Monday and 4,120 shields on Tuesday. How many shields did he polish in total?", "visual": "icon:fa-solid fa-shield-halved", "data": { "size": 10 }, "correct": "7570" },
-              { "id": "d1_l3_q3", "type": "true-false", "prompt": "The story about the knight involves separating shields, so I should subtract. True or False?", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "id": "d1_l3_q4", "type": "mc", "prompt": "The castle library has 8,765 books. 3,456 are about magic. How many are not about magic?", "visual": "icon:fa-solid fa-book-skull", "data": { "options": ["12,221", "5,309", "5,311"] }, "correct": "5309" },
-              { "id": "d1_l3_q5", "type": "text-box", "prompt": "Write the number sentence for the library problem.", "visual": "icon:fa-solid fa-pen-to-square", "data": { "size": 30 }, "correct": "8765 - 3456 = ?" }
-            ]
-          },
-          "assessment": {
-            "title": "Day 1 Assessment",
-            "questions": [
-              { "id": "d1_a_q1", "type": "mc", "prompt": "The problem states: 'A giant collected 5,432 boulders and his brother collected 3,210 boulders. How many did they collect in all?' What is the story about?", "visual": "A pile of grey boulders.", "data": { "options": ["A giant losing boulders", "Two giants separating their boulders", "Two giants joining their collections of boulders"] }, "correct": "Two giants joining their collections of boulders" },
-              { "id": "d1_a_q2", "type": "e-bsr", "prompt": "The royal guard had 7,890 arrows. After a practice session, they had 5,430 arrows left.", "visual": "icon:fa-solid fa-crosshairs", "data": { "partA": { "prompt": "Did the number of arrows increase or decrease?", "options": ["Increase", "Decrease"] }, "partB": { "prompt": "Which number sentence matches the story?", "options": ["7,890 + 5,430 = ?", "7,890 - ? = 5,430"] } }, "correct": { "partA": "Decrease", "partB": "7,890 - ? = 5,430" } },
-              { "id": "d1_a_q3", "type": "multi-select", "prompt": "A wizard needs 8,500 magic crystals for a spell. He has 4,250. Which of the following number sentences could be used to find out how many more he needs? (Select two)", "visual": "A glowing purple crystal.", "data": { "options": ["8,500 + 4,250 = ?", "4,250 + ? = 8,500", "8,500 - 4,250 = ?", "8,500 - ? = 4,250"] }, "correct": ["4,250 + ? = 8,500", "8,500 - 4,250 = ?"] },
-              { "id": "d1_a_q4", "type": "text-box", "prompt": "A treasure chest contains 6,543 gold coins. A pirate adds 2,100 more coins to the chest. Explain in one sentence how the story tells you to add.", "visual": "icon:fa-solid fa-treasure-chest", "data": { "size": 150 }, "correct": "The story says the pirate 'adds' more coins, which means the two groups of coins are being joined together." },
-              { "id": "d1_a_q5", "type": "drag-drop-sort", "prompt": "Sort the problem descriptions into the correct operation category needed to solve them.", "visual": "icon:fa-solid fa-sort", "data": { "items": ["Finding the total of two armies.", "Calculating how many dragons are left after some fly away.", "Combining two piles of gold.", "Figuring out how much taller one tower is than another."], "categories": ["Addition", "Subtraction"] }, "correct": { "Addition": ["Finding the total of two armies.", "Combining two piles of gold."], "Subtraction": ["Calculating how many dragons are left after some fly away.", "Figuring out how much taller one tower is than another."] } }
-            ]
-          }
-        },
-        {
-          "id": "day2",
-          "title": "Day 2",
-          "lesson": {
-            "title": "The Missing Numbers Mystery",
-            "standard": "4.PAFR.1.1 - Use a strategy to accurately compute sums and differences of whole numbers up to 100,000.",
-            "slides": [
-              { "type": "hook", "title": "The Missing Piece", "content": "Yesterday, we always knew the beginning of the story. But what if we only know the end? 'The royal vault had some gold bars. The king added 2,000 more. Now there are 5,000 bars. How many were there to start with?'" },
-              { "type": "discussion", "title": "Part-Part-Whole Detective", "content": "Think of problems like a puzzle with three pieces: Part + Part = Whole. If you know the Whole and one Part, you can find the missing part by subtracting! (Whole - Part = ?)" },
-              { "type": "i-do", "title": "I Do: Finding the Start", "content": "'Some knights were in the castle. 1,200 more arrived. Now there are 3,500 knights.'\n**Story:** The end total is 3,500 (the Whole). The part that was added is 1,200. The start is the missing part.\n**Number Sentence:** ? + 1,200 = 3,500.\n**Answer:** To solve, I subtract: 3,500 - 1,200 = 2,300." },
-              { "id": "d2_l1_q1", "type": "drag-drop-match", "prompt": "In the story, 'A dragon had 4,000 gems, then lost some. Now it has 1,500.' Drag the numbers to the correct box.", "visual": "A part-part-whole mat.", "data": { "draggables": ["4,000", "1,500"], "dropTargets": ["Whole", "Part"] }, "correct": { "4,000": "Whole", "1,500": "Part" } },
-              { "id": "d2_l1_q2", "type": "mc", "prompt": "Which number sentence matches that story?", "visual": "icon:fa-solid fa-pen-to-square", "data": { "options": ["4,000 + 1,500 = ?", "4,000 - ? = 1,500"] }, "correct": "4,000 - ? = 1,500" },
-              { "id": "d2_l1_q3", "type": "true-false", "prompt": "The missing number (the gems it lost) will be larger than 4,000. True or False?", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "type": "we-do", "title": "We Do: Group Investigation", "content": "With your team, solve these missing number mysteries. Use a part-part-whole model to help you write the number sentence." },
-              { "id": "d2_l2_q1", "type": "text-box", "prompt": "A princess had some jewels. She received 500 more. Now she has 2,500. How many did she start with?", "visual": "emoji:👸", "data": { "size": 10 }, "correct": "2000" },
-              { "id": "d2_l2_q2", "type": "mc", "prompt": "A castle had 8,000 residents. Some moved away. Now there are 6,500. How many moved away?", "visual": "icon:fa-solid fa-person-walking-arrow-right", "data": { "options": ["1,500", "2,500", "14,500"] }, "correct": "1500" },
-              { "id": "d2_l2_q3", "type": "true-false", "prompt": "If you know the whole is 9,000 and a part is 3,000, the other part is 6,000. True or False?", "visual": "A bar model showing a whole and two parts.", "data": { "options": ["True", "False"] }, "correct": "True" },
-              { "id": "d2_l2_q4", "type": "drag-drop-sort", "prompt": "Sort the problem types.", "visual": "icon:fa-solid fa-sort", "data": { "items": ["300 + 400 = ?", "? + 400 = 700"], "categories": ["Result Unknown", "Start Unknown"] }, "correct": { "Result Unknown": ["300 + 400 = ?"], "Start Unknown": ["? + 400 = 700"] } },
-              { "id": "d2_l2_q5", "type": "text-box", "prompt": "An army had 5,500 soldiers. After a battle, only 3,200 remained. How many soldiers were lost?", "visual": "icon:fa-solid fa-shield-slashed", "data": { "size": 10 }, "correct": "2300" },
-              { "id": "d2_l2_q6", "type": "mc", "prompt": "In the problem '5,000 - ? = 2,000', the number 5,000 is the...", "visual": "emoji:🧩", "data": { "options": ["part", "whole"] }, "correct": "whole" },
-              { "id": "d2_l2_q7", "type": "true-false", "prompt": "You can solve '? + 1,500 = 4,000' by calculating 4,000 + 1,500. True or False?", "visual": "emoji:✖️", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "id": "d2_l2_q8", "type": "text-box", "prompt": "Solve: ? - 3,210 = 4,321.", "visual": "emoji:🟰", "data": { "size": 10 }, "correct": "7531" },
-              { "id": "d2_l2_q9", "type": "drag-drop-match", "prompt": "Match the question to the model.", "visual": "icon:fa-solid fa-right-left", "data": { "draggables": ["Start Unknown", "Change Unknown"], "dropTargets": ["? + 10 = 50", "50 - ? = 40"] }, "correct": { "Start Unknown": "? + 10 = 50", "Change Unknown": "50 - ? = 40" } },
-              { "id": "d2_l2_q10", "type": "mc", "prompt": "A wizard had 1,234 potions. He made some more. Now he has 3,456. How many did he make?", "visual": "emoji:🧪", "data": { "options": ["4,690", "2,222", "2,232"] }, "correct": "2222" },
-              { "type": "you-do", "title": "You Do: Follow the Map", "content": "The clues are now missing number problems. Solving each problem gives you a piece of a map to find the next challenge." },
-              { "id": "d2_l3_q1", "type": "text-box", "prompt": "An army had some soldiers. After 2,345 more soldiers joined, the army had 7,890 soldiers. How many were there at the start?", "visual": "icon:fa-solid fa-users", "data": { "size": 10 }, "correct": "5545" },
-              { "id": "d2_l3_q2", "type": "mc", "prompt": "Which number sentence matches that story?", "visual": "icon:fa-solid fa-pen-to-square", "data": { "options": ["? + 2,345 = 7,890", "7,890 + 2,345 = ?"] }, "correct": "? + 2,345 = 7,890" },
-              { "id": "d2_l3_q3", "type": "true-false", "prompt": "A king had 9,999 gold coins and spent some. If he has 5,432 left, he spent more than 4,000 coins. True or False?", "visual": "emoji:👑", "data": { "options": ["True", "False"] }, "correct": "True" },
-              { "id": "d2_l3_q4", "type": "text-box", "prompt": "A library had 8,765 books. After a donation, it had 9,999 books. How many books were donated?", "visual": "icon:fa-solid fa-book", "data": { "size": 10 }, "correct": "1234" },
-              { "id": "d2_l3_q5", "type": "mc", "prompt": "Which equation matches this problem: A dragon ate some sheep. It had started with 1,200 sheep and now has 800 left.", "visual": "emoji:🐑", "data": { "options": ["1,200 + 800 = ?", "1,200 - ? = 800", "? - 1200 = 800"] }, "correct": "1,200 - ? = 800" }
-            ]
-          },
-          "assessment": {
-            "title": "Day 2 Assessment",
-            "questions": [
-              { "id": "d2_a_q1", "type": "mc", "prompt": "In a 'start unknown' problem like '? + 500 = 1,500', what does the 1,500 represent?", "visual": "A part-part-whole mat with the 'whole' section highlighted.", "data": { "options": ["The starting part", "The change part", "The whole amount"] }, "correct": "The whole amount" },
-              { "id": "d2_a_q2", "type": "e-bsr", "prompt": "A castle started with 9,500 stones in its wall. Some stones crumbled and fell out. Now there are 8,200 stones.", "visual": "icon:fa-solid fa-fort-awesome", "data": { "partA": { "prompt": "Is the number of crumbled stones a 'part' or a 'whole'?", "options": ["Part", "Whole"] }, "partB": { "prompt": "Which piece of information helps you know the starting amount was the 'whole'?", "options": ["A castle started with 9,500 stones...", "Now there are 8,200 stones."] } }, "correct": { "partA": "Part", "partB": "A castle started with 9,500 stones..." } },
-              { "id": "d2_a_q3", "type": "multi-select", "prompt": "The final answer to a word problem is 5,000. The problem involved the numbers 3,000 and 8,000. Which of the following could have been the original problem? (Select two)", "visual": "emoji:💡", "data": { "options": ["An army of 8,000 soldiers lost 3,000 in a battle. How many are left?", "A king had 3,000 gold pieces and was given 8,000 more. What is the total?", "A dragon had some eggs. After 3,000 hatched, 8,000 were left. How many did it start with?", "A wizard had 8,000 potions and sold some. He has 3,000 left. How many did he sell?"] }, "correct": ["An army of 8,000 soldiers lost 3,000 in a battle. How many are left?", "A wizard had 8,000 potions and sold some. He has 3,000 left. How many did he sell?"] },
-              { "id": "d2_a_q4", "type": "text-box", "prompt": "A princess had some diamonds. A thief stole 1,250 of them. Now she has 3,000 diamonds left. Did she start with more or fewer than 3,000 diamonds? Explain why.", "visual": "icon:fa-solid fa-gem", "data": { "size": 150 }, "correct": "She started with more, because the 3,000 is what was left after some were taken away from the original amount." },
-              { "id": "d2_a_q5", "type": "drag-drop-match", "prompt": "Create an equation that correctly models this problem: 'A royal garden had 4,500 flowers. The gardener planted some more. Now there are 6,000 flowers.'", "visual": "icon:fa-solid fa-seedling", "data": { "draggables": ["4,500", "6,000", "+", "=", "?"], "dropTargets": ["Box1", "Box2", "Box3", "Box4", "Box5"] }, "correct": { "4,500": "Box1", "+": "Box2", "?": "Box3", "=": "Box4", "6,000": "Box5" } }
-            ]
-          }
-        },
-        {
-          "id": "day3",
-          "title": "Day 3",
-          "lesson": {
-            "title": "The Two-Step Trap",
-            "standard": "4.PAFR.3.4 - Solve two-step, real-world situations using the four operations involving whole number answers.",
-            "slides": [
-              { "type": "hook", "title": "More Than One Step!", "content": "Real detective stories are rarely simple. 'A knight must travel 250 miles to a village, then another 150 miles to a cave. His total journey is 1,000 miles. How many miles does he have left after reaching the cave?' What's the first story we need to solve?" },
-              { "type": "discussion", "title": "The Hidden Story", "content": "Two-step problems are just two stories combined. The trick is to find and solve the 'hidden story' first. The answer to the first story becomes a number in the second story!" },
-              { "type": "i-do", "title": "I Do: Solving in Order", "content": "'The castle kitchen baked 1,200 cookies. They sold 500 and gave 300 away. How many are left?'\n**Story 1 (Hidden):** How many cookies are gone? `500 + 300 = 800`.\n**Story 2 (Main):** How many are left from the start? `1,200 - 800 = 400`." },
-              { "id": "d3_l1_q1", "type": "mc", "prompt": "In the problem: 'The king had 5,000 gold coins. He spent 1,200 on a new throne and 800 on a feast. How much money does he have left?' What is the first story you need to solve?", "visual": "icon:fa-solid fa-coins", "data": { "options": ["How much the throne cost", "How much was spent in total", "How much money he has left"] }, "correct": "How much was spent in total" },
-              { "id": "d3_l1_q2", "type": "text-box", "prompt": "Write the number sentence for that first story.", "visual": "icon:fa-solid fa-pen-to-square", "data": { "size": 30 }, "correct": "1200 + 800 = ?" },
-              { "id": "d3_l1_q3", "type": "true-false", "prompt": "The final answer will be more than 5,000. True or False?", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "type": "we-do", "title": "We Do: The Puzzle Path", "content": "Work with your team. The answer to the first step of the problem will tell you which path to take to find the second step. You must solve them in order!" },
-              { "id": "d3_l2_q1", "type": "mc", "prompt": "A dragon collected 450 gems on Monday and 550 on Tuesday. It then lost 200. The first story is about...", "visual": "icon:fa-solid fa-calendar-days", "data": { "options": ["Joining", "Separating"] }, "correct": "Joining" },
-              { "id": "d3_l2_q2", "type": "text-box", "prompt": "How many gems did it have before losing any?", "visual": "emoji:💎", "data": { "size": 10 }, "correct": "1000" },
-              { "id": "d3_l2_q3", "type": "mc", "prompt": "Now, how many gems does it have left?", "visual": "emoji:💎", "data": { "options": ["800", "1000", "1200"] }, "correct": "800" },
-              { "id": "d3_l2_q4", "type": "true-false", "prompt": "The problem: 'A princess had 2,000 dresses. She bought 300 more, then sold 500.' The first number sentence is a subtraction problem. True or False?", "visual": "icon:fa-solid fa-shirt", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "id": "d3_l2_q5", "type": "text-box", "prompt": "Solve the first step of that problem (how many dresses she had after buying more).", "visual": "icon:fa-solid fa-calculator", "data": { "size": 10 }, "correct": "2300" },
-              { "id": "d3_l2_q6", "type": "text-box", "prompt": "Now solve the second step (how many she has left).", "visual": "icon:fa-solid fa-calculator", "data": { "size": 10 }, "correct": "1800" },
-              { "id": "d3_l2_q7", "type": "drag-drop-match", "prompt": "Match the problem part to the step in this story: 'Combine two groups, then find what's left.'", "visual": "icon:fa-solid fa-shoe-prints", "data": { "draggables": ["Combining two groups", "Finding what's left"], "dropTargets": ["Story 1", "Story 2"] }, "correct": { "Combining two groups": "Story 1", "Finding what's left": "Story 2" } },
-              { "id": "d3_l2_q8", "type": "mc", "prompt": "A wizard had 1,500 potions. He used 250, then brewed 500 more. How many does he have now?", "visual": "emoji:🧪", "data": { "options": ["1,750", "1,250", "2,250"] }, "correct": "1750" },
-              { "id": "d3_l2_q9", "type": "true-false", "prompt": "You must always add first in a two-step problem. True or False?", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "id": "d3_l2_q10", "type": "text-box", "prompt": "An army of 9,000 fought a battle. 1,500 soldiers were lost, but 2,000 reinforcements arrived. How many soldiers are in the army now?", "visual": "icon:fa-solid fa-helmet-battle", "data": { "size": 10 }, "correct": "9500" },
-              { "type": "you-do", "title": "You Do: Multi-Digit Codes", "content": "The escape room puzzles now require two steps. The answer to the first story might be the first digit of a code, and the answer to the second story is the next digit." },
-              { "id": "d3_l3_q1", "type": "text-box", "prompt": "A library had 7,800 books. It received a donation of 1,200 books, then loaned out 500. How many books are in the library now?", "visual": "icon:fa-solid fa-book-open-reader", "data": { "size": 10 }, "correct": "8500" },
-              { "id": "d3_l3_q2", "type": "mc", "prompt": "What is the hidden story you must answer first?", "visual": "emoji:🤫", "data": { "options": ["How many books were donated?", "How many books did the library have after the donation?", "How many books were loaned out?"] }, "correct": "How many books did the library have after the donation?" },
-              { "id": "d3_l3_q3", "type": "text-box", "prompt": "A baker made 3,000 cookies. He sold 1,250 and his family ate 150. How many are left?", "visual": "emoji:🍪", "data": { "size": 10 }, "correct": "1600" },
-              { "id": "d3_l3_q4", "type": "true-false", "prompt": "To solve the baker problem, your first number sentence is `3,000 - 1,250 = ?`. True or False?", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "id": "d3_l3_q5", "type": "mc", "prompt": "A castle has 5,600 residents. 2,100 are knights and 1,500 are squires. How many residents are not knights or squires?", "visual": "icon:fa-solid fa-people-group", "data": { "options": ["3,600", "2,000", "9,200"] }, "correct": "2000" }
-            ]
-          },
-          "assessment": {
-            "title": "Day 3 Assessment",
-            "questions": [
-              { "id": "d3_a_q1", "type": "mc", "prompt": "In the problem, 'A farmer grew 1,500 pumpkins. He sold 800 and gave 200 to his neighbors. How many does he have left?', what is the 'hidden story' you must solve first?", "visual": "emoji:🎃", "data": { "options": ["The story of how many pumpkins he grew.", "The story of how many pumpkins he got rid of in total.", "The story of how many pumpkins are left."] }, "correct": "The story of how many pumpkins he got rid of in total." },
-              { "id": "d3_a_q2", "type": "e-bsr", "prompt": "A ship's crew had 4,500 gallons of water. They drank 1,200 gallons in the first week and 1,500 gallons in the second week.", "visual": "icon:fa-solid fa-ship", "data": { "partA": { "prompt": "Will the final answer be more or less than 4,500?", "options": ["More", "Less"] }, "partB": { "prompt": "Which part of the story tells you the amount is decreasing?", "options": ["Finding the total amount they drank.", "Subtracting the total from what they started with."] } }, "correct": { "partA": "Less", "partB": "Subtracting the total from what they started with." } },
-              { "id": "d3_a_q3", "type": "multi-select", "prompt": "A video game player has 9,500 points. They earn 1,500 more points, then lose 2,000 points. Which of the following number sentences are needed to find the final score? (Select two)", "visual": "icon:fa-solid fa-gamepad", "data": { "options": ["9,500 - 1,500 = ?", "9,500 + 1,500 = ?", "11,000 - 2,000 = ?", "9,500 + 2,000 = ?"] }, "correct": ["9,500 + 1,500 = ?", "11,000 - 2,000 = ?"] },
-              { "id": "d3_a_q4", "type": "text-box", "prompt": "A student tried to solve this problem: 'A dragon had 2,000 gold coins. It found 500 more, then lost 800.' Their first step was 2,000 - 800 = 1,200. Explain why this is not the correct first story to solve.", "visual": "icon:fa-solid fa-circle-xmark", "data": { "size": 150 }, "correct": "The student should have solved the story of how many coins the dragon had after finding more before solving the story of losing some." },
-              { "id": "d3_a_q5", "type": "drag-drop-sort", "prompt": "Order the steps to correctly solve this problem: 'A king had 5,000 acres of land. He gave 1,000 acres to his son and 1,500 acres to his daughter. How much land does he have left?'", "visual": "icon:fa-solid fa-arrow-down-1-9", "data": { "items": ["Calculate 5,000 - 2,500", "Add 1,000 + 1,500", "Find the total land given away"], "categories": ["Step 1", "Step 2", "Step 3"] }, "correct": { "Step 1": ["Find the total land given away"], "Step 2": ["Add 1,000 + 1,500"], "Step 3": ["Calculate 5,000 - 2,500"] } }
-            ]
-          }
-        },
-        {
-          "id": "day4",
-          "title": "Day 4",
-          "lesson": {
-            "title": "The Final Challenge",
-            "standard": "4.NR.1.2 - Estimate sums and differences of multi-digit whole numbers to determine the reasonableness of solutions.",
-            "slides": [
-              { "type": "hook", "title": "A Smart Guess", "content": "You have about $50. You want to buy a game for $29 and a controller for $18. Do you have enough money? You don't need the exact answer to make a smart guess! How can rounding help?" },
-              { "type": "discussion", "title": "Is Your Answer Reasonable?", "content": "Before solving a big problem, make an estimate by rounding the numbers. This gives you a 'reasonable' target. After you find the exact answer, compare it to your estimate. If they're close, you're probably right! If they're far apart, you should double-check your work." },
-              { "type": "i-do", "title": "I Do: Estimate, Then Solve", "content": "'An army had 8,975 soldiers. They lost 1,120 in one battle and 2,050 in another, but then 3,500 new soldiers joined.'\n**Estimate:** Rounding gives about `9,000 - 1,000 - 2,000 + 3,500`, which is 9,500. My answer should be near 9,500.\n**Solve:** (8,975 - 1,120) = 7,855. (7,855 - 2,050) = 5,805. (5,805 + 3,500) = 9,305. This is close to 9,500, so it's reasonable!" },
-              { "id": "d4_l1_q1", "type": "text-box", "prompt": "Round 8,975 to the nearest thousand.", "visual": "icon:fa-solid fa-arrows-left-right-to-line", "data": { "size": 10 }, "correct": "9000" },
-              { "id": "d4_l1_q2", "type": "mc", "prompt": "Based on the estimate of 9,500, which of these exact answers would be reasonable?", "visual": "emoji:🎯", "data": { "options": ["9,305", "2,500", "15,000"] }, "correct": "9,305" },
-              { "id": "d4_l1_q3", "type": "true-false", "prompt": "Estimating gives you the exact answer. True or False?", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "type": "we-do", "title": "We Do: Estimate to Unlock", "content": "For these puzzles, you must enter a reasonable estimate first. If your estimate is close, you'll be able to solve for the exact answer." },
-              { "id": "d4_l2_q1", "type": "text-box", "prompt": "Estimate the answer by rounding to the nearest thousand: 4,987 + 2,015 - 998 = ?", "visual": "icon:fa-solid fa-calculator", "data": { "size": 10 }, "correct": "6000" },
-              { "id": "d4_l2_q2", "type": "text-box", "prompt": "Now, find the exact answer.", "visual": "icon:fa-solid fa-calculator", "data": { "size": 10 }, "correct": "6004" },
-              { "id": "d4_l2_q3", "type": "true-false", "prompt": "Your exact answer was 6,004. Your estimate was 6,000. Your answer is reasonable. True or False?", "visual": "emoji:👍", "data": { "options": ["True", "False"] }, "correct": "True" },
-              { "id": "d4_l2_q4", "type": "mc", "prompt": "Round 4,321 to the nearest hundred.", "visual": "icon:fa-solid fa-arrows-left-right-to-line", "data": { "options": ["4,000", "4,300", "4,400"] }, "correct": "4300" },
-              { "id": "d4_l2_q5", "type": "text-box", "prompt": "Estimate: A king has 9,980 coins. He spends 2,020 and 3,950. About how many are left?", "visual": "icon:fa-solid fa-coins", "data": { "size": 10 }, "correct": "4000" },
-              { "id": "d4_l2_q6", "type": "text-box", "prompt": "Now find the exact number of coins left.", "visual": "icon:fa-solid fa-coins", "data": { "size": 10 }, "correct": "4010" },
-              { "id": "d4_l2_q7", "type": "drag-drop-match", "prompt": "Match the number to its rounded value (nearest thousand).", "visual": "icon:fa-solid fa-right-left", "data": { "draggables": ["8,765", "2,345", "5,500"], "dropTargets": ["9,000", "2,000", "6,000"] }, "correct": { "8,765": "9,000", "2,345": "2,000", "5,500": "6,000" } },
-              { "id": "d4_l2_q8", "type": "true-false", "prompt": "It is not useful to estimate if you are going to solve the problem anyway. True or False?", "visual": "emoji:🤔", "data": { "options": ["True", "False"] }, "correct": "False" },
-              { "id": "d4_l2_q9", "type": "mc", "prompt": "An answer is reasonable if it is...", "visual": "emoji:🎯", "data": { "options": ["exactly the same as the estimate", "close to the estimate", "a very big number"] }, "correct": "close to the estimate" },
-              { "id": "d4_l2_q10", "type": "text-box", "prompt": "Estimate and solve: An army of 8,123 soldiers gets 2,987 reinforcements, but loses 4,055 in a battle. How many soldiers are there now?", "visual": "icon:fa-solid fa-helmet-battle", "data": { "size": 10 }, "correct": "7055" },
-              { "type": "you-do", "title": "You Do: The Final Code", "content": "This is it! Solve this final, multi-step story to find the code and escape the room!" },
-              { "id": "d4_l3_q1", "type": "text-box", "prompt": "First, estimate the answer to the final challenge by rounding each number to the nearest hundred: 2,468 + 1,234 - 899 = ?", "visual": "icon:fa-solid fa-lightbulb", "data": { "size": 10 }, "correct": "2800" },
-              { "id": "d4_l3_q2", "type": "mc", "prompt": "The first step of the problem involves...", "visual": "icon:fa-solid fa-shoe-prints", "data": { "options": ["Addition", "Subtraction"] }, "correct": "Addition" },
-              { "id": "d4_l3_q3", "type": "text-box", "prompt": "What is the result after the first step of the problem (2,468 + 1,234)?", "visual": "icon:fa-solid fa-calculator", "data": { "size": 10 }, "correct": "3702" },
-              { "id": "d4_l3_q4", "type": "true-false", "prompt": "The final exact answer should be close to your estimate from the first activity. True or False?", "visual": "emoji:👍", "data": { "options": ["True", "False"] }, "correct": "True" },
-              { "id": "d4_l3_q5", "type": "text-box", "prompt": "What is the final, exact answer to the escape room challenge?", "visual": "icon:fa-solid fa-key", "data": { "size": 10 }, "correct": "2803" }
-            ]
-          },
-          "assessment": {
-            "title": "Day 4 Assessment",
-            "questions": [
-              { "id": "d4_a_q1", "type": "mc", "prompt": "When you are asked to find a 'reasonable' answer, what is the best first step?", "visual": "emoji:🧠", "data": { "options": ["Solve the problem exactly", "Guess the answer", "Round the numbers and estimate"] }, "correct": "Round the numbers and estimate" },
-              { "id": "d4_a_q2", "type": "e-bsr", "prompt": "A student estimates the answer to 9,123 - 4,987 + 2,011 to be about 6,000.", "visual": "icon:fa-solid fa-check-double", "data": { "partA": { "prompt": "Is this a reasonable estimate?", "options": ["Yes", "No"] }, "partB": { "prompt": "Which rounded numbers best support this estimate?", "options": ["9,000 - 4,000 + 2,000", "9,000 - 5,000 + 2,000"] } }, "correct": { "partA": "Yes", "partB": "9,000 - 5,000 + 2,000" } },
-              { "id": "d4_a_q3", "type": "multi-select", "prompt": "The exact answer to a multi-step problem is 5,525. Which of the following estimated answers would suggest your exact answer is reasonable? (Select two)", "visual": "icon:fa-solid fa-magnifying-glass-chart", "data": { "options": ["1,000", "5,500", "9,000", "5,600"] }, "correct": ["5,500", "5,600"] },
-              { "id": "d4_a_q4", "type": "text-box", "prompt": "A student solved this problem: 'Start with 5,050. Subtract 1,988. Add 3,510.' Their exact answer was 1,572. Estimate the answer by rounding to the nearest thousand. Is their exact answer reasonable? Explain why or why not.", "visual": "icon:fa-solid fa-circle-xmark", "data": { "size": 150 }, "correct": "No, it is not reasonable. The estimate is 5,000 - 2,000 + 4,000 = 7,000. Their answer of 1,572 is not close to the estimate." },
-              { "id": "d4_a_q5", "type": "drag-drop-match", "prompt": "Create the estimated equation for this problem: 'A treasure hunter starts with 8,492 coins. He pays a 1,510 coin fee, finds a treasure of 4,980 coins, and then buys a map for 995 coins.' Round to the nearest thousand.", "visual": "icon:fa-solid fa-map-location-dot", "data": { "draggables": ["8000", "2000", "5000", "1000", "+", "-"], "dropTargets": ["Box1", "Box2", "Box3", "Box4", "Box5", "Box6", "Box7"] }, "correct": { "8000": "Box1", "-": "Box2", "2000": "Box3", "+": "Box4", "5000": "Box5", "-": "Box6", "1000": "Box7" } }
-            ]
-          }
-        }
-      ]
-    }
-    </script>
+        <div id="controls" class="flex justify-between items-center mb-4">
+             <div id="tabs" class="flex space-x-1 md:space-x-2 border border-gray-700 rounded-lg p-1 bg-gray-900/50">
+                <!-- Day tabs will be rendered here -->
+            </div>
+            <div class="flex space-x-2">
+                 <button id="download-html-btn" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-white transition-colors text-sm md:text-base">
+                    <i class="fas fa-download mr-2"></i>Save Work
+                </button>
+                <button id="download-pdf-btn" class="px-3 py-2 bg-green-600 hover:bg-green-700 rounded-md text-white transition-colors text-sm md:text-base">
+                    <i class="fas fa-file-pdf mr-2"></i>Export PDF
+                </button>
+            </div>
+        </div>
 
-    <script>
-        // --- APPLICATION STATE ---
-        let appState = {
-            activeDayId: 'day1',
-            activeView: 'lesson', // 'lesson' or 'assessment'
-            progress: {},
-            customImages: {}
+        <main id="content-area" class="bg-gray-900/70 rounded-xl border border-gray-700 p-4 md:p-8 min-h-[60vh] relative">
+            <!-- Day content will be dynamically injected here -->
+        </main>
+
+        <input type="file" id="image-uploader" class="hidden" accept="image/*">
+    </div>
+
+    <!-- Student progress data will be injected here for saving -->
+    <script id="progress-data" type="application/json"></script>
+
+    <script type="module">
+        const { jsPDF } = window.jspdf;
+
+        // --- FIREBASE SETUP ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+          authDomain: "lesson-sync-a223a.firebaseapp.com",
+          projectId: "lesson-sync-a223a",
+          storageBucket: "lesson-sync-a223a.firebasestorage.app",
+          messagingSenderId: "906128715071",
+          appId: "1:906128715071:web:347ea08f4d864fde02778a"
         };
-        let draggedItem = null;
-        let currentUploadQID = null;
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        
+        // --- SYNC STATE ---
+        let currentRoomId = null;
+        let currentUserRole = null;
+        let firestoreUnsubscribe = null;
+        let _isApplyingRemote = false; // Prevents sync loops
 
-        // --- DOM ELEMENTS ---
-        const mainNav = document.getElementById('main-nav');
-        const contentArea = document.getElementById('content-area');
-        const lessonData = JSON.parse(document.getElementById('lesson-data').textContent);
-        const imageUploader = document.getElementById('image-uploader');
+        // --- DATA BLUEPRINT ---
+        const lessonData = {
+            day1: {
+                title: "Day 1: Cracking the Addition Code",
+                lesson: [
+                    { id: 'd1_hook', type: 'content', title: "The Library Lock", content: "Welcome, detectives! You are trapped in the grand library of the Math Mansion. To unlock the first door, you must solve a series of puzzles using addition. Let's learn the first secret strategy: Story-Number Sentence-Answer. This is a form of **decomposition**, where we break a big problem into smaller parts." },
+                    { id: "d1_l1_i_do_1", type: "mc", prompt: "The story says: 'The royal chef baked 1,500 cookies on Monday and 2,300 cookies on Tuesday.' What is the hidden question in this story?", visual: "emoji:🤔", data: { options: ["How many more cookies were baked on Tuesday?", "How many cookies are left?", "How many cookies were baked in total?", "How many cookies were eaten?"] }, correct: "How many cookies were baked in total?" },
+                    { id: "d1_l1_i_do_2", type: "drag-drop-match", prompt: "Match the parts of the problem-solving strategy to their description.", visual: "icon:fa-solid fa-puzzle-piece", data: { draggables: ["Story", "Number Sentence", "Answer"], dropTargets: ["Understanding what is happening in the problem.", "The math equation that represents the problem.", "The solution to the number sentence."] }, correct: { "Story": "Understanding what is happening in the problem.", "Number Sentence": "The math equation that represents the problem.", "Answer": "The solution to the number sentence." } },
+                    { id: "d1_l1_i_do_3", type: "text-box", prompt: "Based on the story about the chef, write the correct number sentence. Use a '?' for the unknown.", visual: "icon:fa-solid fa-pen-to-square", data: { size: 30 }, correct: "1500 + 2300 = ?" },
+                    { id: "d1_l1_we_do_1", type: "mc", prompt: "Story: A dragon collected 4,550 gold coins and 3,125 silver coins. Which number sentence matches the story to find the total?", visual: "emoji:🐉", data: { options: ["4550 - 3125 = ?", "4550 + 3125 = ?", "4550 * 2 = ?", "3125 - 4550 = ?"] }, correct: "4550 + 3125 = ?" },
+                    { id: "d1_l1_we_do_2", type: "text-box", prompt: "Let's solve it! What is the answer to 4,550 + 3,125?", visual: "icon:fa-solid fa-coins", data: { size: 10 }, correct: "7675" },
+                    { id: "d1_l1_we_do_3", type: "true-false", prompt: "Story: The castle guards counted 2,180 arrows in the morning and received 1,500 more. To solve, you need to subtract.", visual: "emoji:🏰", data: { options: ["True", "False"] }, correct: "False" },
+                    { id: "d1_l1_we_do_4", type: "text-box", prompt: "Write the number sentence for the castle guards story. Use a '?' for the unknown.", visual: "icon:fa-solid fa-pen", data: { size: 30 }, correct: "2180 + 1500 = ?" },
+                    { id: "d1_l1_we_do_5", type: "text-box", prompt: "Solve it! How many arrows do the guards have now?", visual: "A circular archery target with three concentric rings (red, yellow, blue) and one arrow sticking in the center.", data: { size: 10 }, correct: "3680" },
+                    { id: "d1_l1_we_do_6", type: "mc", prompt: "Story: An alchemist mixed 3,452 ml of a red potion with 5,891 ml of a blue potion. The word 'mixed' suggests which operation?", visual: "A bubbling science beaker with purple liquid.", data: { options: ["Addition", "Subtraction", "Multiplication", "Division"] }, correct: "Addition" },
+                    { id: "d1_l1_we_do_7", type: "text-box", prompt: "Write the number sentence for the alchemist's potions.", visual: "icon:fa-solid fa-flask-vial", data: { size: 30 }, correct: "3452 + 5891 = ?" },
+                    { id: "d1_l1_we_do_8", type: "text-box", prompt: "Solve it! How much potion did the alchemist make in total?", visual: "A purple potion bottle with a cork stopper, glowing slightly.", data: { size: 10 }, correct: "9343" },
+                    { id: "d1_l1_we_do_9", type: "true-false", prompt: "When adding 3,452 + 5,891, you will need to regroup (carry) in the hundreds place.", visual: "emoji:🤔", data: { options: ["True", "False"] }, correct: "True" },
+                    { id: "d1_l1_we_do_10", type: "mc", prompt: "The process of following steps to solve a math problem is called...", visual: "icon:fa-solid fa-list-ol", data: { options: ["A story", "An algorithm", "A guess", "Decomposition"] }, correct: "An algorithm" },
+                    { id: "d1_l1_you_do_1", type: "text-box", prompt: "A video game creator designed a level with 6,284 blocks and then added another 1,539 blocks. How many blocks are in the level in total?", visual: "A stack of three pixelated video game blocks, similar to Minecraft.", data: { size: 10 }, correct: "7823" },
+                    { id: "d1_l1_you_do_2", type: "text-box", prompt: "The school library has 4,812 fiction books and 3,990 non-fiction books. How many books does the library have altogether?", visual: "icon:fa-solid fa-book-open", data: { size: 10 }, correct: "8802" },
+                    { id: "d1_l1_you_do_3", type: "text-box", prompt: "A cargo ship traveled 5,671 miles on its first trip and 4,289 miles on its second trip. What was the total distance traveled?", visual: "icon:fa-solid fa-ship", data: { size: 10 }, correct: "9960" },
+                    { id: "d1_l1_you_do_4", type: "text-box", prompt: "A farmer harvested 7,450 apples and 2,550 oranges. How many pieces of fruit were harvested in all?", visual: "emoji:🍎", data: { size: 10 }, correct: "10000" },
+                    { id: "d1_l1_you_do_5", type: "drag-drop-sort", prompt: "Sort the keywords into the correct operation bin.", visual: "Two rectangular bins, one labeled 'Add' with a plus sign, one labeled 'Subtract' with a minus sign.", data: { items: ["In total", "How many more", "Altogether", "Left over", "Combined"], categories: ["Addition", "Subtraction"] }, correct: { "Addition": ["In total", "Altogether", "Combined"], "Subtraction": ["How many more", "Left over"] } }
+                ],
+                assessment: [
+                    { id: "d1_a_1", type: "mc", prompt: "(Recall) The word 'altogether' in a word problem usually tells you to perform which operation?", visual: "icon:fa-solid fa-magnifying-glass", data: { options: ["Addition", "Subtraction", "Multiplication", "Division"] }, correct: "Addition" },
+                    { id: "d1_a_2", type: "multi-select", prompt: "(Infer) A wizard has 2,456 potions. He creates 1,789 more. Which of the following statements are true? Select all that apply.", visual: "emoji:🧙", data: { options: ["The wizard will have fewer than 3,000 potions.", "The number sentence to solve this is 2456 + 1789 = ?", "You will need to regroup when adding the ones place.", "The final answer will be more than 4,000."] }, correct: ["The number sentence to solve this is 2456 + 1789 = ?", "You will need to regroup when adding the ones place.", "The final answer will be more than 4,000."] },
+                    { id: "d1_a_3", type: "ebsr", prompt: "Part A: A space explorer counted 4,815 stars in one galaxy and 3,987 stars in another. How many stars did the explorer count in total?", visual: "emoji:🚀", data: { part_a: { prompt: "Part A: A space explorer counted 4,815 stars in one galaxy and 3,987 stars in another. How many stars did the explorer count in total?", type: "mc", options: ["7,802", "8,802", "8,792", "1,172"] }, part_b: { prompt: "Part B: Which detail from the story best shows why you needed to add to find the answer?", type: "mc", options: ["The explorer counted in two different galaxies.", "The question asks for the total number of stars.", "The numbers are both in the thousands.", "One number is larger than the other."] } }, correct: { part_a: "8,802", part_b: "The question asks for the total number of stars." } },
+                    { id: "d1_a_4", type: "text-box", prompt: "(Analyze) At a monster truck rally, 3,458 tickets were sold online and 4,679 tickets were sold at the gate. In the space below, first write the number sentence, then solve to find the total number of tickets sold.", visual: "A side-profile view of a monster truck with large, treaded wheels and a rectangular body.", data: { size: 50 }, correct: "3458 + 4679 = 8137" },
+                    { id: "d1_a_5", type: "drag-drop-match", prompt: "(Evaluate) Match each word problem story to the correct number sentence that would be used to solve it.", visual: "icon:fa-solid fa-right-left", data: { draggables: ["A bakery sold 1,234 muffins and 2,345 bagels.", "A city has 5,432 cars and 1,234 trucks.", "An army had 3,210 soldiers and recruited 4,321 more."], dropTargets: ["3210 + 4321 = ?", "1234 + 2345 = ?", "5432 + 1234 = ?"] }, correct: { "A bakery sold 1,234 muffins and 2,345 bagels.": "1234 + 2345 = ?", "A city has 5,432 cars and 1,234 trucks.": "5432 + 1234 = ?", "An army had 3,210 soldiers and recruited 4,321 more.": "3210 + 4321 = ?" } }
+                ]
+            },
+            day2: {
+                title: "Day 2: The Subtraction Secret",
+                lesson: [
+                    { id: 'd2_hook', type: 'content', title: "The Laboratory Vault", content: "You've entered a mysterious laboratory! To proceed, you must unlock a vault using subtraction. We'll use our S-NS-A strategy again, but this time we'll use **pattern recognition** to know when we need to regroup or 'borrow'." },
+                    { id: "d2_l1_i_do_1", type: "mc", prompt: "The story says: 'A kingdom had 8,500 soldiers. 2,150 went on a mission.' What is the hidden question in this story?", visual: "emoji:🛡️", data: { options: ["How many soldiers are on the mission?", "How many soldiers are left in the kingdom?", "How many soldiers are there in total?", "How many missions did they go on?"] }, correct: "How many soldiers are left in the kingdom?" },
+                    { id: "d2_l1_i_do_2", type: "true-false", prompt: "In the subtraction problem 5,420 - 1,580, you will need to regroup from the thousands place.", visual: "emoji:🤔", data: { options: ["True", "False"] }, correct: "True" },
+                    { id: "d2_l1_i_do_3", type: "text-box", prompt: "Based on the story about the soldiers, write the correct number sentence. Use a '?' for the unknown.", visual: "icon:fa-solid fa-pen-to-square", data: { size: 30 }, correct: "8500 - 2150 = ?" },
+                    { id: "d2_l1_we_do_1", type: "mc", prompt: "Story: A mountain is 8,624 feet tall. A climber is at 4,750 feet. Which number sentence finds the difference?", visual: "emoji:⛰️", data: { options: ["8624 + 4750 = ?", "4750 - 8624 = ?", "8624 - 4750 = ?", "8624 * 2 = ?"] }, correct: "8624 - 4750 = ?" },
+                    { id: "d2_l1_we_do_2", type: "text-box", prompt: "Let's solve it! What is the answer to 8,624 - 4,750?", visual: "A mountain peak with a flag on top.", data: { size: 10 }, correct: "3874" },
+                    { id: "d2_l1_we_do_3", type: "true-false", prompt: "Story: A whale weighs 9,500 pounds and a shark weighs 2,350 pounds. To find out 'how much more' the whale weighs, you need to add.", visual: "emoji:🐋", data: { options: ["True", "False"] }, correct: "False" },
+                    { id: "d2_l1_we_do_4", type: "text-box", prompt: "Write the number sentence for the whale and shark story. Use a '?' for the unknown.", visual: "icon:fa-solid fa-water", data: { size: 30 }, correct: "9500 - 2350 = ?" },
+                    { id: "d2_l1_we_do_5", type: "text-box", prompt: "Solve it! How much more does the whale weigh?", visual: "icon:fa-solid fa-scale-balanced", data: { size: 10 }, correct: "7150" },
+                    { id: "d2_l1_we_do_6", type: "mc", prompt: "Story: A famous artist painted 3,000 paintings. She sold 1,820 of them. Which operation do the keywords 'sold' and 'how many are left' suggest?", visual: "icon:fa-solid fa-palette", data: { options: ["Addition", "Subtraction", "Multiplication", "Division"] }, correct: "Subtraction" },
+                    { id: "d2_l1_we_do_7", type: "text-box", prompt: "Write the number sentence for the artist's paintings.", visual: "icon:fa-solid fa-pen", data: { size: 30 }, correct: "3000 - 1820 = ?" },
+                    { id: "d2_l1_we_do_8", type: "text-box", prompt: "Solve it! How many paintings does she have left?", visual: "A painting of a landscape on an easel.", data: { size: 10 }, correct: "1180" },
+                    { id: "d2_l1_we_do_9", type: "true-false", prompt: "Recognizing the pattern: In the problem 3,000 - 1,820, you have to regroup across multiple places because of the zeros.", visual: "emoji:🤯", data: { options: ["True", "False"] }, correct: "True" },
+                    { id: "d2_l1_we_do_10", type: "mc", prompt: "Breaking a problem into smaller parts is called...", visual: "icon:fa-solid fa-puzzle-piece", data: { options: ["An algorithm", "A story", "Decomposition", "Pattern Recognition"] }, correct: "Decomposition" },
+                    { id: "d2_l1_you_do_1", type: "text-box", prompt: "The city zoo has 7,550 visitors on Saturday. 3,825 of them were children. How many visitors were adults?", visual: "emoji:🦓", data: { size: 10 }, correct: "3725" },
+                    { id: "d2_l1_you_do_2", type: "text-box", prompt: "A construction company had 8,000 pounds of concrete. They used 4,290 pounds for a foundation. How many pounds are left?", visual: "icon:fa-solid fa-helmet-safety", data: { size: 10 }, correct: "3710" },
+                    { id: "d2_l1_you_do_3", type: "text-box", prompt: "A treasure chest contained 6,245 gold coins. A pirate took 2,999 coins. How many coins remain in the chest?", visual: "An open wooden treasure chest, half-filled with gold coins.", data: { size: 10 }, correct: "3246" },
+                    { id: "d2_l1_you_do_4", type: "text-box", prompt: "The Sun is about 9,941 degrees Fahrenheit. Mercury is about 801 degrees. What is the difference in temperature?", visual: "emoji:☀️", data: { size: 10 }, correct: "9140" },
+                    { id: "d2_l1_you_do_5", type: "drag-drop-sort", prompt: "Sort the word problems by the operation needed to solve them.", visual: "Two rectangular bins, one labeled 'Add' with a plus sign, one labeled 'Subtract' with a minus sign.", data: { items: ["Finding a total", "Finding how many are left", "Finding the difference", "Combining two groups"], categories: ["Addition", "Subtraction"] }, correct: { "Addition": ["Finding a total", "Combining two groups"], "Subtraction": ["Finding how many are left", "Finding the difference"] } }
+                ],
+                assessment: [
+                    { id: "d2_a_1", type: "mc", prompt: "(Recall) The phrase 'how many more' in a word problem usually tells you to perform which operation?", visual: "icon:fa-solid fa-magnifying-glass", data: { options: ["Addition", "Subtraction", "Multiplication", "Division"] }, correct: "Subtraction" },
+                    { id: "d2_a_2", type: "multi-select", prompt: "(Infer) A factory made 9,000 toy cars. It shipped 4,382 of them to stores. Which of the following statements are true? Select all that apply.", visual: "emoji:🚗", data: { options: ["The factory will have more than 5,000 cars left.", "The number sentence to solve this is 9000 + 4382 = ?", "You will need to regroup across the zeros to solve this.", "The final answer will be less than 5,000."] }, correct: ["You will need to regroup across the zeros to solve this.", "The final answer will be less than 5,000."] },
+                    { id: "d2_a_3", type: "ebsr", prompt: "Part A: A charity wants to raise $9,500. So far, they have raised $6,785. How much more money do they need to raise?", visual: "icon:fa-solid fa-hand-holding-dollar", data: { part_a: { prompt: "Part A: A charity wants to raise $9,500. So far, they have raised $6,785. How much more money do they need to raise?", type: "mc", options: ["$3,285", "$2,715", "$16,285", "$3,815"] }, part_b: { prompt: "Part B: Which phrase from the story best shows why you needed to subtract to find the answer?", type: "mc", options: ["A charity wants to raise $9,500.", "So far, they have raised $6,785.", "How much more money do they need?", "The numbers are large."] } }, correct: { part_a: "$2,715", part_b: "How much more money do they need?" } },
+                    { id: "d2_a_4", type: "text-box", prompt: "(Analyze) An airplane is flying at 8,250 feet. To avoid a storm, it descends to 5,975 feet. In the space below, first write the number sentence, then solve to find the difference in altitude.", visual: "emoji:✈️", data: { size: 50 }, correct: "8250 - 5975 = 2275" },
+                    { id: "d2_a_5", type: "drag-drop-match", prompt: "(Evaluate) Match each subtraction problem based on whether it requires regrouping (borrowing) to solve.", visual: "icon:fa-solid fa-right-left", data: { draggables: ["5,487 - 2,135 = ?", "6,215 - 3,890 = ?", "9,876 - 1,234 = ?"], dropTargets: ["Regrouping Needed", "No Regrouping Needed"] }, correct: { "5,487 - 2,135 = ?": "No Regrouping Needed", "6,215 - 3,890 = ?": "Regrouping Needed", "9,876 - 1,234 = ?": "No Regrouping Needed" } }
+                ]
+            },
+            day3: {
+                title: "Day 3: The Two-Step Tunnel",
+                lesson: [
+                    { id: 'd3_hook', type: 'content', title: "The Two-Step Tunnel", content: "You're now in a long, dark tunnel. These puzzles are trickier and have two steps! We must use **abstraction** to look past the main question and find the 'hidden question' we need to answer first." },
+                    { id: "d3_l1_i_do_1", type: "mc", prompt: "Story: 'A baker had 1,200 cupcakes. She sold 350 and then baked 500 more.' What is the hidden question you must answer first?", visual: "emoji:🧁", data: { options: ["How many cupcakes did she bake in total?", "How many cupcakes did she have after selling 350?", "How many cupcakes were sold?", "How many more did she bake than sell?"] }, correct: "How many cupcakes did she have after selling 350?" },
+                    { id: "d3_l1_i_do_2", type: "drag-drop-match", prompt: "Match the term to its meaning in solving two-step problems.", visual: "icon:fa-solid fa-lightbulb", data: { draggables: ["Decomposition", "Abstraction", "Step 1", "Step 2"], dropTargets: ["Breaking the problem into two smaller problems.", "Finding the hidden information you need first.", "Solving the hidden question.", "Using the answer from Step 1 to solve the main question."] }, correct: { "Decomposition": "Breaking the problem into two smaller problems.", "Abstraction": "Finding the hidden information you need first.", "Step 1": "Solving the hidden question.", "Step 2": "Using the answer from Step 1 to solve the main question." } },
+                    { id: "d3_l1_i_do_3", type: "text-box", prompt: "For the cupcake story, what is the answer to the first step (1200 - 350)?", visual: "icon:fa-solid fa-calculator", data: { size: 10 }, correct: "850" },
+                    { id: "d3_l1_we_do_1", type: "mc", prompt: "Story: A video game has 5,000 points to win. You have 2,150 points. You earn 800 more. How many more points do you still need? What is the hidden question?", visual: "emoji:🎮", data: { options: ["How many points have you lost?", "How many points do you have now?", "What is the total score?", "How many points did you start with?"] }, correct: "How many points do you have now?" },
+                    { id: "d3_l1_we_do_2", type: "text-box", prompt: "Step 1: Solve the hidden question. What is 2,150 + 800?", visual: "icon:fa-solid fa-plus", data: { size: 10 }, correct: "2950" },
+                    { id: "d3_l1_we_do_3", type: "text-box", prompt: "Step 2: Use the answer from Step 1 to solve the problem. What is 5,000 - 2,950?", visual: "icon:fa-solid fa-minus", data: { size: 10 }, correct: "2050" },
+                    { id: "d3_l1_we_do_4", type: "mc", prompt: "Story: A train travels 1,500 miles. It stops after 450 miles, then travels 600 more miles. What is the hidden question?", visual: "emoji:🚂", data: { options: ["How far is the destination?", "How many stops did it make?", "What is the total distance traveled so far?", "How much farther is the second part of the trip?"] }, correct: "What is the total distance traveled so far?" },
+                    { id: "d3_l1_we_do_5", type: "text-box", prompt: "Step 1 for the train problem: What is 450 + 600?", visual: "A straight train track extending into the distance.", data: { size: 10 }, correct: "1050" },
+                    { id: "d3_l1_we_do_6", type: "text-box", prompt: "Step 2 for the train problem: How many miles are left to travel? (1,500 - 1,050)", visual: "icon:fa-solid fa-route", data: { size: 10 }, correct: "450" },
+                    { id: "d3_l1_we_do_7", type: "true-false", prompt: "Story: Jan had $50. She spent $12 on a book and $5 on a snack. To find out how much she has left, your first step is to add $12 and $5.", visual: "emoji:💵", data: { options: ["True", "False"] }, correct: "True" },
+                    { id: "d3_l1_we_do_8", type: "text-box", prompt: "Solve the first step for Jan's story: 12 + 5 = ?", visual: "icon:fa-solid fa-cash-register", data: { size: 10 }, correct: "17" },
+                    { id: "d3_l1_we_do_9", type: "text-box", prompt: "Solve the second step for Jan's story: 50 - 17 = ?", visual: "icon:fa-solid fa-wallet", data: { size: 10 }, correct: "33" },
+                    { id: "d3_l1_we_do_10", type: "mc", prompt: "Using **abstraction** in a two-step problem means...", visual: "icon:fa-solid fa-brain", data: { options: ["Finding the final answer.", "Checking your work.", "Finding the hidden question you need to solve first.", "Guessing the answer."] }, correct: "Finding the hidden question you need to solve first." },
+                    { id: "d3_l1_you_do_1", type: "text-box", prompt: "A pet store had 1,545 fish. They sold 620 on Monday and 380 on Tuesday. How many fish are left?", visual: "emoji:🐠", data: { size: 10 }, correct: "545" },
+                    { id: "d3_l1_you_do_2", type: "text-box", prompt: "The school library wants to have 2,000 books. They have 850 books. If they buy 475 more, how many more books will they still need?", visual: "icon:fa-solid fa-book", data: { size: 10 }, correct: "675" },
+                    { id: "d3_l1_you_do_3", type: "text-box", prompt: "A scientist had 3,450 ml of liquid. She poured out 1,200 ml and then added 550 ml. How much liquid does she have now?", visual: "icon:fa-solid fa-flask", data: { size: 10 }, correct: "2800" },
+                    { id: "d3_l1_you_do_4", type: "text-box", prompt: "A food truck started with 1,200 hot dogs. They sold 452 at lunch and 578 at dinner. How many hot dogs were left at the end of the day?", visual: "emoji:🌭", data: { size: 10 }, correct: "170" },
+                    { id: "d3_l1_you_do_5", type: "drag-drop-sort", prompt: "Sort the first step for each story. Do you add first or subtract first?", visual: "Two rectangular bins, one labeled 'Add First' and one labeled 'Subtract First'.", data: { items: ["Had 100, sold 10, then sold 20 more.", "Had 50, found 10, then lost 5.", "Had 20, bought 30 more, then gave away 15."], categories: ["Add First", "Subtract First"] }, correct: { "Add First": ["Had 20, bought 30 more, then gave away 15."], "Subtract First": ["Had 100, sold 10, then sold 20 more.", "Had 50, found 10, then lost 5."] } }
+                ],
+                assessment: [
+                    { id: "d3_a_1", type: "mc", prompt: "(Recall) What is the 'hidden question' in this problem? 'An orchard has 1,200 apple trees and 800 pear trees. If 500 trees get a disease, how many are healthy?'", visual: "emoji:🌳", data: { options: ["How many trees are sick?", "How many apple trees are there?", "How many trees are there in total?", "How many more apple trees than pear trees?"] }, correct: "How many trees are there in total?" },
+                    { id: "d3_a_2", type: "multi-select", prompt: "(Infer) A concert hall has 3,000 seats. 1,250 tickets were sold on Monday and 950 were sold on Tuesday. Which statements are true? Select all that apply.", visual: "icon:fa-solid fa-ticket", data: { options: ["The first step is to subtract 1,250 from 3,000.", "The hidden question is how many tickets were sold in total.", "More than 1,000 seats are still empty.", "Fewer than 1,000 seats are still empty."] }, correct: ["The hidden question is how many tickets were sold in total.", "Fewer than 1,000 seats are still empty."] },
+                    { id: "d3_a_3", type: "ebsr", prompt: "Part A: A farmer starts with 2,500 pounds of corn. He sells 850 pounds and feeds 300 pounds to his animals. How much corn is left?", visual: "emoji:🌽", data: { part_a: { prompt: "Part A: A farmer starts with 2,500 pounds of corn. He sells 850 pounds and feeds 300 pounds to his animals. How much corn is left?", type: "mc", options: ["1,350 pounds", "1,650 pounds", "3,650 pounds", "2,200 pounds"] }, part_b: { prompt: "Part B: Which process correctly describes how to solve the problem?", type: "mc", options: ["First add 850 and 300, then subtract the total from 2,500.", "First subtract 850 from 2,500, then add 300.", "First add all three numbers together.", "First subtract 300 from 850, then add that to 2,500."] } }, correct: { part_a: "1,350 pounds", part_b: "First add 850 and 300, then subtract the total from 2,500." } },
+                    { id: "d3_a_4", type: "text-box", prompt: "(Analyze) You have $1,000. You buy a game for $45 and a console for $389. Create a number sentence for the first step, then find out how much money you have left.", visual: "icon:fa-solid fa-gamepad", data: { size: 50 }, correct: "45 + 389 = 434; 1000 - 434 = 566" },
+                    { id: "d3_a_5", type: "drag-drop-match", prompt: "(Evaluate) Match the word problem to the correct pair of operations needed to solve it.", visual: "icon:fa-solid fa-right-left", data: { draggables: ["Start with 500, sell 120, then sell 80 more.", "Start with 500, sell 120, then make 80 more.", "Start with 500, add 120 from a friend, then add 80 more."], dropTargets: ["Add, then Add", "Subtract, then Subtract", "Subtract, then Add"] }, correct: { "Start with 500, sell 120, then sell 80 more.": "Subtract, then Subtract", "Start with 500, sell 120, then make 80 more.": "Subtract, then Add", "Start with 500, add 120 from a friend, then add 80 more.": "Add, then Add" } }
+                ]
+            },
+            day4: {
+                title: "Day 4: The Final Lock",
+                lesson: [
+                    { id: 'd4_hook', type: 'content', title: "The Final Lock", content: "You're at the final door! The lock shows you a solved problem, but it could be a TRICK or a TREAT. We will use a checking **algorithm**: estimate the answer by rounding. If your estimate is close, it's a TREAT (correct). If not, it's a TRICK (incorrect)!" },
+                    { id: "d4_l1_i_do_1", type: "mc", prompt: "To estimate the answer for 8,123 + 1,987, what is the best way to round the numbers?", visual: "icon:fa-solid fa-arrows-down-to-line", data: { options: ["8,000 + 2,000", "8,100 + 1,900", "8,120 + 1,980", "9,000 + 2,000"] }, correct: "8,000 + 2,000" },
+                    { id: "d4_l1_i_do_2", type: "text-box", prompt: "What is the estimated sum for 8,000 + 2,000?", visual: "icon:fa-solid fa-calculator", data: { size: 10 }, correct: "10000" },
+                    { id: "d4_l1_i_do_3", type: "true-false", prompt: "The exact answer to 8,123 + 1,987 is 10,110. An estimate of 10,000 is considered reasonable.", visual: "emoji:👍", data: { options: ["True", "False"] }, correct: "True" },
+                    { id: "d4_l1_we_do_1", type: "mc", prompt: "To estimate the answer for 9,950 - 4,120, what is the best way to round the numbers?", visual: "emoji:🤔", data: { options: ["9,000 - 4,000", "10,000 - 4,000", "9,900 - 4,100", "10,000 - 5,000"] }, correct: "10,000 - 4,000" },
+                    { id: "d4_l1_we_do_2", type: "text-box", prompt: "What is the estimated difference for 10,000 - 4,000?", visual: "icon:fa-solid fa-calculator", data: { size: 10 }, correct: "6000" },
+                    { id: "d4_l1_we_do_3", type: "mc", prompt: "The given answer is $5,830. Our estimate is $6,000. Is the answer a TRICK or a TREAT (reasonable)?", visual: "emoji:🍬", data: { options: ["TRICK (Unreasonable)", "TREAT (Reasonable)"] }, correct: "TREAT (Reasonable)" },
+                    { id: "d4_l1_we_do_4", type: "mc", prompt: "Problem: A stadium has 8,512 seats. 4,495 seats are filled. Answer: 4,017 seats are empty. Let's estimate: 9,000 - 4,000 = 5,000. Is the answer reasonable?", visual: "icon:fa-solid fa-stadium", data: { options: ["Yes, it is reasonable.", "No, it is not reasonable."] }, correct: "No, it is not reasonable." },
+                    { id: "d4_l1_we_do_5", type: "text-box", prompt: "Let's try rounding differently for 8,512 - 4,495. Round to the nearest hundred. What is the new estimation problem?", visual: "icon:fa-solid fa-pen", data: { size: 20 }, correct: "8500 - 4500" },
+                    { id: "d4_l1_we_do_6", type: "text-box", prompt: "What is the new estimated answer? (8,500 - 4,500)", visual: "icon:fa-solid fa-calculator", data: { size: 10 }, correct: "4000" },
+                    { id: "d4_l1_we_do_7", type: "mc", prompt: "Our new estimate is 4,000. The given answer is 4,017. Now is the answer a TRICK or a TREAT?", visual: "emoji:🍬", data: { options: ["TRICK (Unreasonable)", "TREAT (Reasonable)"] }, correct: "TREAT (Reasonable)" },
+                    { id: "d4_l1_we_do_8", type: "true-false", prompt: "Problem: 1,245 + 1,380. Given Answer: 5,625. Estimate: 1,000 + 1,000 = 2,000. The answer is reasonable.", visual: "emoji:❌", data: { options: ["True", "False"] }, correct: "False" },
+                    { id: "d4_l1_we_do_9", type: "true-false", prompt: "Recognizing the pattern: If your estimate is MUCH smaller or larger than the given answer, the answer is probably unreasonable.", visual: "icon:fa-solid fa-lightbulb", data: { options: ["True", "False"] }, correct: "True" },
+                    { id: "d4_l1_we_do_10", type: "mc", prompt: "The step-by-step process for estimating is an example of...", visual: "icon:fa-solid fa-list-ol", data: { options: ["An algorithm", "A story", "Decomposition", "Abstraction"] }, correct: "An algorithm" },
+                    { id: "d4_l1_you_do_1", type: "mc", prompt: "Problem: A whale weighs 9,875 pounds. A boat weighs 5,210 pounds. The difference is 4,665 pounds. Is this answer reasonable (a TREAT)?", visual: "emoji:🐋", data: { options: ["Yes, it is reasonable.", "No, it is not reasonable."] }, correct: "Yes, it is reasonable." },
+                    { id: "d4_l1_you_do_2", type: "mc", prompt: "Problem: A baker made 2,112 cookies on Monday and 3,987 on Tuesday. He made a total of 8,099 cookies. Is this answer reasonable (a TREAT)?", visual: "emoji:🍪", data: { options: ["Yes, it is reasonable.", "No, it is not reasonable."] }, correct: "No, it is not reasonable." },
+                    { id: "d4_l1_you_do_3", type: "mc", prompt: "Problem: A library has 8,025 books. 3,999 are checked out. There are 4,026 books left. Is this answer reasonable (a TREAT)?", visual: "icon:fa-solid fa-book-open-reader", data: { options: ["Yes, it is reasonable.", "No, it is not reasonable."] }, correct: "Yes, it is reasonable." },
+                    { id: "d4_l1_you_do_4", type: "mc", prompt: "Problem: A plane flew 1,489 miles. It has 6,510 miles left to go. The total trip is 7,999 miles. Is this answer reasonable (a TREAT)?", visual: "emoji:✈️", data: { options: ["Yes, it is reasonable.", "No, it is not reasonable."] }, correct: "Yes, it is reasonable." },
+                    { id: "d4_l1_you_do_5", type: "drag-drop-sort", prompt: "Sort the final answers based on if they are reasonable for the problem 2,950 + 4,200.", visual: "Two rectangular bins, one labeled 'Reasonable' and one labeled 'Unreasonable'.", data: { items: ["7,150", "3,800", "9,200", "7,000"], categories: ["Reasonable", "Unreasonable"] }, correct: { "Reasonable": ["7,150", "7,000"], "Unreasonable": ["3,800", "9,200"] } }
+                ],
+                assessment: [
+                    { id: "d4_a_1", type: "mc", prompt: "(Recall) The main purpose of using estimation is to...", visual: "icon:fa-solid fa-bullseye", data: { options: ["Find the exact answer.", "Quickly check if an answer is close to correct.", "Make the problem harder.", "Find the smallest number."] }, correct: "Quickly check if an answer is close to correct." },
+                    { id: "d4_a_2", type: "multi-select", prompt: "(Infer) The exact answer to 9,105 - 3,988 is 5,117. Which of the following estimations are reasonable for this problem? Select all that apply.", visual: "icon:fa-solid fa-calculator", data: { options: ["An estimate of 5,000 (from 9,000 - 4,000)", "An estimate of 6,000 (from 10,000 - 4,000)", "An estimate of 2,000 (from 9,000 - 7,000)", "An estimate of 5,100 (from 9,100 - 4,000)"] }, correct: ["An estimate of 5,000 (from 9,000 - 4,000)", "An estimate of 5,100 (from 9,100 - 4,000)"] },
+                    { id: "d4_a_3", type: "ebsr", prompt: "Part A: A student solved this problem: 5,812 + 2,105 = 7,917. Is their answer reasonable?", visual: "emoji:🤓", data: { part_a: { prompt: "Part A: A student solved this problem: 5,812 + 2,105 = 7,917. Is their answer reasonable?", type: "mc", options: ["Yes, the answer is reasonable.", "No, the answer is not reasonable."] }, part_b: { prompt: "Part B: Which estimation best supports your conclusion?", type: "mc", options: ["6,000 + 2,000 = 8,000, which is close to 7,917.", "5,000 + 2,000 = 7,000, which is not close to 7,917.", "5,800 + 2,100 = 7,900, which is close to 7,917.", "The student added correctly, so it is reasonable."] } }, correct: { part_a: "Yes, the answer is reasonable.", part_b: "5,800 + 2,100 = 7,900, which is close to 7,917." } },
+                    { id: "d4_a_4", type: "text-box", prompt: "(Analyze) A student's answer to 8,450 - 1,520 was 4,930. First, write down an estimated answer by rounding to the nearest thousand. Then, state whether the student's answer was reasonable or not.", visual: "icon:fa-solid fa-magnifying-glass-chart", data: { size: 50 }, correct: "Estimate: 8000 - 2000 = 6000. The answer is not reasonable." },
+                    { id: "d4_a_5", type: "drag-drop-match", prompt: "(Evaluate) Match the solved problem to the correct evaluation of its answer.", visual: "icon:fa-solid fa-check-double", data: { draggables: ["3,050 + 4,899 = 7,949", "9,210 - 4,980 = 1,230", "4,515 + 1,495 = 6,010"], dropTargets: ["Reasonable Answer", "Unreasonable Answer"] }, correct: { "3,050 + 4,899 = 7,949": "Reasonable Answer", "9,210 - 4,980 = 1,230": "Unreasonable Answer", "4,515 + 1,495 = 6,010": "Reasonable Answer" } }
+                ]
+            }
+        };
 
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
+        // --- APPLICATION STATE ---
+        let appState = {};
+        
+        // --- CORE FUNCTIONS ---
+
+        function init() {
             loadProgress();
-            initializeApp();
-        });
-
-        function initializeApp() {
-            renderTabs();
-            renderDayContent();
+            renderApp();
+            attachEventListeners();
         }
 
-        // --- STATE MANAGEMENT ---
-        function saveProgress() {
-            const dataToSave = { ...appState };
-            const jsonString = JSON.stringify(dataToSave);
-            localStorage.setItem('mathEscapeRoomProgress', jsonString);
-            let progressScript = document.getElementById('progress-data');
-            if (!progressScript) {
-                progressScript = document.createElement('script');
-                progressScript.id = 'progress-data';
-                progressScript.type = 'application/json';
-                document.body.appendChild(progressScript);
-            }
-            progressScript.textContent = jsonString;
+        function getDefaultState() {
+             return {
+                currentDay: 'day1',
+                day1: { currentSlide: 0, mode: 'lesson', answers: {}, assessmentCompleted: false, customImages: {} },
+                day2: { currentSlide: 0, mode: 'lesson', answers: {}, assessmentCompleted: false, customImages: {} },
+                day3: { currentSlide: 0, mode: 'lesson', answers: {}, assessmentCompleted: false, customImages: {} },
+                day4: { currentSlide: 0, mode: 'lesson', answers: {}, assessmentCompleted: false, customImages: {} },
+            };
         }
 
         function loadProgress() {
-            const progressScript = document.getElementById('progress-data');
-            let savedProgress = null;
-            if (progressScript && progressScript.textContent.trim().length > 2) {
-                try { savedProgress = JSON.parse(progressScript.textContent); } catch (e) { console.error("Error parsing progress data:", e); }
-            } else {
-                const localData = localStorage.getItem('mathEscapeRoomProgress');
-                if (localData) {
-                    try { savedProgress = JSON.parse(localData); } catch (e) { console.error("Error parsing local storage data:", e); }
+            const progressDataElement = document.getElementById('progress-data');
+            let savedData = null;
+            if (progressDataElement && progressDataElement.textContent.trim().length > 2) {
+                try {
+                    savedData = JSON.parse(progressDataElement.textContent);
+                } catch (e) {
+                    console.error("Failed to parse progress data from script tag.", e);
+                    savedData = null;
                 }
             }
-            if (savedProgress) {
-                appState = savedProgress;
+            
+            if(!savedData) {
+                const lsData = localStorage.getItem('mathMansionProgress');
+                 if(lsData) {
+                    try {
+                        savedData = JSON.parse(lsData);
+                    } catch(e) {
+                         console.error("Failed to parse progress data from localStorage.", e);
+                         savedData = null;
+                    }
+                 }
+            }
+
+            if(savedData) {
+                appState = savedData;
+            } else {
+                appState = getDefaultState();
+            }
+        }
+
+        function saveProgress() {
+            localStorage.setItem('mathMansionProgress', JSON.stringify(appState));
+        }
+        
+        function syncPush() {
+            if (currentUserRole !== 'Teacher' || !currentRoomId || _isApplyingRemote) return;
+            
+            const syncToggle = document.getElementById('sync-toggle');
+            const allowFreeExplore = !syncToggle.checked;
+            
+            const stateToPush = {
+                day: appState.currentDay,
+                slide: appState[appState.currentDay].currentSlide,
+                view: appState[appState.currentDay].mode,
+                allowFreeExplore: allowFreeExplore,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            db.collection('rooms').doc(currentRoomId).set(stateToPush, { merge: true })
+              .catch(err => console.error("Error pushing state:", err));
+        }
+
+        function renderApp() {
+            if (!currentRoomId) return; // Don't render if not in a room
+            renderTabs();
+            renderProgressLocks();
+            renderContentForDay(appState.currentDay);
+            updateHeaderUI();
+            saveProgress();
+            syncPush();
+        }
+
+        function updateHeaderUI() {
+            const badge = document.getElementById('role-room-badge');
+            const teacherControls = document.getElementById('teacher-controls');
+            if (badge) badge.textContent = `${currentUserRole} • room: ${currentRoomId}`;
+            if (teacherControls) {
+                teacherControls.classList.toggle('hidden', currentUserRole !== 'Teacher');
+                teacherControls.classList.toggle('flex', currentUserRole === 'Teacher');
             }
         }
         
-        // --- RENDERING ---
         function renderTabs() {
-            mainNav.innerHTML = lessonData.days.map(day => `
-                <button data-day-id="${day.id}" class="day-tab px-4 py-2 rounded-t-lg font-bold transition-colors duration-300 ${appState.activeDayId === day.id ? 'tab-active' : 'tab-inactive'}">
-                    ${day.title}
-                </button>
-            `).join('');
+            const tabsContainer = document.getElementById('tabs');
+            tabsContainer.innerHTML = '';
+            Object.keys(lessonData).forEach(dayId => {
+                const dayInfo = lessonData[dayId];
+                const tab = document.createElement('button');
+                tab.dataset.day = dayId;
+                tab.className = `px-3 py-2 text-sm md:text-base font-semibold rounded-md border-2 border-transparent transition-colors ${appState.currentDay === dayId ? 'tab-active' : 'text-gray-400 hover:bg-gray-700'}`;
+                tab.textContent = dayId.charAt(0).toUpperCase() + dayId.slice(1).replace('day', 'Day ');
+                tabsContainer.appendChild(tab);
+            });
+        }
+        
+        function renderProgressLocks() {
+            const locksContainer = document.getElementById('progress-locks');
+            locksContainer.innerHTML = '';
+            Object.keys(lessonData).forEach(dayId => {
+                const isCompleted = appState[dayId]?.assessmentCompleted || false;
+                const lockIcon = document.createElement('i');
+                lockIcon.className = `fas ${isCompleted ? 'fa-lock-open text-amber-300' : 'fa-lock text-gray-500'}`;
+                locksContainer.appendChild(lockIcon);
+            });
         }
 
-        function renderDayContent() {
-            const dayId = appState.activeDayId;
-            const dayData = lessonData.days.find(d => d.id === dayId);
-            if (!dayData) return;
-
-            if (!appState.progress[dayId]) {
-                appState.progress[dayId] = {
-                    lesson: 0,
-                    assessment: { answers: {}, completed: false, scores: {} }
-                };
-            }
-
-            if (appState.activeView === 'lesson') {
-                renderLesson(dayData);
-            } else {
-                renderAssessment(dayData);
-            }
-            addGlobalEventListeners();
-        }
-
-        function renderLesson(dayData) {
-            const lesson = dayData.lesson;
-            const currentSlideIndex = appState.progress[dayData.id].lesson;
-            const isLastSlide = currentSlideIndex === lesson.slides.length - 1;
-
-            let slidesHtml = lesson.slides.map((slide, index) => `
-                <div class="slide ${index === currentSlideIndex ? 'active' : ''}" data-slide-index="${index}">
-                    ${renderSlideContent(slide)}
-                </div>
-            `).join('');
-
-            contentArea.innerHTML = `
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="font-title text-2xl text-yellow-400">${lesson.title}</h2>
-                    <button id="mode-switch-btn" class="bg-yellow-500 text-gray-900 px-4 py-2 rounded btn-glow">Go to Assessment</button>
-                </div>
-                <div class="mb-2 text-sm text-gray-400">${lesson.standard}</div>
-                <div class="relative">${slidesHtml}</div>
-                <div class="flex justify-between items-center mt-6">
-                    <button id="prev-slide" class="bg-gray-600 px-4 py-2 rounded ${currentSlideIndex === 0 ? 'invisible' : ''}">Previous</button>
-                    <div class="text-sm text-gray-400">Slide ${currentSlideIndex + 1} of ${lesson.slides.length}</div>
-                    <button id="next-slide" class="bg-blue-600 px-4 py-2 rounded ${isLastSlide ? 'hidden' : ''}">Next</button>
-                    <button id="go-to-assessment-main" class="bg-green-600 px-4 py-2 rounded btn-glow ${isLastSlide ? '' : 'hidden'}">Go to Assessment</button>
-                </div>
-            `;
-        }
-
-        function renderAssessment(dayData) {
-            const assessment = dayData.assessment;
-            const progress = appState.progress[dayData.id].assessment;
+        function renderContentForDay(dayId) {
+            const contentArea = document.getElementById('content-area');
+            const dayState = appState[dayId];
+            const data = lessonData[dayId];
+            const currentMode = dayState.mode;
+            const contentList = data[currentMode];
+            const slideIndex = dayState.currentSlide;
             
-            if (progress.completed) {
-                renderAssessmentResults(dayData);
-                return;
-            }
-
-            let questionsHtml = assessment.questions.map(q => renderSlideContent(q, true)).join('');
-
             contentArea.innerHTML = `
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="font-title text-2xl text-yellow-400">${assessment.title}</h2>
-                    <button id="mode-switch-btn" class="bg-yellow-500 text-gray-900 px-4 py-2 rounded btn-glow">Back to Lesson</button>
-                </div>
-                <div class="space-y-6">${questionsHtml}</div>
-                <div class="text-center mt-8">
-                    <button id="submit-assessment-btn" class="bg-green-600 text-white font-bold px-6 py-3 rounded-lg btn-glow text-xl">Submit Final Answers</button>
-                </div>
-            `;
-        }
-
-        function renderAssessmentResults(dayData) {
-            contentArea.innerHTML = `
-                <div class="text-center p-8">
-                    <h2 class="font-title text-3xl text-green-400 mb-4">Great work!</h2>
-                    <p class="text-lg mb-6">Your report is ready.</p>
-                    <button id="teacher-view-btn" class="text-sm text-gray-500 hover:text-yellow-400">Admin</button>
-                    <div id="score-summary" class="hidden mt-6 text-left"></div>
-                </div>
-                 <button id="mode-switch-btn" class="bg-yellow-500 text-gray-900 px-4 py-2 rounded btn-glow mt-4">Back to Lesson</button>
-            `;
-        }
-
-        function renderSlideContent(slide, isAssessment = false) {
-             const savedAnswers = appState.progress[appState.activeDayId].assessment.answers;
-             const savedAnswer = savedAnswers[slide.id];
-
-            if (slide.type.includes('-do') || slide.type === 'hook' || slide.type === 'discussion') {
-                return `<div class="p-4"><h3 class="font-bold text-xl text-yellow-300 mb-2">${slide.title}</h3><p class="text-lg whitespace-pre-wrap">${slide.content}</p></div>`;
-            }
-
-            const readAloudIcon = isAssessment ? `<i class="fas fa-volume-up speaker-icon ml-2" data-text="${slide.prompt}"></i>` : '';
-            return `
-                <div class="question-container p-4 border border-gray-700 rounded-lg" id="${slide.id}" data-type="${slide.type}">
-                    <div class="flex flex-col md:flex-row gap-4">
-                        <div class="flex-shrink-0 w-full md:w-24 h-24 bg-gray-700 rounded-lg flex items-center justify-center visual-wrapper" data-qid="${slide.id}">
-                            ${generateVisual(slide.visual, slide.id)}
-                        </div>
-                        <div class="flex-grow">
-                            <p class="text-lg mb-4 flex items-center">${slide.prompt} ${readAloudIcon}</p>
-                            ${renderQuestionInput(slide, isAssessment, savedAnswer)}
-                        </div>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-amber-200">${data.title} - ${currentMode === 'lesson' ? 'Lesson' : 'Assessment'}</h2>
+                    <div>
+                        <button id="mode-switcher" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-md text-white transition-colors">
+                            ${currentMode === 'lesson' ? 'Go to Assessment <i class="fas fa-arrow-right ml-2"></i>' : '<i class="fas fa-arrow-left mr-2"></i> Back to Lesson'}
+                        </button>
                     </div>
-                    ${!isAssessment ? `
-                    <div class="text-right mt-4">
-                        <button class="check-answer-btn bg-green-600 px-4 py-2 rounded">Unlock</button>
+                </div>
+                
+                <div id="slide-viewport" class="overflow-hidden">
+                    <div id="slide-container" class="slide-container">
+                        <!-- Slide content is rendered here -->
                     </div>
-                    <div class="feedback mt-2 p-2 rounded text-center"></div>` : ''}
+                </div>
+                 <p class="text-center text-gray-400 mt-4 text-sm">Slide ${slideIndex + 1} of ${contentList.length}</p>
+
+                <div class="flex justify-center mt-6 space-x-4">
+                    <button id="prev-slide-btn" class="px-6 py-2 bg-gray-600 hover:bg-gray-700 rounded-md text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <button id="next-slide-btn" class="px-6 py-2 bg-amber-500 hover:bg-amber-600 rounded-md text-gray-900 font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
             `;
-        }
-
-        function renderQuestionInput(question, isAssessment, savedAnswer) {
-            const readAloud = (text) => isAssessment ? `<i class="fas fa-volume-up speaker-icon ml-2" data-text="${text}"></i>` : '';
             
-            switch (question.type) {
+            renderSlide(dayId, currentMode, slideIndex);
+        }
+
+        function renderSlide(dayId, mode, slideIndex) {
+            const slideContainer = document.getElementById('slide-container');
+            if(!slideContainer) return;
+            const contentList = lessonData[dayId][mode];
+            const item = contentList[slideIndex];
+            const dayState = appState[dayId];
+            const savedAnswer = dayState.answers[item.id];
+            
+            let contentHtml = '';
+            
+            if(item.type === 'content') {
+                 contentHtml = `
+                    <div class="text-center p-8">
+                        <h3 class="text-3xl font-bold text-amber-300 mb-4">${item.title}</h3>
+                        <p class="text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed">${item.content.replace(/\*\*(.*?)\*\*/g, '<strong class="text-amber-300">$1</strong>')}</p>
+                    </div>
+                 `;
+            } else if (item.type === 'completion') {
+                 contentHtml = `
+                    <div class="text-center p-8">
+                        <h3 class="text-3xl font-bold text-green-400 mb-4">${item.title}</h3>
+                        <p class="text-lg text-gray-300">${item.message}</p>
+                        <div class="mt-8">
+                             <button id="teacher-view-btn" class="text-sm text-gray-500 hover:text-amber-300">Admin</button>
+                        </div>
+                        <div id="score-summary" class="hidden mt-4 max-w-md mx-auto text-left p-4 bg-gray-800 rounded-lg border border-gray-600"></div>
+                    </div>
+                 `;
+            }
+            else {
+                 contentHtml = `
+                    <div id="q-${item.id}" class="p-4 md:p-6" data-question-id="${item.id}">
+                        <div class="flex items-center justify-center mb-4 text-xl text-amber-300">
+                           ${mode === 'assessment' ? `<button class="read-aloud-btn mr-4 text-2xl hover:text-amber-500" data-text-to-read="${item.prompt}"><i class="fas fa-volume-up"></i></button>` : ''}
+                           <p class="text-center">${item.prompt}</p>
+                        </div>
+                        <div class="my-6 flex justify-center">${generateVisual(item.visual, item.id, dayId)}</div>
+                        <div id="interactive-area" class="max-w-xl mx-auto">${renderInteractiveArea(item, savedAnswer, mode)}</div>
+                        <div class="mt-6 text-center">
+                            <button class="check-answer-btn px-6 py-3 bg-amber-500 hover:bg-amber-600 rounded-md text-gray-900 font-bold text-lg transition-transform transform hover:scale-105">
+                                <i class="fas fa-unlock-alt mr-2"></i>Unlock
+                            </button>
+                        </div>
+                        <div id="feedback-area" class="text-center mt-4 h-8 font-semibold"></div>
+                    </div>
+                 `;
+            }
+            
+            slideContainer.innerHTML = contentHtml;
+
+            // Post-render attachments
+            attachDragDropListeners(item);
+            
+            // Update nav buttons
+            const prevBtn = document.getElementById('prev-slide-btn');
+            const nextBtn = document.getElementById('next-slide-btn');
+            if (prevBtn) prevBtn.disabled = slideIndex === 0;
+            if (nextBtn) {
+                if (mode === 'lesson' && slideIndex === contentList.length -1) {
+                    nextBtn.innerHTML = 'Go to Assessment <i class="fas fa-arrow-right ml-2"></i>';
+                    nextBtn.id = 'go-to-assessment-from-lesson-btn';
+                } else {
+                     nextBtn.disabled = slideIndex === contentList.length - 1;
+                }
+            }
+        }
+        
+        function renderInteractiveArea(item, savedAnswer, mode) {
+            switch(item.type) {
                 case 'mc':
                 case 'true-false':
-                    return question.data.options.map(opt => `
-                        <label class="block mb-2 p-3 bg-gray-900 rounded hover:bg-gray-700 cursor-pointer has-validation">
-                            <input type="radio" name="${question.id}" value="${opt}" class="mr-3" ${savedAnswer === opt ? 'checked' : ''}>
-                            <span class="option-text">${opt}</span> ${readAloud(opt)}
+                    return item.data.options.map((opt, index) => `
+                        <label class="flex items-center w-full p-4 my-2 bg-gray-800 rounded-lg border-2 border-gray-700 cursor-pointer hover:border-amber-400 transition-colors">
+                            <input type="radio" name="option-${item.id}" value="${opt}" class="hidden peer" ${savedAnswer === opt ? 'checked' : ''}>
+                             ${mode === 'assessment' ? `<button class="read-aloud-btn text-xl mr-4 hover:text-amber-500" data-text-to-read="${opt}"><i class="fas fa-volume-up"></i></button>` : ''}
+                            <span class="flex-grow text-gray-300 peer-checked:text-amber-300 peer-checked:font-bold">${opt}</span>
+                            <div class="w-6 h-6 border-2 border-gray-500 rounded-full flex items-center justify-center peer-checked:border-amber-400">
+                                <div class="w-3 h-3 bg-amber-400 rounded-full hidden peer-checked:block"></div>
+                            </div>
                         </label>
                     `).join('');
                 case 'multi-select':
-                     return question.data.options.map(opt => `
-                        <label class="block mb-2 p-3 bg-gray-900 rounded hover:bg-gray-700 cursor-pointer has-validation">
-                            <input type="checkbox" name="${question.id}" value="${opt}" class="mr-3" ${savedAnswer && savedAnswer.includes(opt) ? 'checked' : ''}>
-                            <span class="option-text">${opt}</span> ${readAloud(opt)}
+                    return item.data.options.map(opt => `
+                         <label class="flex items-center w-full p-4 my-2 bg-gray-800 rounded-lg border-2 border-gray-700 cursor-pointer hover:border-amber-400 transition-colors">
+                            <input type="checkbox" name="option-${item.id}" value="${opt}" class="hidden peer" ${(savedAnswer && savedAnswer.includes(opt)) ? 'checked' : ''}>
+                             ${mode === 'assessment' ? `<button class="read-aloud-btn text-xl mr-4 hover:text-amber-500" data-text-to-read="${opt}"><i class="fas fa-volume-up"></i></button>` : ''}
+                            <span class="flex-grow text-gray-300 peer-checked:text-amber-300 peer-checked:font-bold">${opt}</span>
+                            <div class="w-6 h-6 border-2 border-gray-500 rounded-md flex items-center justify-center peer-checked:border-amber-400">
+                                <i class="fas fa-check text-amber-400 hidden peer-checked:block"></i>
+                            </div>
                         </label>
                     `).join('');
                 case 'text-box':
-                    return `<textarea class="w-full bg-gray-900 p-2 rounded border border-gray-600 focus:border-yellow-400 focus:ring-0 has-validation" rows="1" maxlength="${question.data.size}" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${savedAnswer || ''}</textarea>`;
+                    return `<textarea class="w-full p-3 bg-gray-700 border-2 border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent text-lg" rows="2" maxlength="${item.data.size}" oninput="this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px'">${savedAnswer || ''}</textarea>`;
                 case 'drag-drop-match':
-                    const savedMapping = savedAnswer || {};
-                    const draggables = question.data.draggables.map(d => `<div class="draggable bg-blue-800 p-2 rounded m-1" draggable="true" data-value="${d}">${d}</div>`).join('');
-                    const dropTargets = question.data.dropTargets.map(dt => {
-                        const placedItem = Object.keys(savedMapping).find(key => savedMapping[key] === dt);
-                        return `
-                        <div class="flex items-center mb-2">
-                            <div class="w-1/2 font-bold">${dt.replace(/Box\d/,'')}</div>
-                            <div class="w-1/2 drop-target p-2 rounded has-validation" data-target="${dt}">${placedItem ? `<div class="draggable bg-blue-800 p-2 rounded" draggable="true" data-value="${placedItem}">${placedItem}</div>` : ''}</div>
-                        </div>`
-                    }).join('');
-                    return `<div class="flex"><div class="w-1/3 p-2 border-r border-gray-600">${draggables}</div><div class="w-2/3 p-2">${dropTargets}</div></div>`;
-                case 'drag-drop-sort':
-                    const savedSort = savedAnswer || {};
-                    const items = question.data.items.map(i => `<div class="draggable bg-blue-800 p-2 rounded m-1" draggable="true" data-value="${i}">${i}</div>`).join('');
-                    const categories = question.data.categories.map(cat => {
-                        const placedItems = (savedSort[cat] || []).map(item => `<div class="draggable bg-blue-800 p-2 rounded m-1" draggable="true" data-value="${item}">${item}</div>`).join('');
-                        return `
-                        <div>
-                            <h4 class="font-bold text-center text-yellow-400">${cat}</h4>
-                            <div class="drop-target p-2 rounded mt-1 min-h-[80px] has-validation" data-category="${cat}">${placedItems}</div>
-                        </div>`
-                    }).join('');
-                    return `<div class="p-2 border-b border-gray-600 mb-2">${items}</div><div class="grid grid-cols-${question.data.categories.length} gap-4">${categories}</div>`;
-                case 'e-bsr':
                     return `
-                        <div class="part-a mb-4">
-                            <p class="font-bold">${question.data.partA.prompt}</p>
-                            ${question.data.partA.options.map(opt => `
-                                <label class="block mt-1 p-2 bg-gray-900 rounded hover:bg-gray-700 cursor-pointer has-validation">
-                                    <input type="radio" name="${question.id}-partA" value="${opt}" class="mr-2" ${savedAnswer && savedAnswer.partA === opt ? 'checked' : ''}>
-                                    <span class="option-text">${opt}</span> ${readAloud(opt)}
-                                </label>`).join('')}
+                        <div class="flex flex-col md:flex-row justify-between gap-8">
+                            <div id="draggables-container" class="w-full md:w-1/3 flex flex-col gap-3">
+                                ${item.data.draggables.map(d => `<div class="p-3 bg-blue-600 rounded-md cursor-grab draggable-item" draggable="true" data-item="${d}">${d}</div>`).join('')}
+                            </div>
+                            <div class="w-full md:w-2/3 flex flex-col gap-3">
+                                ${item.data.dropTargets.map(t => `
+                                    <div class="flex items-center gap-3">
+                                        <div class="p-3 w-1/2 bg-gray-700 border-2 border-gray-600 rounded-md min-h-[50px] drop-target" data-target="${t}">
+                                            ${(savedAnswer && Object.keys(savedAnswer).find(k => savedAnswer[k] === t)) ? `<div class="p-3 bg-blue-600 rounded-md cursor-grab draggable-item" draggable="true" data-item="${Object.keys(savedAnswer).find(k => savedAnswer[k] === t)}">${Object.keys(savedAnswer).find(k => savedAnswer[k] === t)}</div>` : ''}
+                                        </div>
+                                        <div class="w-1/2 text-gray-300">${t}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
-                        <div class="part-b">
-                            <p class="font-bold">${question.data.partB.prompt}</p>
-                             ${question.data.partB.options.map(opt => `
-                                <label class="block mt-1 p-2 bg-gray-900 rounded hover:bg-gray-700 cursor-pointer has-validation">
-                                    <input type="radio" name="${question.id}-partB" value="${opt}" class="mr-2" ${savedAnswer && savedAnswer.partB === opt ? 'checked' : ''}>
-                                    <span class="option-text">${opt}</span> ${readAloud(opt)}
-                                </label>`).join('')}
-                        </div>`;
+                    `;
+                case 'drag-drop-sort':
+                    return `
+                         <div class="flex flex-col md:flex-row justify-around gap-4">
+                            <div class="w-full md:w-1/3 text-center">
+                                <h4 class="font-bold text-lg mb-2 text-amber-300">Items</h4>
+                                <div id="draggables-container" class="p-3 bg-gray-800/50 rounded-lg min-h-[200px] flex flex-col gap-2">
+                                     ${item.data.items.map(i => `<div class="p-3 bg-blue-600 rounded-md cursor-grab draggable-item" draggable="true" data-item="${i}">${i}</div>`).join('')}
+                                </div>
+                            </div>
+                            <div class="flex-grow flex gap-4">
+                            ${item.data.categories.map(c => `
+                                <div class="w-1/2 text-center">
+                                    <h4 class="font-bold text-lg mb-2 text-amber-300">${c}</h4>
+                                    <div class="p-3 bg-gray-700/50 border-2 border-gray-600 rounded-lg min-h-[200px] drop-target" data-category="${c}">
+                                    ${(savedAnswer && savedAnswer[c]) ? savedAnswer[c].map(i => `<div class="p-3 bg-blue-600 rounded-md cursor-grab draggable-item" draggable="true" data-item="${i}">${i}</div>`).join('') : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                            </div>
+                        </div>
+                    `;
+                case 'ebsr':
+                    return `
+                        <div class="space-y-6">
+                            <div>
+                                <h4 class="font-bold text-lg mb-2 text-amber-300">Part A</h4>
+                                ${renderInteractiveArea({...item.data.part_a, id: item.id + '_a'}, savedAnswer ? savedAnswer.part_a : undefined, mode)}
+                            </div>
+                             <div>
+                                <h4 class="font-bold text-lg mb-2 text-amber-300">${item.data.part_b.prompt}</h4>
+                                ${renderInteractiveArea({...item.data.part_b, id: item.id + '_b'}, savedAnswer ? savedAnswer.part_b : undefined, mode)}
+                            </div>
+                        </div>
+                    `;
                 default:
-                    return `<p class="text-red-400">Error: Question type "${question.type}" not implemented.</p>`;
+                    return '';
             }
         }
+        
+        function generateVisual(visualString, questionId, dayId) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'visual-wrapper relative cursor-pointer group';
+            wrapper.dataset.questionId = questionId;
+            wrapper.dataset.dayId = dayId;
+            wrapper.title = 'Click to upload your own image';
 
-        function generateVisual(visualString, questionId) {
-            const customImage = appState.customImages[questionId];
-            let defaultVisualHtml = '';
-
-            if (visualString.startsWith('emoji:')) {
-                defaultVisualHtml = `<span class="text-5xl">${visualString.substring(6)}</span>`;
-            } else if (visualString.startsWith('icon:')) {
-                defaultVisualHtml = `<i class="${visualString.substring(5)} text-5xl"></i>`;
-            } else if (visualString) {
-                // Basic SVG generation from description
-                const svgNS = "http://www.w3.org/2000/svg";
-                const svg = document.createElementNS(svgNS, "svg");
-                svg.setAttribute("viewBox", "0 0 100 100");
-                svg.setAttribute("width", "80");
-                svg.setAttribute("height", "80");
-                const text = document.createElementNS(svgNS, "text");
-                text.setAttribute("x", "50");
-                text.setAttribute("y", "50");
-                text.setAttribute("text-anchor", "middle");
-                text.setAttribute("dominant-baseline", "middle");
-                text.setAttribute("fill", "#e2e8f0");
-                text.setAttribute("font-size", "10");
-                text.textContent = visualString;
-                svg.appendChild(text);
-                defaultVisualHtml = svg.outerHTML;
-            }
+            const customImage = appState[dayId]?.customImages?.[questionId];
 
             if (customImage) {
-                return `
-                    <div class="relative w-full h-full">
-                        <img src="${customImage}" class="w-full h-full object-contain rounded-lg">
-                        <button class="remove-custom-image absolute top-0 right-0 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center" data-qid="${questionId}">&times;</button>
-                    </div>`;
-            } else {
-                return `<div class="default-visual-trigger w-full h-full flex items-center justify-center cursor-pointer" data-qid="${questionId}">${defaultVisualHtml}</div>`;
+                wrapper.innerHTML = `
+                    <img src="${customImage}" class="max-w-xs max-h-48 object-contain rounded-md" alt="User uploaded image">
+                    <button class="remove-custom-image-btn absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                `;
+                return wrapper.outerHTML;
             }
+            
+            let defaultVisual = '';
+            if (visualString.startsWith('emoji:')) {
+                defaultVisual = `<span class="text-6xl">${visualString.substring(6)}</span>`;
+            } else if (visualString.startsWith('icon:')) {
+                defaultVisual = `<i class="${visualString.substring(5)} text-6xl text-amber-300"></i>`;
+            } else if (visualString) {
+                const svgNS = "http://www.w3.org/2000/svg";
+                const svg = document.createElementNS(svgNS, "svg");
+                svg.setAttribute("width", "150");
+                svg.setAttribute("height", "100");
+                svg.setAttribute("viewBox", "0 0 150 100");
+                // Simple parser - this would need to be much more complex for real use
+                if (visualString.includes('monster truck')) {
+                    const rect1 = document.createElementNS(svgNS, 'rect');
+                    rect1.setAttribute('x', 20); rect1.setAttribute('y', 20); rect1.setAttribute('width', 110); rect1.setAttribute('height', 40); rect1.setAttribute('fill', '#4A5568');
+                    const rect2 = document.createElementNS(svgNS, 'rect');
+                    rect2.setAttribute('x', 30); rect2.setAttribute('y', 10); rect2.setAttribute('width', 50); rect2.setAttribute('height', 20); rect2.setAttribute('fill', '#718096');
+                    const circ1 = document.createElementNS(svgNS, 'circle');
+                    circ1.setAttribute('cx', 40); circ1.setAttribute('cy', 70); circ1.setAttribute('r', 20); circ1.setAttribute('fill', '#2D3748');
+                    const circ2 = document.createElementNS(svgNS, 'circle');
+                    circ2.setAttribute('cx', 110); circ2.setAttribute('cy', 70); circ2.setAttribute('r', 20); circ2.setAttribute('fill', '#2D3748');
+                    svg.append(rect1, rect2, circ1, circ2);
+                } else {
+                     const text = document.createElementNS(svgNS, 'text');
+                     text.setAttribute('x', '50%'); text.setAttribute('y', '50%');
+                     text.setAttribute('dominant-baseline', 'middle'); text.setAttribute('text-anchor', 'middle');
+                     text.setAttribute('fill', '#CBD5E0'); text.setAttribute('font-size', '12');
+                     text.textContent = visualString.length > 25 ? visualString.substring(0,22) + '...' : visualString;
+                     svg.appendChild(text);
+                }
+                defaultVisual = svg.outerHTML;
+            }
+
+            wrapper.innerHTML = `<div class="p-4 border-2 border-dashed border-gray-600 rounded-md group-hover:border-amber-400 transition-colors">${defaultVisual}</div>`;
+            return wrapper.outerHTML;
         }
+
+        // --- EVENT HANDLING ---
         
-        // --- EVENT LISTENERS ---
-        function addGlobalEventListeners() {
-            mainNav.addEventListener('click', e => {
-                if (e.target.classList.contains('day-tab')) {
-                    appState.activeDayId = e.target.dataset.dayId;
-                    appState.activeView = 'lesson';
-                    renderTabs();
-                    renderDayContent();
+        function attachEventListeners() {
+            const appContainer = document.getElementById('app-container');
+            appContainer.addEventListener('click', e => {
+                const target = e.target;
+                
+                // Tabs
+                const tabButton = target.closest('[data-day]');
+                if (tabButton) {
+                    appState.currentDay = tabButton.dataset.day;
+                    renderApp();
+                    return;
+                }
+
+                // Mode switcher
+                const modeSwitcher = target.closest('#mode-switcher, #go-to-assessment-from-lesson-btn');
+                if(modeSwitcher) {
+                    const dayState = appState[appState.currentDay];
+                    dayState.mode = dayState.mode === 'lesson' ? 'assessment' : 'lesson';
+                    // Add completion slide if not present
+                    const assessment = lessonData[appState.currentDay].assessment;
+                    if(assessment[assessment.length-1].type !== 'completion') {
+                        assessment.push({id: `${appState.currentDay}_completion`, type: 'completion', title: 'Assessment Complete!', message: 'Great work! Your report is ready for your teacher.'});
+                    }
+                    dayState.currentSlide = 0;
+                    renderApp();
+                    return;
+                }
+
+                // Slide navigation
+                const prevBtn = target.closest('#prev-slide-btn');
+                if (prevBtn) {
+                    const dayState = appState[appState.currentDay];
+                    if(dayState.currentSlide > 0) {
+                        dayState.currentSlide--;
+                        renderApp();
+                    }
+                    return;
+                }
+                const nextBtn = target.closest('#next-slide-btn');
+                if (nextBtn) {
+                    const dayState = appState[appState.currentDay];
+                    const contentList = lessonData[appState.currentDay][dayState.mode];
+                    if(dayState.currentSlide < contentList.length - 1) {
+                        dayState.currentSlide++;
+                        renderApp();
+                    }
+                     return;
+                }
+                
+                // Check answer
+                const checkBtn = target.closest('.check-answer-btn');
+                if (checkBtn) {
+                    handleCheckAnswer(checkBtn);
+                    return;
+                }
+
+                // Teacher view
+                const teacherViewBtn = target.closest('#teacher-view-btn');
+                if(teacherViewBtn) {
+                    const password = prompt("Enter teacher password:");
+                    if(password === "2026") {
+                        showScoreSummary();
+                    } else if (password) {
+                        alert("Incorrect password.");
+                    }
+                    return;
+                }
+
+                 // Read Aloud
+                const readAloudBtn = target.closest('.read-aloud-btn');
+                if(readAloudBtn && 'speechSynthesis' in window) {
+                    const text = readAloudBtn.dataset.textToRead;
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    speechSynthesis.speak(utterance);
+                    return;
+                }
+                
+                // Visual Uploader
+                const visualWrapper = target.closest('.visual-wrapper');
+                if(visualWrapper && !target.closest('.remove-custom-image-btn')) {
+                    const uploader = document.getElementById('image-uploader');
+                    uploader.dataset.questionId = visualWrapper.dataset.questionId;
+                    uploader.dataset.dayId = visualWrapper.dataset.dayId;
+                    uploader.click();
+                }
+
+                // Remove Custom Image
+                const removeBtn = target.closest('.remove-custom-image-btn');
+                if(removeBtn) {
+                    e.stopPropagation();
+                    const wrapper = removeBtn.closest('.visual-wrapper');
+                    const dayId = wrapper.dataset.dayId;
+                    const questionId = wrapper.dataset.questionId;
+                    if(appState[dayId] && appState[dayId].customImages) {
+                        delete appState[dayId].customImages[questionId];
+                        renderApp();
+                    }
                 }
             });
-
-            contentArea.addEventListener('click', handleContentAreaClick);
-            contentArea.addEventListener('input', handleContentAreaInput);
             
-            // Drag and Drop Listeners
-            contentArea.addEventListener('dragstart', e => {
-                if (e.target.classList.contains('draggable')) {
+            document.getElementById('download-html-btn').addEventListener('click', downloadWork);
+            document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
+            
+            const imageUploader = document.getElementById('image-uploader');
+            imageUploader.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                const questionId = e.target.dataset.questionId;
+                const dayId = e.target.dataset.dayId;
+                if(file && questionId && dayId) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        if (!appState[dayId].customImages) {
+                            appState[dayId].customImages = {};
+                        }
+                        appState[dayId].customImages[questionId] = event.target.result;
+                        renderApp();
+                    };
+                    reader.readAsDataURL(file);
+                }
+                e.target.value = ''; // Reset for same file upload
+            });
+        }
+        
+        let draggedItem = null;
+        
+        function attachDragDropListeners(item) {
+            if (item.type !== 'drag-drop-match' && item.type !== 'drag-drop-sort') return;
+
+            const draggables = document.querySelectorAll('.draggable-item');
+            const dropTargets = document.querySelectorAll('.drop-target');
+
+            draggables.forEach(d => {
+                d.addEventListener('dragstart', e => {
                     draggedItem = e.target;
                     setTimeout(() => e.target.style.opacity = '0.5', 0);
-                }
-            });
-            contentArea.addEventListener('dragend', e => {
-                if (draggedItem) {
-                    draggedItem.style.opacity = '1';
+                });
+                d.addEventListener('dragend', e => {
+                    setTimeout(() => e.target.style.opacity = '1', 0);
                     draggedItem = null;
-                }
+                });
             });
-            contentArea.addEventListener('dragover', e => e.preventDefault());
-            contentArea.addEventListener('dragenter', e => {
-                if (e.target.classList.contains('drop-target')) {
-                    e.target.classList.add('over');
-                }
-            });
-            contentArea.addEventListener('dragleave', e => {
-                if (e.target.classList.contains('drop-target')) {
-                    e.target.classList.remove('over');
-                }
-            });
-            contentArea.addEventListener('drop', handleDrop);
 
-            // Global buttons
-            document.getElementById('download-html-btn').addEventListener('click', downloadHTML);
-            document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
-            imageUploader.addEventListener('change', handleImageUpload);
-        }
-
-        // --- EVENT HANDLERS & LOGIC ---
-        function handleContentAreaClick(e) {
-            const target = e.target;
-            if (target.id === 'mode-switch-btn' || target.id === 'go-to-assessment-main') {
-                switchView(appState.activeView === 'lesson' ? 'assessment' : 'lesson');
-            } else if (target.id === 'prev-slide') {
-                navigateSlides(-1);
-            } else if (target.id === 'next-slide') {
-                navigateSlides(1);
-            } else if (target.classList.contains('check-answer-btn')) {
-                handleCheckAnswer(target);
-            } else if (target.classList.contains('speaker-icon')) {
-                speak(target.dataset.text);
-            } else if (target.closest('.default-visual-trigger')) {
-                currentUploadQID = target.closest('.default-visual-trigger').dataset.qid;
-                imageUploader.click();
-            } else if (target.classList.contains('remove-custom-image')) {
-                const qid = target.dataset.qid;
-                delete appState.customImages[qid];
-                saveProgress();
-                renderDayContent();
-            } else if (target.id === 'submit-assessment-btn') {
-                handleSubmitAssessment();
-            } else if (target.id === 'teacher-view-btn') {
-                const pass = prompt("Enter teacher password:");
-                if (pass === "2026") {
-                    document.getElementById('score-summary').classList.remove('hidden');
-                    displayScores();
-                } else if (pass) {
-                    alert("Incorrect password.");
-                }
-            }
-        }
-
-        function handleContentAreaInput(e) {
-            const target = e.target;
-            if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
-                const questionContainer = target.closest('.question-container');
-                if (questionContainer && appState.activeView === 'assessment') {
-                    saveAssessmentAnswer(questionContainer);
-                }
-            }
-        }
-
-        function handleDrop(e) {
-            e.preventDefault();
-            const dropTarget = e.target.closest('.drop-target');
-            if (dropTarget && draggedItem) {
-                dropTarget.classList.remove('over');
-                
-                if (dropTarget.closest('.question-container').dataset.type === 'drag-drop-match') {
-                    const existingItem = dropTarget.querySelector('.draggable');
-                    if (existingItem) {
-                        const originalContainer = findOriginalContainer(existingItem);
-                        originalContainer.appendChild(existingItem);
+            dropTargets.forEach(t => {
+                t.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    t.classList.add('drop-target-active');
+                });
+                 t.addEventListener('dragleave', e => {
+                    t.classList.remove('drop-target-active');
+                });
+                t.addEventListener('drop', e => {
+                    e.preventDefault();
+                    t.classList.remove('drop-target-active');
+                    if(draggedItem) {
+                        // For matching, only allow one item
+                        if (item.type === 'drag-drop-match' && t.children.length > 0) {
+                            const originalContainer = document.getElementById('draggables-container');
+                            originalContainer.appendChild(t.children[0]);
+                        }
+                        t.appendChild(draggedItem);
                     }
-                }
-                dropTarget.appendChild(draggedItem);
-
-                if (appState.activeView === 'assessment') {
-                    saveAssessmentAnswer(dropTarget.closest('.question-container'));
-                }
-            }
-        }
-        
-        function findOriginalContainer(element) {
-            const qContainer = element.closest('.question-container');
-            if (qContainer.dataset.type === 'drag-drop-match') return qContainer.querySelector('.border-r');
-            if (qContainer.dataset.type === 'drag-drop-sort') return qContainer.querySelector('.border-b');
-            return document.body; // Fallback
-        }
-
-        function switchView(view) {
-            appState.activeView = view;
-            saveProgress();
-            renderDayContent();
-        }
-
-        function navigateSlides(direction) {
-            const dayId = appState.activeDayId;
-            let currentSlide = appState.progress[dayId].lesson;
-            const totalSlides = lessonData.days.find(d => d.id === dayId).lesson.slides.length;
-            currentSlide = Math.max(0, Math.min(totalSlides - 1, currentSlide + direction));
-            if (appState.progress[dayId].lesson !== currentSlide) {
-                appState.progress[dayId].lesson = currentSlide;
-                saveProgress();
-                renderDayContent();
-            }
-        }
-        
-        function handleCheckAnswer(btn) {
-            const container = btn.closest('.question-container');
-            const { id } = container.dataset;
-            const dayData = lessonData.days.find(d => d.id === appState.activeDayId);
-            const questionData = dayData.lesson.slides.find(q => q.id === id);
-            if (!questionData) return;
-
-            // Clear previous feedback
-            container.querySelectorAll('.correct-answer, .incorrect-answer').forEach(el => {
-                el.classList.remove('correct-answer', 'incorrect-answer');
+                });
             });
-
-            const { isCorrect, correctElements, incorrectElements } = validateAnswer(container, questionData);
-            
-            const feedbackEl = container.querySelector('.feedback');
-            const affirmations = ["Excellent!", "Great job!", "You got it!", "Brilliant!"];
-            const encouragements = ["Not quite, try again.", "Give it another look.", "You're close!"];
-            
-            feedbackEl.textContent = isCorrect ? affirmations[Math.floor(Math.random() * affirmations.length)] : encouragements[Math.floor(Math.random() * encouragements.length)];
-            feedbackEl.className = `feedback mt-2 p-2 rounded text-center ${isCorrect ? 'bg-green-800 text-green-200' : 'bg-red-800 text-red-200'}`;
-            feedbackEl.style.display = 'block';
-
-            correctElements.forEach(el => el.classList.add('correct-answer'));
-            incorrectElements.forEach(el => el.classList.add('incorrect-answer'));
         }
 
-        function validateAnswer(container, questionData) {
-            let isCorrect = false;
-            let correctElements = [], incorrectElements = [];
+        function handleCheckAnswer(button) {
+            const questionContainer = button.closest('[data-question-id]');
+            const id = questionContainer.dataset.questionId;
+            const dayState = appState[appState.currentDay];
+            const mode = dayState.mode;
+            const contentList = lessonData[appState.currentDay][mode];
+            const item = contentList.find(q => q.id === id || (q.type === 'ebsr' && (id.startsWith(q.id))));
 
-            switch (questionData.type) {
-                case 'mc':
-                case 'true-false': {
-                    const selected = container.querySelector(`input[name="${questionData.id}"]:checked`);
-                    isCorrect = selected && selected.value === questionData.correct;
-                    container.querySelectorAll('.has-validation').forEach(el => {
-                        const input = el.querySelector('input');
-                        if (input.value === questionData.correct) correctElements.push(el);
-                        if (input.checked && input.value !== questionData.correct) incorrectElements.push(el);
-                    });
-                    break;
-                }
-                case 'text-box': {
-                    const textarea = container.querySelector('textarea');
-                    const userAnswer = textarea.value.trim().replace(/[.,=?]/g, '');
-                    const correctAnswer = questionData.correct.replace(/[.,=?]/g, '');
-                    isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
-                    (isCorrect ? correctElements : incorrectElements).push(textarea);
-                    break;
-                }
-                case 'drag-drop-match': {
-                    isCorrect = true;
-                    container.querySelectorAll('.drop-target').forEach(dt => {
-                        const targetName = dt.dataset.target;
-                        const draggable = dt.querySelector('.draggable');
-                        const draggableValue = draggable ? draggable.dataset.value : null;
-                        if (questionData.correct[draggableValue] === targetName) {
-                            correctElements.push(dt);
-                        } else {
-                            isCorrect = false;
-                            if (draggable) incorrectElements.push(dt);
-                        }
-                    });
-                    break;
-                }
-                 case 'drag-drop-sort': {
-                    isCorrect = true;
-                    container.querySelectorAll('.drop-target').forEach(dt => {
-                        const category = dt.dataset.category;
-                        const correctItems = questionData.correct[category] || [];
-                        const placedItems = Array.from(dt.querySelectorAll('.draggable')).map(d => d.dataset.value);
-                        
-                        if (placedItems.length === correctItems.length && placedItems.every(item => correctItems.includes(item))) {
-                            correctElements.push(dt);
-                        } else {
-                            isCorrect = false;
-                            if(placedItems.length > 0) incorrectElements.push(dt);
-                        }
-                    });
-                    break;
-                }
-            }
-             return { isCorrect, correctElements, incorrectElements };
-        }
+            if (!item) return;
 
-        function saveAssessmentAnswer(container) {
-            const { id, type } = container.dataset;
-            const answers = appState.progress[appState.activeDayId].assessment.answers;
+            const interactiveArea = questionContainer.querySelector('#interactive-area');
+            const feedbackArea = questionContainer.querySelector('#feedback-area');
+            let userAnswer, isCorrect;
             
-            switch (type) {
+            // --- Collect user answer based on type ---
+            switch (item.type) {
                 case 'mc':
                 case 'true-false':
-                    const checked = container.querySelector(`input[name="${id}"]:checked`);
-                    answers[id] = checked ? checked.value : null;
+                    const selectedRadio = interactiveArea.querySelector('input[type="radio"]:checked');
+                    userAnswer = selectedRadio ? selectedRadio.value : null;
+                    isCorrect = userAnswer === item.correct;
                     break;
                 case 'multi-select':
-                    answers[id] = Array.from(container.querySelectorAll(`input[name="${id}"]:checked`)).map(cb => cb.value);
+                    const selectedChecks = Array.from(interactiveArea.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+                    userAnswer = selectedChecks;
+                    isCorrect = selectedChecks.length === item.correct.length && selectedChecks.every(val => item.correct.includes(val));
                     break;
                 case 'text-box':
-                    answers[id] = container.querySelector('textarea').value;
+                    const textarea = interactiveArea.querySelector('textarea');
+                    userAnswer = textarea.value.trim();
+                    // Flexible comparison for answers like "3458 + 4679 = 8137"
+                    isCorrect = userAnswer.replace(/\s+/g, '') === item.correct.replace(/\s+/g, '');
                     break;
                 case 'drag-drop-match':
-                    answers[id] = {};
-                    container.querySelectorAll('.drop-target').forEach(dt => {
-                        const draggable = dt.querySelector('.draggable');
-                        if (draggable) answers[id][draggable.dataset.value] = dt.dataset.target;
+                    userAnswer = {};
+                    const targets = interactiveArea.querySelectorAll('.drop-target');
+                    targets.forEach(t => {
+                        const dropped = t.querySelector('.draggable-item');
+                        if(dropped) {
+                            userAnswer[dropped.dataset.item] = t.dataset.target;
+                        }
                     });
+                    isCorrect = JSON.stringify(userAnswer) === JSON.stringify(item.correct);
                     break;
                 case 'drag-drop-sort':
-                    answers[id] = {};
-                    container.querySelectorAll('.drop-target').forEach(dt => {
-                        const category = dt.dataset.category;
-                        answers[id][category] = Array.from(dt.querySelectorAll('.draggable')).map(d => d.dataset.value);
+                    userAnswer = {};
+                    const categories = interactiveArea.querySelectorAll('.drop-target[data-category]');
+                    categories.forEach(c => {
+                        const categoryName = c.dataset.category;
+                        userAnswer[categoryName] = Array.from(c.querySelectorAll('.draggable-item')).map(i => i.dataset.item);
                     });
+                     isCorrect = true;
+                    for (const cat in item.correct) {
+                        if (!userAnswer[cat] || userAnswer[cat].sort().join(',') !== item.correct[cat].sort().join(',')) {
+                            isCorrect = false;
+                            break;
+                        }
+                    }
                     break;
-                case 'e-bsr':
-                    const partA = container.querySelector(`input[name="${id}-partA"]:checked`);
-                    const partB = container.querySelector(`input[name="${id}-partB"]:checked`);
-                    answers[id] = {
-                        partA: partA ? partA.value : null,
-                        partB: partB ? partB.value : null
-                    };
+                 case 'ebsr':
+                    const answerA = interactiveArea.querySelector(`input[name="option-${item.id}_a"]:checked`)?.value || null;
+                    const answerB = interactiveArea.querySelector(`input[name="option-${item.id}_b"]:checked`)?.value || null;
+                    userAnswer = { part_a: answerA, part_b: answerB };
+                    isCorrect = answerA === item.correct.part_a && answerB === item.correct.part_b;
                     break;
             }
+            
+            // --- Save and display feedback ---
+            dayState.answers[id] = userAnswer;
+
+            interactiveArea.querySelectorAll('input, textarea').forEach(el => el.classList.remove('feedback-correct', 'feedback-incorrect'));
+            
+            const affirmations = ["Code Accepted!", "You've cracked it!", "Brilliant!", "The lock clicks open!"];
+            const randomAffirmation = affirmations[Math.floor(Math.random() * affirmations.length)];
+
+            if (isCorrect) {
+                feedbackArea.innerHTML = `<span class="text-green-400"><i class="fas fa-check-circle mr-2"></i>${randomAffirmation}</span>`;
+                if(mode === 'assessment' && dayState.currentSlide === contentList.length - 2) {
+                     dayState.assessmentCompleted = true;
+                     renderProgressLocks();
+                }
+            } else {
+                feedbackArea.innerHTML = `<span class="text-red-400"><i class="fas fa-times-circle mr-2"></i>Incorrect Sequence. Re-read the clue and try again.</span>`;
+            }
+            
+            // Highlight fields for complex types
+            if (['mc', 'multi-select', 'true-false'].includes(item.type)) {
+                interactiveArea.querySelectorAll('input').forEach(input => {
+                    const label = input.closest('label');
+                    if (input.checked) {
+                         label.classList.add(isCorrect ? 'feedback-correct' : 'feedback-incorrect');
+                    }
+                });
+            } else if (item.type === 'ebsr') {
+                const inputA = interactiveArea.querySelector(`input[name="option-${item.id}_a"]:checked`);
+                const inputB = interactiveArea.querySelector(`input[name="option-${item.id}_b"]:checked`);
+                if(inputA) inputA.closest('label').classList.add(userAnswer.part_a === item.correct.part_a ? 'feedback-correct' : 'feedback-incorrect');
+                if(inputB) inputB.closest('label').classList.add(userAnswer.part_b === item.correct.part_b ? 'feedback-correct' : 'feedback-incorrect');
+            }
+            else {
+                 interactiveArea.firstElementChild.classList.add(isCorrect ? 'feedback-correct' : 'feedback-incorrect');
+            }
+
             saveProgress();
         }
 
-        function handleSubmitAssessment() {
-            if (!confirm("Are you sure you want to submit? You cannot change your answers after this.")) return;
+        function showScoreSummary() {
+            const scoreSummaryDiv = document.getElementById('score-summary');
+            if(!scoreSummaryDiv) return;
             
-            const dayId = appState.activeDayId;
-            const dayData = lessonData.days.find(d => d.id === dayId);
-            const answers = appState.progress[dayId].assessment.answers;
-            const scores = {};
+            const dayId = appState.currentDay;
+            const assessmentData = lessonData[dayId].assessment.filter(q => q.type !== 'completion');
+            const studentAnswers = appState[dayId].answers;
             let correctCount = 0;
-            let totalCount = dayData.assessment.questions.length;
+            
+            let summaryHtml = '<h4 class="font-bold text-lg mb-2 text-amber-300">Score Report</h4><ul>';
 
-            dayData.assessment.questions.forEach(q => {
-                const userAnswer = answers[q.id];
+            assessmentData.forEach((q, index) => {
+                const answer = studentAnswers[q.id];
                 let isCorrect = false;
-                if (q.type === 'multi-select' || q.type === 'drag-drop-sort' || q.type === 'e-bsr') {
-                    // Deep comparison for arrays/objects
-                    if (JSON.stringify(userAnswer) === JSON.stringify(q.correct)) {
-                        isCorrect = true;
-                    }
-                } else {
-                     if (userAnswer === q.correct) {
-                        isCorrect = true;
-                    }
-                }
+                 // Simple validation check, same logic as handleCheckAnswer
+                if (q.type === 'mc' || q.type === 'true-false') { isCorrect = answer === q.correct; }
+                else if (q.type === 'multi-select') { isCorrect = answer && answer.length === q.correct.length && answer.every(val => q.correct.includes(val)); }
+                else { isCorrect = JSON.stringify(answer) === JSON.stringify(q.correct) || String(answer).replace(/\s/g, '') === String(q.correct).replace(/\s/g, '');}
+               
                 if(isCorrect) correctCount++;
-                scores[q.id] = isCorrect;
+
+                summaryHtml += `<li class="mb-2 text-sm ${isCorrect ? 'text-green-400' : 'text-red-400'}">
+                    <strong>Q${index+1}:</strong> ${isCorrect ? 'Correct' : 'Incorrect'}
+                </li>`;
             });
             
-            appState.progress[dayId].assessment.completed = true;
-            appState.progress[dayId].assessment.scores = scores;
-            appState.progress[dayId].assessment.summary = { correct: correctCount, total: totalCount };
-            saveProgress();
-            renderDayContent();
-        }
-
-        function displayScores() {
-            const summary = appState.progress[appState.activeDayId].assessment.summary;
-            const scores = appState.progress[appState.activeDayId].assessment.scores;
-            const questions = lessonData.days.find(d => d.id === appState.activeDayId).assessment.questions;
-            
-            let detailsHtml = questions.map((q, i) => `
-                <div class="p-2 border-b border-gray-700">
-                    <strong>Question ${i+1}:</strong> 
-                    <span class="${scores[q.id] ? 'text-green-400' : 'text-red-400'}">${scores[q.id] ? 'Correct' : 'Incorrect'}</span>
-                </div>
-            `).join('');
-
-            document.getElementById('score-summary').innerHTML = `
-                <h3 class="font-bold text-xl mb-2">Score Summary</h3>
-                <p class="text-lg mb-4">You answered <strong>${summary.correct}</strong> out of <strong>${summary.total}</strong> questions correctly.</p>
-                ${detailsHtml}
-            `;
+            summaryHtml += `</ul><p class="mt-4 font-bold text-amber-200">Total: ${correctCount} / ${assessmentData.length}</p>`;
+            scoreSummaryDiv.innerHTML = summaryHtml;
+            scoreSummaryDiv.classList.remove('hidden');
         }
         
-        function speak(text) {
-            if ('speechSynthesis' in window) {
-                speechSynthesis.cancel(); // Cancel any previous speech
-                const utterance = new SpeechSynthesisUtterance(text);
-                speechSynthesis.speak(utterance);
-            } else {
-                alert("Sorry, your browser doesn't support the read-aloud feature.");
-            }
-        }
+        // --- DATA EXPORT ---
 
-        function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if (file && currentUploadQID) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    appState.customImages[currentUploadQID] = e.target.result;
-                    saveProgress();
-                    renderDayContent();
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        function downloadHTML() {
-            saveProgress(); // Ensure the latest progress is embedded
-            const htmlContent = document.documentElement.outerHTML;
-            const blob = new Blob([htmlContent], { type: 'text/html' });
+        function downloadWork() {
+            const stateString = JSON.stringify(appState, null, 2);
+            const docClone = document.documentElement.cloneNode(true);
+            
+            const scriptTag = docClone.querySelector('#progress-data');
+            scriptTag.textContent = stateString;
+            
+            const blob = new Blob([docClone.outerHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'math-escape-room-progress.html';
+            a.href = url;
+            a.download = `math-mansion-progress-${new Date().toISOString().slice(0,10)}.html`;
+            document.body.appendChild(a);
             a.click();
-            URL.revokeObjectURL(a.href);
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         async function downloadPDF() {
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF({ orientation: 'p', unit: 'px', format: 'a4' });
+            const originalDay = appState.currentDay;
+            const originalMode = appState[originalDay].mode;
+            const originalSlide = appState[originalDay].currentSlide;
+            
+            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
             const pdfWidth = pdf.internal.pageSize.getWidth();
-            
-            const printContainer = document.createElement('div');
-            printContainer.className = 'p-4 bg-white text-black';
-            
-            const dayData = lessonData.days.find(d => d.id === appState.activeDayId);
-            const assessmentAnswers = appState.progress[appState.activeDayId].assessment.answers;
+            const pdfHeight = pdf.internal.pageSize.getHeight();
 
-            let printHtml = `<h1 style="font-size: 24px; font-weight: bold; text-align: center;">${dayData.assessment.title} Report</h1>`;
+            const processingNotice = document.createElement('div');
+            processingNotice.textContent = 'Generating PDF... Please wait.';
+            processingNotice.className = 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 text-white p-8 rounded-lg z-50 border-2 border-amber-400 shadow-lg';
+            document.body.appendChild(processingNotice);
 
-            dayData.assessment.questions.forEach(q => {
-                const answer = assessmentAnswers[q.id];
-                let answerHtml = 'Not Answered';
-                if (answer) {
-                    if (typeof answer === 'object') {
-                        answerHtml = `<pre>${JSON.stringify(answer, null, 2)}</pre>`;
-                    } else {
-                        answerHtml = `<p>${answer}</p>`;
+            const offscreenContainer = document.createElement('div');
+            offscreenContainer.style.position = 'absolute';
+            offscreenContainer.style.left = '-9999px';
+            offscreenContainer.style.width = '800px';
+            document.body.appendChild(offscreenContainer);
+
+            for (const dayId of Object.keys(lessonData)) {
+                let allContent = [...lessonData[dayId].lesson, ...lessonData[dayId].assessment.filter(q => q.type !== 'completion')];
+                
+                for (let i = 0; i < allContent.length; i++) {
+                    const item = allContent[i];
+                    const staticSlide = document.createElement('div');
+                    staticSlide.className = 'p-6 bg-gray-900 text-gray-100 border-b-2 border-amber-500';
+                    staticSlide.style.fontFamily = "'Inter', sans-serif";
+                    
+                    const savedAnswer = appState[dayId]?.answers[item.id];
+                    let answerHtml = 'Not Answered';
+                    if(savedAnswer) {
+                        if (Array.isArray(savedAnswer)) answerHtml = savedAnswer.join(', ');
+                        else if (typeof savedAnswer === 'object') answerHtml = JSON.stringify(savedAnswer, null, 2);
+                        else answerHtml = savedAnswer;
                     }
+
+                    if (item.type !== 'content') {
+                         staticSlide.innerHTML = `
+                            <h3 style="font-family: 'Lora', serif; font-size: 1.25rem; font-weight: bold; color: #FBBF24; margin-bottom: 0.5rem;">${dayId} - Q${i+1}: ${item.prompt}</h3>
+                            <p style="margin-top: 1rem; color: #D1D5DB;"><strong style="color: #9CA3AF;">Student's Answer:</strong> ${answerHtml}</p>
+                        `;
+                    } else {
+                         staticSlide.innerHTML = `<h3 style="font-family: 'Lora', serif; font-size: 1.5rem; font-weight: bold; color: #FBBF24;">${item.title}</h3><p>${item.content}</p>`;
+                    }
+                    offscreenContainer.appendChild(staticSlide);
                 }
-                printHtml += `
-                    <div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
-                        <p style="font-weight: bold;">${q.prompt}</p>
-                        <div><strong>Your Answer:</strong> ${answerHtml}</div>
-                    </div>
-                `;
+            }
+
+            const canvas = await html2canvas(offscreenContainer, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            const ratio = imgWidth / pdfWidth;
+            const scaledHeight = imgHeight / ratio;
+            
+            let position = 0;
+            let pageCount = 1;
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledHeight);
+            let heightLeft = scaledHeight - pdfHeight;
+            
+            while(heightLeft > 0) {
+                 position -= pdfHeight;
+                 pdf.addPage();
+                 pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledHeight);
+                 heightLeft -= pdfHeight;
+                 pageCount++;
+            }
+            
+            pdf.save(`math-mansion-report-${new Date().toISOString().slice(0,10)}.pdf`);
+            
+            document.body.removeChild(offscreenContainer);
+            document.body.removeChild(processingNotice);
+
+            // Restore state
+            appState.currentDay = originalDay;
+            appState[originalDay].mode = originalMode;
+            appState[originalDay].currentSlide = originalSlide;
+            renderApp();
+        }
+        
+        // --- SETUP MODAL AND SYNC LOGIC ---
+
+        function setupModalListeners() {
+            document.querySelector('input[name="role"][value="Teacher"]').addEventListener('change', () => {
+                document.getElementById('teacher-password-container').classList.remove('hidden');
+            });
+            document.querySelector('input[name="role"][value="Student"]').addEventListener('change', () => {
+                document.getElementById('teacher-password-container').classList.add('hidden');
             });
             
-            printContainer.innerHTML = printHtml;
-            document.body.appendChild(printContainer);
+            document.getElementById('open-lesson-btn').addEventListener('click', () => {
+                const role = document.querySelector('input[name="role"]:checked').value;
+                const roomName = document.getElementById('room-name').value.trim();
+                if (!roomName) {
+                    alert('Please enter a room name.');
+                    return;
+                }
+                
+                if (role === 'Teacher') {
+                    const password = document.getElementById('teacher-password').value;
+                    if (password !== '2026') {
+                        alert('Incorrect teacher password.');
+                        return;
+                    }
+                }
+                
+                localStorage.setItem('lessonRole', role);
+                localStorage.setItem('lessonRoom', roomName);
+                
+                startLesson(roomName, role);
+            });
 
-            const canvas = await html2canvas(printContainer);
-            const imgData = canvas.toDataURL('image/png');
-            const imgProps = pdf.getImageProperties(imgData);
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            document.getElementById('change-role-room-btn').addEventListener('click', () => {
+                disconnectFromRoom();
+                localStorage.removeItem('lessonRole');
+                localStorage.removeItem('lessonRoom');
+                document.getElementById('app-container').classList.add('hidden');
+                document.getElementById('setup-modal').classList.remove('hidden');
+            });
             
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`${appState.activeDayId}-report.pdf`);
-            
-            document.body.removeChild(printContainer);
+            document.getElementById('sync-toggle').addEventListener('change', (e) => {
+                const password = prompt("Enter teacher password to change sync mode:");
+                if (password === '2026') {
+                    syncPush();
+                } else {
+                    if (password) alert('Incorrect password.');
+                    e.target.checked = !e.target.checked; // Revert checkbox state
+                }
+            });
         }
+        
+        async function connectToRoom(roomId, role) {
+            if (firestoreUnsubscribe) firestoreUnsubscribe();
+            
+            currentRoomId = roomId;
+            currentUserRole = role;
+
+            try {
+                if (!auth.currentUser) {
+                    await auth.signInAnonymously();
+                }
+
+                const roomRef = db.collection('rooms').doc(roomId);
+
+                if (role === 'Teacher') {
+                    const doc = await roomRef.get();
+                    if (!doc.exists) {
+                         // Initialize room
+                        await roomRef.set({
+                            day: 'day1',
+                            slide: 0,
+                            view: 'lesson',
+                            allowFreeExplore: true,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                    // Initial push from teacher to set the state
+                    syncPush();
+                } else { // Student
+                    firestoreUnsubscribe = roomRef.onSnapshot(doc => {
+                        if (doc.exists) {
+                            const data = doc.data();
+                            _isApplyingRemote = true;
+
+                            const navElements = document.querySelectorAll('#tabs button, #mode-switcher, #prev-slide-btn, #next-slide-btn');
+                            
+                            if (data.allowFreeExplore) {
+                                navElements.forEach(el => el.classList.remove('disabled-nav'));
+                            } else {
+                                navElements.forEach(el => el.classList.add('disabled-nav'));
+                                // Force student to teacher's view
+                                if (appState.currentDay !== data.day || appState[data.day].currentSlide !== data.slide || appState[data.day].mode !== data.view) {
+                                    appState.currentDay = data.day;
+                                    appState[data.day].currentSlide = data.slide;
+                                    appState[data.day].mode = data.view;
+                                    renderApp();
+                                }
+                            }
+                            
+                            _isApplyingRemote = false;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error("Firebase connection error:", error);
+                alert("Could not connect to the classroom session.");
+            }
+        }
+        
+        function disconnectFromRoom() {
+            if (firestoreUnsubscribe) {
+                firestoreUnsubscribe();
+                firestoreUnsubscribe = null;
+            }
+            currentRoomId = null;
+            currentUserRole = null;
+        }
+
+        function startLesson(roomId, role) {
+            document.getElementById('setup-modal').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            
+            connectToRoom(roomId, role);
+            
+            init(); // Initialize the main lesson app
+        }
+
+        // --- STARTUP ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setupModalListeners();
+            const savedRole = localStorage.getItem('lessonRole');
+            const savedRoom = localStorage.getItem('lessonRoom');
+            if(savedRole && savedRoom) {
+                startLesson(savedRoom, savedRole);
+            }
+        });
 
     </script>
 </body>
 </html>
+
