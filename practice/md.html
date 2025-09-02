@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplication & Division Fluency Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .setup-btn.selected {
+            background-color: #3b82f6; color: white; transform: scale(1.05); border-color: #3b82f6;
+        }
+        .table-btn.selected {
+            background-color: #4f46e5; color: white; border-color: #4f46e5; transform: scale(1.05);
+        }
+        .setup-btn:disabled, .table-btn:disabled {
+            opacity: 0.5; cursor: not-allowed;
+        }
+        #answer-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); } 20%, 40%, 60%, 80% { transform: translateX(8px); }
+        }
+        .shake-error { animation: shake 0.4s ease-in-out; }
+        .flash-correct { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.7); }
+        .flash-incorrect { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.7); }
+        #fireworks-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+        .hidden-step { opacity: 0; transform: translateY(10px); height: 0; overflow: hidden; transition: all 0.3s ease-in-out; }
+        .visible-step { opacity: 1; transform: translateY(0); height: auto; }
+        #waiting-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 10; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Screen 0: Landing Page -->
+    <div id="landing-screen" class="text-center p-8 bg-white rounded-2xl shadow-xl w-full max-w-lg">
+        <h1 class="text-4xl font-bold text-indigo-600 mb-2">Multiplication & Division Challenge</h1>
+        <p class="text-slate-500 mb-8">Choose how you want to play.</p>
+        <div class="space-y-4">
+            <button id="classroom-btn" class="w-full text-lg font-semibold py-4 px-6 border-2 border-indigo-500 text-indigo-500 rounded-lg transition-all duration-200 hover:bg-indigo-500 hover:text-white">
+                <span class="text-2xl mr-2">👩‍🏫</span> Classroom Competition
+            </button>
+            <button id="independent-btn" class="w-full text-lg font-semibold py-4 px-6 border-2 border-slate-300 rounded-lg transition-all duration-200 hover:bg-slate-100">
+                <span class="text-2xl mr-2">🧘</span> Independent Practice
+            </button>
+        </div>
+    </div>
+    
+    <!-- Role Selection Modal (for Classroom Mode) -->
+    <div id="role-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 items-center justify-center z-50">
+        <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md text-center">
+            <h2 class="text-2xl font-bold text-indigo-600 mb-6">Join Classroom Competition</h2>
+            <div class="space-y-4">
+                <input type="text" id="student-name" placeholder="Enter Your Name" class="w-full p-3 border-2 border-slate-200 rounded-lg text-center text-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <input type="number" id="room-name" placeholder="Enter 4-Digit Room Code" class="w-full p-3 border-2 border-slate-200 rounded-lg text-center text-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <div class="flex justify-center gap-6">
+                    <label class="flex items-center space-x-2 text-lg"><input type="radio" name="role" value="student" checked> <span>Student</span></label>
+                    <label class="flex items-center space-x-2 text-lg"><input type="radio" name="role" value="teacher"> <span>Teacher</span></label>
+                </div>
+                <input type="password" id="teacher-password" placeholder="Teacher Password" class="w-full p-3 border-2 border-slate-200 rounded-lg text-center text-lg hidden focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <button id="join-room-btn" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg text-xl transition-colors hover:bg-indigo-700">Join Room</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Screen 1: The Launchpad (Setup Screen) -->
+    <div id="setup-screen" class="hidden text-center p-8 bg-white rounded-2xl shadow-xl w-full max-w-2xl relative">
+         <div id="waiting-overlay" class="rounded-2xl hidden">
+            <div class="text-center">
+                <h3 class="text-2xl font-bold text-slate-700">Waiting for Teacher...</h3>
+                <p class="text-slate-500">The challenge will begin shortly.</p>
+            </div>
+        </div>
+        <h1 class="text-3xl md:text-4xl font-bold text-indigo-600 mb-4">Challenge Setup</h1>
+        <div id="role-room-badge" class="mb-4 font-semibold text-slate-500"></div>
+        
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold text-slate-600 mb-3">Step 1: Choose Fact Tables to Practice</h2>
+            <p class="text-sm text-slate-500 mb-4">Select one or more tables.</p>
+            <div id="mode-selection-container" class="space-y-4">
+                <div>
+                    <h3 class="font-bold text-lg text-left text-slate-700 mb-2">Multiplication (x)</h3>
+                    <div id="multiplication-tables" class="grid grid-cols-6 gap-2">
+                        <!-- Multiplication buttons will be generated here -->
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-bold text-lg text-left text-slate-700 mb-2">Division (÷)</h3>
+                    <div id="division-tables" class="grid grid-cols-6 gap-2">
+                        <!-- Division buttons will be generated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="time-selection-step" class="mb-6 hidden-step">
+            <h2 class="text-xl font-semibold text-slate-600 mb-4">Step 2: Select a Time Limit</h2>
+            <div id="time-selection-container" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button class="setup-btn text-lg font-semibold py-4 px-6 border-2 border-slate-200 rounded-lg transition-all" data-time="180">3 Minutes</button>
+                <button class="setup-btn text-lg font-semibold py-4 px-6 border-2 border-slate-200 rounded-lg transition-all" data-time="300">5 Minutes</button>
+                <button class="setup-btn text-lg font-semibold py-4 px-6 border-2 border-slate-200 rounded-lg transition-all" data-time="420">7 Minutes</button>
+                <button class="setup-btn text-lg font-semibold py-4 px-6 border-2 border-slate-200 rounded-lg transition-all" data-time="600">10 Minutes</button>
+            </div>
+        </div>
+
+        <button id="start-btn" class="w-full bg-slate-300 text-white font-bold py-4 rounded-lg text-xl transition-colors cursor-not-allowed" disabled>Start Challenge</button>
+    </div>
+
+    <!-- Screen 2: The Arena (Gameplay Screen) -->
+    <div id="game-screen" class="hidden w-full max-w-2xl">
+        <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-md mb-6">
+            <div id="timer-display" class="text-xl md:text-2xl font-bold text-red-500">Time: 00:00</div>
+            <div id="mode-display" class="text-xs md:text-sm font-semibold text-slate-500 hidden md:block"></div>
+            <div id="score-display" class="text-xl md:text-2xl font-bold text-green-600">Score: 0</div>
+        </header>
+        <main id="problem-container" class="text-center bg-white p-8 md:p-12 rounded-2xl shadow-xl">
+            <span id="problem-text" class="text-6xl md:text-7xl font-bold tracking-wider text-slate-700"></span>
+            <input type="number" id="answer-input" class="text-6xl md:text-7xl font-bold tracking-wider w-32 md:w-48 text-indigo-600 bg-slate-100 rounded-lg text-center ml-4 transition-shadow">
+        </main>
+    </div>
+
+    <!-- Screen 3: The Scoreboard (Results Screen) -->
+    <div id="results-screen" class="hidden text-center p-8 bg-white rounded-2xl shadow-xl w-full max-w-2xl relative overflow-hidden">
+        <canvas id="fireworks-canvas"></canvas>
+        <h2 class="text-5xl font-bold text-indigo-600 mb-4">Time's Up!</h2>
+        <div class="flex flex-col md:flex-row gap-6">
+            <!-- Individual Score -->
+            <div class="flex-1">
+                <div class="bg-slate-100 p-6 rounded-lg mb-6">
+                    <p class="text-slate-600 text-xl">Your Final Score:</p>
+                    <p id="final-score" class="text-8xl font-bold my-2"></p>
+                </div>
+                <div class="text-left space-y-3 text-lg">
+                    <p id="total-answered" class="text-slate-700"></p>
+                    <p id="accuracy" class="text-slate-700"></p>
+                </div>
+            </div>
+             <!-- Classroom Leaderboard -->
+            <div id="scoreboard-container" class="flex-1 hidden">
+                <h3 class="text-3xl font-bold text-slate-700 mb-4">🏆 Leaderboard</h3>
+                <div class="bg-slate-100 p-4 rounded-lg">
+                    <ol id="scoreboard-list" class="space-y-2 text-left"></ol>
+                </div>
+            </div>
+        </div>
+        <button id="play-again-btn" class="w-full bg-indigo-600 text-white font-bold py-4 mt-8 rounded-lg text-xl transition-colors hover:bg-indigo-700">Play Again</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Firebase Config ---
+            const firebaseConfig = {
+                apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+                authDomain: "lesson-sync-a223a.firebaseapp.com",
+                projectId: "lesson-sync-a223a",
+                storageBucket: "lesson-sync-a223a.firebasestorage.app",
+                messagingSenderId: "906128715071",
+                appId: "1:906128715071:web:347ea08f4d864fde02778a"
+            };
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+            const auth = firebase.auth();
+            const TEACHER_PASSWORD = "2026";
+
+            // --- DOM Elements ---
+            const screens = {
+                landing: document.getElementById('landing-screen'),
+                roleModal: document.getElementById('role-modal'),
+                setup: document.getElementById('setup-screen'),
+                game: document.getElementById('game-screen'),
+                results: document.getElementById('results-screen'),
+            };
+            const mulTablesContainer = document.getElementById('multiplication-tables');
+            const divTablesContainer = document.getElementById('division-tables');
+            const scoreboardContainer = document.getElementById('scoreboard-container');
+            const scoreboardList = document.getElementById('scoreboard-list');
+            const classroomBtn = document.getElementById('classroom-btn');
+            const independentBtn = document.getElementById('independent-btn');
+            const roleRadios = document.querySelectorAll('input[name="role"]');
+            const teacherPasswordField = document.getElementById('teacher-password');
+            const roomNameInput = document.getElementById('room-name');
+            const studentNameInput = document.getElementById('student-name');
+            const joinRoomBtn = document.getElementById('join-room-btn');
+            const waitingOverlay = document.getElementById('waiting-overlay');
+            const roleRoomBadge = document.getElementById('role-room-badge');
+            const modeSelectionContainer = document.getElementById('mode-selection-container');
+            const timeSelectionStep = document.getElementById('time-selection-step');
+            const timeSelectionContainer = document.getElementById('time-selection-container');
+            const startBtn = document.getElementById('start-btn');
+            const timerDisplay = document.getElementById('timer-display');
+            const scoreDisplay = document.getElementById('score-display');
+            const modeDisplay = document.getElementById('mode-display');
+            const problemText = document.getElementById('problem-text');
+            const answerInput = document.getElementById('answer-input');
+            const finalScore = document.getElementById('final-score');
+            const totalAnswered = document.getElementById('total-answered');
+            const accuracyDisplay = document.getElementById('accuracy');
+            const playAgainBtn = document.getElementById('play-again-btn');
+
+            // --- App State ---
+            const appState = {
+                mode: 'independent', role: 'student', room: null, studentName: '',
+                dbUnsubscribe: null, gameStartedByTeacher: false, scoreboardUnsubscribe: null,
+            };
+            const gameState = {
+                timeLimit: 0, timeLeft: 0, score: 0,
+                selectedTables: [], currentModeText: '', correctAnswer: 0,
+                timerInterval: null, totalAttempts: 0,
+            };
+
+            // --- UI Generation ---
+            function generateTableButtons() {
+                for (let i = 1; i <= 12; i++) {
+                    mulTablesContainer.innerHTML += `<button class="table-btn font-semibold py-2 px-1 border-2 border-slate-200 rounded-lg transition-all" data-mode="mul_${i}">x ${i}</button>`;
+                    divTablesContainer.innerHTML += `<button class="table-btn font-semibold py-2 px-1 border-2 border-slate-200 rounded-lg transition-all" data-mode="div_${i}">÷ ${i}</button>`;
+                }
+            }
+            generateTableButtons();
+
+            // --- Screen Management & Main Logic ---
+            function showScreen(screenName) {
+                Object.values(screens).forEach(screen => screen.classList.add('hidden'));
+                screens.roleModal.classList.remove('flex');
+                const targetScreen = screens[screenName];
+                if (targetScreen) {
+                    targetScreen.classList.remove('hidden');
+                    if (screenName === 'roleModal') targetScreen.classList.add('flex');
+                }
+            }
+            auth.signInAnonymously().catch(error => console.error("Anonymous sign-in failed:", error));
+            independentBtn.addEventListener('click', () => {
+                appState.mode = 'independent'; appState.role = 'student'; appState.room = null;
+                if (appState.dbUnsubscribe) { appState.dbUnsubscribe(); appState.dbUnsubscribe = null; }
+                if (appState.scoreboardUnsubscribe) { appState.scoreboardUnsubscribe(); appState.scoreboardUnsubscribe = null; }
+                roleRoomBadge.textContent = "Independent Practice";
+                waitingOverlay.classList.add('hidden'); waitingOverlay.classList.remove('flex');
+                startBtn.textContent = 'Start Challenge';
+                document.querySelectorAll('.table-btn, .setup-btn').forEach(b => b.disabled = false);
+                document.querySelectorAll('.table-btn, .setup-btn').forEach(btn => btn.classList.remove('selected'));
+                timeSelectionStep.classList.add('hidden-step');
+                startBtn.disabled = true;
+                startBtn.classList.add('bg-slate-300', 'cursor-not-allowed');
+                startBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+                showScreen('setup');
+            });
+            classroomBtn.addEventListener('click', () => {
+                appState.mode = 'classroom';
+                document.querySelector('input[name="role"][value="student"]').checked = true;
+                studentNameInput.classList.remove('hidden');
+                teacherPasswordField.classList.add('hidden');
+                roomNameInput.value = ''; roomNameInput.readOnly = false;
+                roomNameInput.placeholder = 'Enter 4-Digit Room Code';
+                studentNameInput.value = '';
+                showScreen('roleModal');
+            });
+            roleRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const isTeacher = e.target.value === 'teacher';
+                    teacherPasswordField.classList.toggle('hidden', !isTeacher);
+                    studentNameInput.classList.toggle('hidden', isTeacher);
+                    if (isTeacher) {
+                        roomNameInput.value = Math.floor(1000 + Math.random() * 9000);
+                        roomNameInput.readOnly = true;
+                    } else {
+                        roomNameInput.value = ''; roomNameInput.readOnly = false;
+                        roomNameInput.placeholder = 'Enter 4-Digit Room Code';
+                    }
+                });
+            });
+            joinRoomBtn.addEventListener('click', () => {
+                const room = roomNameInput.value.trim();
+                const role = document.querySelector('input[name="role"]:checked').value;
+                const password = teacherPasswordField.value;
+                const studentName = studentNameInput.value.trim();
+                if (!room || (role === 'student' && !studentName) || (role === 'teacher' && password !== TEACHER_PASSWORD)) {
+                    alert('Please fill out all fields correctly.'); return;
+                }
+                appState.role = role; appState.room = room; appState.studentName = studentName;
+                showScreen('setup'); setupClassroomMode();
+            });
+
+            // --- Classroom Logic ---
+            function setupClassroomMode() {
+                let badgeText = `Role: ${appState.role.charAt(0).toUpperCase() + appState.role.slice(1)} | Room: ${appState.room}`;
+                if (appState.role === 'student' && appState.studentName) badgeText += ` | Name: ${appState.studentName}`;
+                roleRoomBadge.textContent = badgeText;
+                if (appState.role === 'teacher') {
+                    startBtn.textContent = 'Start Challenge for Everyone';
+                    syncStateToFirebase({ selectedTables: [], timeLimit: null, gameStatus: 'waiting' });
+                } else { 
+                    waitingOverlay.classList.remove('hidden'); waitingOverlay.classList.add('flex');
+                    document.querySelectorAll('.table-btn, .setup-btn').forEach(b => b.disabled = true);
+                    listenForGameChanges();
+                }
+            }
+            function syncStateToFirebase(data) {
+                if (appState.role !== 'teacher' || !appState.room) return;
+                db.collection('rooms').doc(appState.room).set({ ...data, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            }
+            function listenForGameChanges() {
+                if (appState.role !== 'student' || !appState.room) return;
+                appState.dbUnsubscribe = db.collection('rooms').doc(appState.room).onSnapshot(doc => {
+                    if (!doc.exists) return;
+                    const data = doc.data();
+                    updateStudentSetupUI(data);
+                    if (data.gameStatus === 'running' && !appState.gameStartedByTeacher) {
+                        appState.gameStartedByTeacher = true;
+                        gameState.selectedTables = data.selectedTables || [];
+                        gameState.timeLimit = data.timeLimit;
+                        startGame();
+                    }
+                });
+            }
+            function updateStudentSetupUI(data) {
+                const tables = data.selectedTables || [];
+                document.querySelectorAll('.table-btn').forEach(btn => {
+                    btn.classList.toggle('selected', tables.includes(btn.dataset.mode));
+                });
+                if (tables.length > 0) timeSelectionStep.classList.remove('hidden-step');
+                else timeSelectionStep.classList.add('hidden-step');
+                document.querySelectorAll('#time-selection-container .setup-btn').forEach(btn => {
+                    btn.classList.toggle('selected', parseInt(btn.dataset.time) === data.timeLimit);
+                });
+            }
+
+            // --- Setup Screen Logic ---
+            modeSelectionContainer.addEventListener('click', (e) => {
+                if (appState.mode === 'classroom' && appState.role === 'student') return;
+                if (e.target.classList.contains('table-btn')) {
+                    e.target.classList.toggle('selected');
+                    gameState.selectedTables = Array.from(document.querySelectorAll('.table-btn.selected')).map(btn => btn.dataset.mode);
+                    if (gameState.selectedTables.length > 0) {
+                        timeSelectionStep.classList.remove('hidden-step');
+                        timeSelectionStep.classList.add('visible-step');
+                    } else {
+                        timeSelectionStep.classList.add('hidden-step');
+                        timeSelectionStep.classList.remove('visible-step');
+                    }
+                    if (appState.mode === 'classroom') syncStateToFirebase({ selectedTables: gameState.selectedTables });
+                    checkIfReadyToStart();
+                }
+            });
+            timeSelectionContainer.addEventListener('click', (e) => {
+                if (appState.mode === 'classroom' && appState.role === 'student') return;
+                if (e.target.classList.contains('setup-btn')) {
+                    document.querySelectorAll('#time-selection-container .setup-btn').forEach(btn => btn.classList.remove('selected'));
+                    e.target.classList.add('selected');
+                    gameState.timeLimit = parseInt(e.target.dataset.time);
+                    if (appState.mode === 'classroom') syncStateToFirebase({ timeLimit: gameState.timeLimit });
+                    checkIfReadyToStart();
+                }
+            });
+            function checkIfReadyToStart() {
+                const isReady = gameState.selectedTables.length > 0 && gameState.timeLimit > 0;
+                startBtn.disabled = !isReady;
+                startBtn.classList.toggle('bg-slate-300', !isReady);
+                startBtn.classList.toggle('cursor-not-allowed', !isReady);
+                startBtn.classList.toggle('bg-indigo-600', isReady);
+                startBtn.classList.toggle('hover:bg-indigo-700', isReady);
+            }
+            startBtn.addEventListener('click', () => {
+                if (!startBtn.disabled) {
+                    if (appState.mode === 'classroom' && appState.role === 'teacher') {
+                        syncStateToFirebase({ gameStatus: 'running' });
+                    }
+                    startGame();
+                }
+            });
+
+            // --- Game Logic ---
+            function startGame() {
+                gameState.timeLeft = gameState.timeLimit;
+                gameState.score = 0; gameState.totalAttempts = 0;
+                updateScoreDisplay(); updateTimerDisplay();
+                modeDisplay.textContent = `Practicing: ${gameState.selectedTables.map(t => t.replace('_', ' ')).join(', ')}`;
+                showScreen('game');
+                generateProblem();
+                gameState.timerInterval = setInterval(updateTimer, 1000);
+            }
+            function generateProblem() {
+                if (gameState.selectedTables.length === 0) return;
+                const randomTable = gameState.selectedTables[Math.floor(Math.random() * gameState.selectedTables.length)];
+                const [op, tableNumStr] = randomTable.split('_');
+                const tableNum = parseInt(tableNumStr);
+                let num2 = Math.floor(Math.random() * 13); // 0-12
+                let problemString;
+
+                if (op === 'mul') {
+                    gameState.correctAnswer = tableNum * num2;
+                    problemString = `${tableNum} × ${num2} =`;
+                } else {
+                    if (tableNum === 0) { generateProblem(); return; } 
+                    const product = tableNum * num2;
+                    gameState.correctAnswer = num2;
+                    problemString = `${product} ÷ ${tableNum} =`;
+                }
+                problemText.textContent = problemString;
+                answerInput.value = '';
+                answerInput.focus();
+            }
+            function updateTimer() {
+                gameState.timeLeft--; updateTimerDisplay();
+                if (gameState.timeLeft <= 0) endGame();
+            }
+            function updateTimerDisplay() {
+                const minutes = Math.floor(gameState.timeLeft / 60); const seconds = gameState.timeLeft % 60;
+                timerDisplay.textContent = `Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+            function updateScoreDisplay() { scoreDisplay.textContent = `Score: ${gameState.score}`; }
+            answerInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkAnswer(); });
+            function checkAnswer() {
+                const userAnswer = parseInt(answerInput.value);
+                if (isNaN(userAnswer)) return;
+                gameState.totalAttempts++;
+                if (userAnswer === gameState.correctAnswer) {
+                    gameState.score++; updateScoreDisplay(); flashFeedback(true);
+                    setTimeout(generateProblem, 200);
+                } else {
+                    flashFeedback(false); answerInput.classList.add('shake-error');
+                    setTimeout(() => { answerInput.classList.remove('shake-error'); answerInput.value = ''; }, 400);
+                }
+            }
+            function flashFeedback(isCorrect) {
+                const className = isCorrect ? 'flash-correct' : 'flash-incorrect';
+                answerInput.classList.add(className);
+                setTimeout(() => answerInput.classList.remove(className), 400);
+            }
+            
+            // --- End Game & Scoreboard Logic ---
+            function endGame() {
+                clearInterval(gameState.timerInterval);
+                if (appState.dbUnsubscribe) appState.dbUnsubscribe();
+                finalScore.textContent = gameState.score;
+                totalAnswered.innerHTML = `You correctly answered <strong>${gameState.score}</strong> questions.`;
+                const accuracy = gameState.totalAttempts > 0 ? Math.round((gameState.score / gameState.totalAttempts) * 100) : 0;
+                accuracyDisplay.innerHTML = `Your accuracy was <strong>${accuracy}%</strong>.`;
+                
+                if (appState.mode === 'classroom' && appState.role === 'student') {
+                    submitAndShowScoreboard();
+                }
+
+                showScreen('results');
+                startFireworks();
+            }
+
+            function submitAndShowScoreboard() {
+                const scoresRef = db.collection('rooms').doc(appState.room).collection('scores');
+                // Use student name as doc ID, .set() will overwrite if they play again
+                scoresRef.doc(appState.studentName).set({
+                    name: appState.studentName,
+                    score: gameState.score
+                }).then(() => {
+                    scoreboardContainer.classList.remove('hidden');
+                    // Now listen for real-time updates to the scoreboard
+                    appState.scoreboardUnsubscribe = scoresRef.orderBy('score', 'desc').limit(5).onSnapshot(snapshot => {
+                        scoreboardList.innerHTML = ''; // Clear previous list
+                        if (snapshot.empty) {
+                            scoreboardList.innerHTML = '<li class="text-slate-500">No scores yet. You are the first!</li>';
+                            return;
+                        }
+                        let rank = 1;
+                        snapshot.forEach(doc => {
+                            const data = doc.data();
+                            const li = document.createElement('li');
+                            li.className = 'flex justify-between items-center p-2 rounded-md';
+                            if (data.name === appState.studentName) {
+                                li.classList.add('bg-indigo-100');
+                            }
+                            li.innerHTML = `
+                                <span class="font-bold text-indigo-600">${rank}. ${data.name}</span>
+                                <span class="font-semibold text-slate-700">${data.score}</span>
+                            `;
+                            scoreboardList.appendChild(li);
+                            rank++;
+                        });
+                    });
+                }).catch(err => console.error("Error submitting score:", err));
+            }
+
+            playAgainBtn.addEventListener('click', () => { 
+                if (appState.scoreboardUnsubscribe) appState.scoreboardUnsubscribe();
+                location.reload(); 
+            });
+
+            // --- Fireworks Logic ---
+            const fireworksCanvas = document.getElementById('fireworks-canvas'); const ctx = fireworksCanvas.getContext('2d');
+            let fireworks = []; let particles = []; let fireworksInterval;
+            function startFireworks() {
+                fireworksCanvas.width = screens.results.clientWidth; fireworksCanvas.height = screens.results.clientHeight;
+                fireworksInterval = setInterval(() => { if (fireworks.length < 5) fireworks.push(new Firework()); }, 800);
+                animateFireworks();
+            }
+            function animateFireworks() {
+                requestAnimationFrame(animateFireworks);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; ctx.fillRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+                [...fireworks, ...particles].forEach((obj, index, arr) => {
+                    if (obj.done) { arr.splice(index, 1); } else { obj.update(); obj.draw(); }
+                });
+            }
+            class Firework { constructor() { this.x = Math.random() * fireworksCanvas.width; this.y = fireworksCanvas.height; this.targetY = 100 + Math.random() * 200; this.speed = 3 + Math.random() * 3; this.color = `hsl(${Math.random() * 360}, 100%, 50%)`; this.done = false; } update() { this.y -= this.speed; if (this.y < this.targetY) { this.explode(); this.done = true; } } draw() { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI * 2); ctx.fill(); } explode() { for (let i = 0; i < 100; i++) particles.push(new Particle(this.x, this.y, this.color)); } }
+            class Particle { constructor(x, y, color) { this.x = x; this.y = y; this.color = color; this.angle = Math.random() * Math.PI * 2; this.speed = Math.random() * 5 + 1; this.friction = 0.95; this.gravity = 1; this.alpha = 1; this.decay = Math.random() * 0.03 + 0.01; this.done = false; } update() { this.speed *= this.friction; this.x += Math.cos(this.angle) * this.speed; this.y += Math.sin(this.angle) * this.speed + this.gravity; this.alpha -= this.decay; if (this.alpha <= this.decay) this.done = true; } draw() { ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); } }
+        });
+    </script>
+</body>
+</html>
+
