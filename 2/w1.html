@@ -94,7 +94,7 @@
                  <div id="sync-controls" class="flex items-center gap-4">
                     <span id="role-room-badge" class="bg-gray-200 text-gray-700 text-sm font-semibold px-3 py-1 rounded-full"></span>
                     <label id="sync-toggle-label" class="flex items-center cursor-pointer hidden">
-                        <span class="mr-2 font-medium text-gray-700">Sync On</span>
+                        <span id="sync-toggle-text" class="mr-2 font-medium text-gray-700">Sync Off</span>
                         <input type="checkbox" id="sync-toggle" class="h-6 w-12 rounded-full appearance-none bg-red-400 checked:bg-green-500 transition-all duration-300 before:content-[''] before:absolute before:w-5 before:h-5 before:rounded-full before:bg-white before:shadow-md before:translate-x-1 before:translate-y-0.5 checked:before:translate-x-6">
                     </label>
                     <button id="change-role-room-btn" class="text-sm text-blue-600 hover:underline">Change</button>
@@ -332,12 +332,10 @@
                     startLesson(); // This is fine, connection is already ready.
                 }
             }).catch(error => {
-                // If connection fails, disable the start button and show an error.
-                console.error("Firebase connection failed:", error);
-                const startButton = document.getElementById('open-lesson-btn');
-                startButton.textContent = 'Connection Failed';
-                startButton.disabled = true;
-                document.getElementById('setup-error').textContent = 'Could not connect to the classroom service.';
+                // If connection fails, log it but don't block the UI. The user can still attempt to start.
+                // The error will be handled gracefully inside the startLesson function.
+                console.error("Initial Firebase connection failed:", error);
+                document.getElementById('setup-error').textContent = 'Classroom service connection failed. Offline mode available.';
             });
         }
 
@@ -381,6 +379,14 @@
              // --- Immediate UI actions ---
             hideSetupModal();
             document.getElementById('app-container').classList.remove('hidden');
+
+            // Set initial visibility of sync toggle based on role
+            if (userRole === 'Teacher') {
+                document.getElementById('sync-toggle-label').classList.remove('hidden');
+            } else {
+                document.getElementById('sync-toggle-label').classList.add('hidden');
+            }
+
             loadProgress();
             buildFullUI();
             addEventListeners();
@@ -718,7 +724,7 @@
 
         function handleStartLesson() {
             const startButton = document.getElementById('open-lesson-btn');
-            startButton.disabled = true; // Prevent double-clicks immediately
+            startButton.disabled = true;
 
             const roomInput = document.getElementById('room-name');
             const roleInput = document.querySelector('input[name="role"]:checked');
@@ -731,12 +737,12 @@
 
             if (!enteredRoom) {
                 errorEl.textContent = 'Please enter a room name.';
-                startButton.disabled = false; // Re-enable button on validation error
+                startButton.disabled = false;
                 return;
             }
             if (selectedRole === 'Teacher' && passwordInput.value !== atob('MjAyNg==')) {
                 errorEl.textContent = 'Incorrect teacher password.';
-                startButton.disabled = false; // Re-enable button on validation error
+                startButton.disabled = false;
                 return;
             }
 
@@ -745,7 +751,7 @@
             localStorage.setItem('lessonRole', userRole);
             localStorage.setItem('lessonRoom', roomName);
 
-            startLesson(); // This is an async function, but we don't await it here to make the UI transition immediate.
+            startLesson(); 
         }
 
         // --- FIREBASE & SYNC LOGIC ---
@@ -756,25 +762,20 @@
                 return;
             }
             document.getElementById('role-room-badge').textContent = `${userRole} • room: ${roomName}`;
-            const syncToggleLabel = document.getElementById('sync-toggle-label');
-            const syncToggle = document.getElementById('sync-toggle');
 
-            if (firestoreUnsubscribe) firestoreUnsubscribe(); // Unsubscribe from old listener if exists
+            if (firestoreUnsubscribe) firestoreUnsubscribe();
 
             if (userRole === 'Teacher') {
-                syncToggleLabel.classList.remove('hidden');
-                // Set initial state from local or default, then push
-                syncToggle.checked = !appState.allowFreeExplore; 
+                updateSyncToggleVisuals(); 
                 syncPush();
             } else { // Student
-                syncToggleLabel.classList.add('hidden');
                 const roomRef = db.collection('rooms').doc(roomName);
                 firestoreUnsubscribe = roomRef.onSnapshot(handleRemoteUpdate);
             }
         }
         
         function syncPush() {
-            if (userRole !== 'Teacher' || !roomName) return;
+            if (userRole !== 'Teacher' || !roomName || !db) return;
             const roomRef = db.collection('rooms').doc(roomName);
             const stateToPush = {
                 day: appState.activeTab,
@@ -789,16 +790,15 @@
         function handleRemoteUpdate(doc) {
             if (userRole !== 'Student' || !doc.exists) return;
             
-            _isApplyingRemote = true; // Set flag to prevent feedback loops
+            _isApplyingRemote = true;
             
             const data = doc.data();
             appState.allowFreeExplore = data.allowFreeExplore;
             
             if (appState.allowFreeExplore) {
-                toggleStudentNav(false); // Enable navigation
+                toggleStudentNav(false);
             } else {
-                toggleStudentNav(true); // Disable navigation
-                // Force student's view to match teacher's
+                toggleStudentNav(true);
                 appState.activeTab = data.day;
                 appState.mode = data.view;
                 if (appState.progress[data.day]) {
@@ -807,7 +807,16 @@
                 renderApp();
             }
             
-            _isApplyingRemote = false; // Unset flag
+            _isApplyingRemote = false;
+        }
+
+        function updateSyncToggleVisuals() {
+            const syncToggle = document.getElementById('sync-toggle');
+            const syncToggleText = document.getElementById('sync-toggle-text');
+            if (syncToggle && syncToggleText) {
+                syncToggle.checked = !appState.allowFreeExplore;
+                syncToggleText.textContent = appState.allowFreeExplore ? 'Sync Off' : 'Sync On';
+            }
         }
 
         function toggleStudentNav(isDisabled) {
@@ -828,6 +837,7 @@
             const password = prompt("Enter teacher password to change sync mode:");
             if (password === atob('MjAyNg==')) {
                 appState.allowFreeExplore = !isChecked; // checked = sync on = free explore OFF
+                updateSyncToggleVisuals();
                 syncPush();
             } else {
                 alert("Incorrect password.");
@@ -1107,6 +1117,4 @@
     </script>
 </body>
 </html>
-
-
 
