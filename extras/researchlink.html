@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive SDG Innovator's Journal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Chosen Palette: Blueprint & Paper -->
+    <!-- Application Structure Plan: The SPA transforms the static worksheet into an interactive digital journal. It uses a sidebar for navigation between the 5 project phases, allowing non-linear access. The main content area for each phase uses interactive form elements (textareas, inputs) and a drawing canvas for the blueprint. All user data is persistently saved to localStorage to allow for multi-session use. This structure was chosen to mirror the guided, step-by-step nature of the original worksheet while enhancing it with digital interactivity and data persistence, making it a more robust tool for students. -->
+    <!-- Visualization & Content Choices:
+        - Report Info: Blank lines for text entry -> Goal: Capture student input -> Presentation: Styled <input> and <textarea> elements -> Interaction: User types directly, textareas auto-grow -> Justification: Standard, intuitive method for digital text entry.
+        - Report Info: Algorithm steps -> Goal: Capture ordered steps -> Presentation: Ordered list with <textarea> for each step -> Interaction: User types in each field -> Justification: Maintains the structured, sequential nature of an algorithm.
+        - Report Info: Blueprint sketch area -> Goal: Allow visual design -> Presentation: HTML <canvas> with simple drawing tools (pen, eraser, clear) -> Interaction: User draws with mouse/touch -> Justification: Provides a digital alternative to pen-and-paper sketching, essential for a web app. Data is saved as a data URL.
+        - Report Info: Entire worksheet -> Goal: Provide a printable record -> Presentation: A "Print/Export" button -> Interaction: Click triggers window.print() with a print-specific stylesheet -> Justification: Delivers on the original's purpose as a physical worksheet. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Architects+Daughter&display=swap');
+        
+        :root {
+            --blueprint-bg: #edf2f7;
+            --blueprint-lines: #cbd5e0;
+            --paper-bg: #ffffff;
+            --primary-text: #2d3748;
+            --accent-blue: #3182ce;
+            --accent-hover: #2b6cb0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--blueprint-bg);
+            color: var(--primary-text);
+        }
+
+        .handwritten {
+            font-family: 'Architects Daughter', cursive;
+        }
+
+        .nav-link {
+            transition: all 0.2s ease-in-out;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link.active {
+            background-color: rgba(49, 130, 206, 0.1);
+            border-left-color: var(--accent-blue);
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+        
+        .nav-link:hover:not(.active) {
+            background-color: rgba(0,0,0,0.05);
+            border-left-color: #a0aec0;
+        }
+        
+        .form-input, .form-textarea {
+            background-color: #f7fafc;
+            border: 2px solid #e2e8f0;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+        }
+
+        .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
+        }
+
+        .form-textarea {
+            resize: none;
+            overflow-y: hidden;
+        }
+        
+        #blueprint-canvas {
+            border: 2px dashed var(--accent-blue);
+            cursor: crosshair;
+            touch-action: none;
+        }
+        
+        .tool-btn.active {
+            background-color: var(--accent-blue);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        @media print {
+            body {
+                background-color: white;
+            }
+            #sidebar, #header-controls {
+                display: none;
+            }
+            main {
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            .worksheet-page {
+                display: block !important;
+                box-shadow: none !important;
+                border-bottom: 2px solid #ccc;
+                padding-bottom: 2rem;
+                margin-bottom: 2rem;
+                page-break-after: always;
+            }
+            .form-input, .form-textarea {
+                border: 1px solid #ccc;
+                background-color: #f9f9f9;
+            }
+            h1, h2, h3 {
+                color: black;
+            }
+        }
+    </style>
+</head>
+<body class="bg-[var(--blueprint-bg)]">
+
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="w-full md:w-64 bg-white md:border-r border-gray-200 flex-shrink-0">
+            <div class="p-4 border-b">
+                <h1 class="text-xl font-bold text-center text-[var(--accent-blue)]">Innovator's Journal</h1>
+            </div>
+            <nav id="nav-menu" class="p-2 space-y-1">
+                <!-- Navigation links will be injected here -->
+            </nav>
+            <div id="header-controls" class="p-4 mt-auto border-t">
+                <button id="print-btn" class="w-full bg-[var(--accent-blue)] text-white font-bold py-2 px-4 rounded-lg hover:bg-[var(--accent-hover)] transition duration-300 flex items-center justify-center">
+                    <i class="fas fa-print mr-2"></i> Print / Export
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+            <div id="content-container">
+                <!-- Worksheet content will be injected here -->
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const journalData = {
+            pages: [
+                { id: 'intro', title: 'Introduction' },
+                { id: 'phase1', title: 'Phase 1: Research' },
+                { id: 'phase2', title: 'Phase 2: Blueprint' },
+                { id: 'phase3', title: 'Phase 3: Algorithm' },
+                { id: 'phase4', title: 'Phase 4: Iterate' },
+                { id: 'phase5', title: 'Phase 5: Pitch' },
+            ]
+        };
+        
+        let appState = {};
+
+        function saveState() {
+            localStorage.setItem('sdgJournalState', JSON.stringify(appState));
+        }
+
+        function loadState() {
+            const savedState = localStorage.getItem('sdgJournalState');
+            if (savedState) {
+                appState = JSON.parse(savedState);
+            } else {
+                appState = {
+                    activePage: 'intro',
+                    formData: {}
+                };
+            }
+        }
+        
+        function populateForm() {
+            document.querySelectorAll('.persist-data').forEach(el => {
+                if(appState.formData[el.id]) {
+                    el.value = appState.formData[el.id];
+                }
+                 if(el.tagName === 'TEXTAREA') {
+                    autoGrowTextarea({ target: el });
+                 }
+            });
+
+            const canvas = document.getElementById('blueprint-canvas');
+            if(canvas && appState.formData['blueprint-canvas']) {
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.onload = () => ctx.drawImage(img, 0, 0);
+                img.src = appState.formData['blueprint-canvas'];
+            }
+        }
+
+        function handleInputChange(event) {
+            const el = event.target;
+            appState.formData[el.id] = el.value;
+            saveState();
+        }
+
+        function autoGrowTextarea(event) {
+            const textarea = event.target;
+            textarea.style.height = 'auto';
+            textarea.style.height = (textarea.scrollHeight) + 'px';
+        }
+
+        function renderNav() {
+            const navMenu = document.getElementById('nav-menu');
+            navMenu.innerHTML = journalData.pages.map(page => `
+                <a href="#" class="nav-link block p-3 rounded-md ${appState.activePage === page.id ? 'active' : ''}" data-page="${page.id}">
+                    ${page.title}
+                </a>
+            `).join('');
+        }
+        
+        function renderPage() {
+            const contentContainer = document.getElementById('content-container');
+            const pageId = appState.activePage;
+            let contentHTML = '';
+
+            switch(pageId) {
+                case 'intro':
+                    contentHTML = `
+                        <div class="worksheet-page bg-white p-8 rounded-lg shadow-md">
+                            <h2 class="text-3xl font-bold text-[var(--accent-blue)] border-b pb-2 mb-6">The SDG Innovator's Workshop</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label for="student-name" class="font-semibold block mb-2">Name:</label>
+                                    <input type="text" id="student-name" class="form-input persist-data" placeholder="Your Name">
+                                </div>
+                                <div>
+                                    <label for="student-date" class="font-semibold block mb-2">Date:</label>
+                                    <input type="date" id="student-date" class="form-input persist-data">
+                                </div>
+                            </div>
+                            <p class="text-lg">Welcome, Innovator! This digital journal is your space to document your journey through the five phases of the SDG innovation project. Use the navigation on the left to move between phases. Your work will be saved automatically.</p>
+                        </div>
+                    `;
+                    break;
+                case 'phase1':
+                    contentHTML = `
+                        <div class="worksheet-page bg-white p-8 rounded-lg shadow-md">
+                            <h2 class="text-2xl font-bold mb-4">Phase 1: Research for a Reason (Day 2)</h2>
+                            <p class="mb-6">First, choose a Sustainable Development Goal (SDG) that you are passionate about. Then, break it down into a specific problem you can research.</p>
+                            
+                            <div class="space-y-6">
+                                <div>
+                                    <label class="font-semibold text-lg block mb-2">1. My Chosen SDG (e.g., Goal 14: Life Below Water):</label>
+                                    <input type="text" id="phase1-sdg" class="form-input persist-data" placeholder="Type the SDG you chose">
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-lg block mb-2">2. My Specific, Decomposed Problem (e.g., Plastic straws harming sea turtles):</label>
+                                    <textarea id="phase1-problem" class="form-textarea persist-data" rows="2" placeholder="Describe the specific problem"></textarea>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-lg mb-2">3. My Research Filter:</h3>
+                                    <p class="text-sm text-gray-600 mb-4">Find one "Need to Know" fact that helps you think of a solution and one "Nice to Know" fact that is just interesting.</p>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <h4 class="font-bold text-green-600">NEED TO KNOW (Helps me invent a solution):</h4>
+                                            <textarea id="phase1-need" class="form-textarea persist-data" rows="3" placeholder="This fact is essential because..."></textarea>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-bold text-blue-600">NICE TO KNOW (Interesting, but not essential):</h4>
+                                            <textarea id="phase1-nice" class="form-textarea persist-data" rows="3" placeholder="This fact is interesting, but doesn't directly help my invention..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'phase2':
+                    contentHTML = `
+                        <div class="worksheet-page bg-white p-8 rounded-lg shadow-md">
+                            <h2 class="text-2xl font-bold mb-4">Phase 2: Designing the Blueprint (Day 3)</h2>
+                            <p class="mb-6">Use the <strong>P.M.M. model</strong> to create a research plan for your invention. Write one guiding question for each category.</p>
+                             <div class="space-y-6">
+                                <div>
+                                    <label class="font-semibold text-lg block mb-2 text-red-600">(P) Problem Question:</label>
+                                    <p class="text-sm text-gray-600 mb-2">What else do I need to know about the *problem* itself?</p>
+                                    <textarea id="phase2-problem-q" class="form-textarea persist-data" rows="2" placeholder="e.g., How big is this problem?"></textarea>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-lg block mb-2 text-blue-600">(M) Mechanism Question:</label>
+                                    <p class="text-sm text-gray-600 mb-2">How do other things *work* that might give me an idea?</p>
+                                    <textarea id="phase2-mechanism-q" class="form-textarea persist-data" rows="2" placeholder="e.g., How do water filters work?"></textarea>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-lg block mb-2 text-green-600">(M) Materials Question:</label>
+                                    <p class="text-sm text-gray-600 mb-2">What *materials* might be useful for my invention?</p>
+                                    <textarea id="phase2-materials-q" class="form-textarea persist-data" rows="2" placeholder="e.g., What materials are strong and waterproof?"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                 case 'phase3':
+                    contentHTML = `
+                         <div class="worksheet-page bg-white p-8 rounded-lg shadow-md">
+                            <h2 class="text-2xl font-bold mb-4">Phase 3: My Invention's Algorithm (Day 3)</h2>
+                            <p class="mb-6">Write the step-by-step instructions (the algorithm) for how your invention will work.</p>
+                             <ol class="list-decimal list-inside space-y-4">
+                                ${[1,2,3,4,5].map(i => `
+                                <li>
+                                    <textarea id="phase3-step${i}" class="form-textarea persist-data w-[calc(100%-2rem)] ml-2" rows="2" placeholder="Step ${i}..."></textarea>
+                                </li>
+                                `).join('')}
+                             </ol>
+                        </div>
+                    `;
+                    break;
+                case 'phase4':
+                    contentHTML = `
+                        <div class="worksheet-page bg-white p-8 rounded-lg shadow-md">
+                            <h2 class="text-2xl font-bold mb-4">Phase 4: Create & Iterate (Day 4)</h2>
+                            
+                            <div class="mb-8">
+                                <h3 class="font-semibold text-lg mb-2">My Prototype Blueprint:</h3>
+                                <p class="mb-4">Draw a detailed blueprint of your invention. Label the key parts and use arrows to show how it works.</p>
+                                <div class="flex flex-col items-center">
+                                    <div class="flex gap-2 mb-4 items-center" id="canvas-controls">
+                                        <button class="tool-btn border-2 p-2 rounded-md" data-tool="pen" title="Pen"><i class="fas fa-pencil-alt"></i></button>
+                                        <button class="tool-btn border-2 p-2 rounded-md" data-tool="eraser" title="Eraser"><i class="fas fa-eraser"></i></button>
+                                        <input type="color" class="tool-btn w-10 h-10" data-tool="color" value="#3182ce" title="Color Picker">
+                                        <input type="range" min="1" max="20" value="3" class="tool-btn" data-tool="size" title="Brush Size">
+                                        <button class="tool-btn border-2 p-2 rounded-md" data-tool="clear" title="Clear Canvas"><i class="fas fa-trash-alt"></i></button>
+                                    </div>
+                                    <canvas id="blueprint-canvas" width="600" height="400" class="bg-white rounded-lg w-full max-w-2xl"></canvas>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 class="font-semibold text-lg mb-2">My Iteration Plan:</h3>
+                                <p class="mb-4">Based on feedback from your classmates, what is one change you will make to improve your design?</p>
+                                <textarea id="phase4-iteration" class="form-textarea persist-data" rows="4" placeholder="One change I will make is..."></textarea>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'phase5':
+                     contentHTML = `
+                        <div class="worksheet-page bg-white p-8 rounded-lg shadow-md">
+                            <h2 class="text-2xl font-bold mb-4">Phase 5: The Innovator's Pitch Planner (Day 5)</h2>
+                            <p class="mb-6">Use this planner to prepare for your final presentation.</p>
+                            <div class="space-y-6">
+                                <div>
+                                    <label class="font-semibold text-lg block mb-2">The Problem:</label>
+                                    <p class="text-sm text-gray-600 mb-2">What SDG problem are you solving and why is it important?</p>
+                                    <textarea id="phase5-problem" class="form-textarea persist-data" rows="3" placeholder="The problem I am solving is..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-lg block mb-2">My Solution:</label>
+                                    <p class="text-sm text-gray-600 mb-2">What is your invention called and what does it do?</p>
+                                    <textarea id="phase5-solution" class="form-textarea persist-data" rows="3" placeholder="My invention is called... and it works by..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-lg block mb-2">My "Favorite Mistake":</label>
+                                    <p class="text-sm text-gray-600 mb-2">How did feedback help you iterate and make your idea even better?</p>
+                                    <textarea id="phase5-mistake" class="form-textarea persist-data" rows="3" placeholder="My favorite mistake was... I learned that..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+            }
+
+            contentContainer.innerHTML = contentHTML;
+            if(pageId === 'phase4') {
+                initializeCanvas('blueprint-canvas');
+            }
+        }
+        
+        function initializeCanvas(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            const controls = document.getElementById('canvas-controls');
+            if (!canvas || !controls) return;
+            const ctx = canvas.getContext('2d');
+            
+            let isDrawing = false, lastX = 0, lastY = 0;
+            let toolState = { color: '#3182ce', size: 3, tool: 'pen' };
+
+            function getPos(evt) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+                const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+                return {
+                    x: (clientX - rect.left) * scaleX,
+                    y: (clientY - rect.top) * scaleY
+                };
+            }
+
+            function draw(e) {
+                if (!isDrawing) return;
+                const pos = getPos(e);
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                [lastX, lastY] = [pos.x, pos.y];
+            }
+            
+            function startDrawing(e) {
+                e.preventDefault();
+                isDrawing = true;
+                const pos = getPos(e);
+                [lastX, lastY] = [pos.x, pos.y];
+                ctx.strokeStyle = toolState.tool === 'pen' ? toolState.color : '#FFFFFF';
+                ctx.lineWidth = toolState.size;
+                ctx.lineCap = 'round';
+            }
+
+            const stopDrawing = () => {
+                if(isDrawing) {
+                    isDrawing = false;
+                    appState.formData[canvasId] = canvas.toDataURL();
+                    saveState();
+                }
+            };
+            
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            canvas.addEventListener('touchstart', startDrawing, { passive: false });
+            canvas.addEventListener('touchmove', draw, { passive: false });
+            canvas.addEventListener('touchend', stopDrawing);
+
+            controls.addEventListener('click', (e) => {
+                const clickedTool = e.target.closest('.tool-btn');
+                if (!clickedTool) return;
+                const tool = clickedTool.dataset.tool;
+                if (tool === 'clear') {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    appState.formData[canvasId] = canvas.toDataURL();
+                    saveState();
+                } else if (tool === 'pen' || tool === 'eraser') {
+                    toolState.tool = tool;
+                    controls.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+                    clickedTool.classList.add('active');
+                }
+            });
+
+            controls.addEventListener('change', (e) => {
+                const changedTool = e.target.closest('.tool-btn');
+                if (!changedTool) return;
+                const tool = changedTool.dataset.tool;
+                if (tool === 'color') toolState.color = changedTool.value;
+                else if (tool === 'size') toolState.size = changedTool.value;
+            });
+            controls.querySelector('[data-tool="pen"]').classList.add('active');
+        }
+
+        function handleNavClick(event) {
+            event.preventDefault();
+            const link = event.target.closest('.nav-link');
+            if (link) {
+                appState.activePage = link.dataset.page;
+                saveState();
+                renderNav();
+                renderPage();
+                populateForm();
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            renderNav();
+            renderPage();
+            populateForm();
+
+            document.getElementById('nav-menu').addEventListener('click', handleNavClick);
+            document.getElementById('content-container').addEventListener('input', (e) => {
+                if (e.target.classList.contains('persist-data')) {
+                    handleInputChange(e);
+                }
+                if (e.target.tagName === 'TEXTAREA') {
+                    autoGrowTextarea(e);
+                }
+            });
+
+            document.getElementById('print-btn').addEventListener('click', () => {
+                window.print();
+            });
+        });
+    </script>
+</body>
+</html>
