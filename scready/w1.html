@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Detective Agency</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Special+Agent&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light gray background */
+        }
+
+        h1, h2, h3 {
+            font-family: 'Special Agent', monospace;
+        }
+
+        .detective-theme {
+            background-color: #2c3e50; /* Midnight Blue */
+            color: #ecf0f1; /* Clouds White */
+        }
+        
+        .btn-primary {
+            background-color: #f1c40f; /* Sunflower Yellow */
+            color: #2c3e50;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .btn-secondary {
+            background-color: #34495e; /* Wet Asphalt */
+            color: #ecf0f1;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-secondary:hover {
+             background-color: #4e6a85;
+        }
+
+        .slide-content {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .progress-bar-fill {
+            transition: width 0.5s ease-in-out;
+        }
+
+        /* Drag and Drop styles */
+        .drop-zone {
+            border: 2px dashed #bdc3c7;
+            min-height: 40px;
+            transition: background-color 0.2s;
+        }
+        .drop-zone.over {
+            background-color: #34495e;
+        }
+        .draggable {
+            cursor: grab;
+            user-select: none;
+        }
+        .draggable:active {
+            cursor: grabbing;
+        }
+        /* Custom scrollbar for source text */
+        .source-text-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .source-text-container::-webkit-scrollbar-track {
+            background: #34495e;
+        }
+        .source-text-container::-webkit-scrollbar-thumb {
+            background-color: #f1c40f;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+
+    <div id="app-container">
+        <!-- APP HEADER -->
+        <header id="app-header" class="detective-theme p-4 shadow-lg flex justify-between items-center hidden">
+            <button id="home-btn" class="btn-secondary font-bold py-2 px-4 rounded-lg text-sm">Home</button>
+            <div class="w-1/2">
+                <div class="w-full bg-gray-600 rounded-full h-4">
+                    <div id="progress-bar" class="bg-yellow-400 h-4 text-xs font-medium text-blue-900 text-center p-0.5 leading-none rounded-full progress-bar-fill" style="width: 0%"></div>
+                </div>
+                <div id="progress-label" class="text-center text-sm mt-1 text-white"></div>
+            </div>
+            <div class="w-24"></div> <!-- Spacer -->
+        </header>
+
+        <!-- HOME VIEW -->
+        <main id="home-view" class="h-screen flex flex-col justify-center items-center text-center p-6 bg-gray-800 text-white">
+            <div class="max-w-2xl">
+                <h1 class="text-6xl font-bold text-yellow-400 mb-2">Math Detective Agency</h1>
+                <p class="text-xl text-gray-300 mb-8">Your next case is ready. Use your math skills to uncover the facts.</p>
+                <div class="space-x-4">
+                    <button id="start-test-btn" class="btn-primary text-xl font-bold py-4 px-8 rounded-lg">Start Investigation</button>
+                    <button id="start-practice-btn" class="btn-secondary text-xl font-bold py-4 px-8 rounded-lg">Hone Your Skills</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- ASSESSMENT VIEW -->
+        <main id="assessment-view" class="p-4 md:p-8 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto">
+                <!-- Source Text Column -->
+                <div class="bg-gray-700 text-white p-6 rounded-xl shadow-lg h-[80vh] flex flex-col">
+                    <h2 class="text-2xl font-bold mb-4 text-yellow-400 border-b-2 border-yellow-400 pb-2">Case File: Everyday Math Adventures</h2>
+                    <div id="source-text-container" class="source-text-container overflow-y-auto pr-2 flex-grow">
+                        <!-- Source text will be injected by JS -->
+                    </div>
+                </div>
+                <!-- Question Column -->
+                <div id="question-container" class="bg-white p-6 rounded-xl shadow-lg h-[80vh] flex flex-col slide-content">
+                    <!-- Question content will be injected by JS -->
+                </div>
+            </div>
+        </main>
+
+        <!-- PRACTICE VIEW -->
+        <main id="practice-view" class="p-4 md:p-8 hidden">
+             <div id="practice-container" class="bg-white p-8 rounded-xl shadow-lg max-w-3xl mx-auto mt-10 flex flex-col items-center slide-content">
+                <!-- Practice content will be injected by JS -->
+            </div>
+        </main>
+
+        <!-- COMPLETION VIEW -->
+        <main id="completion-view" class="h-screen flex flex-col justify-center items-center text-center p-6 bg-gray-800 text-white hidden">
+             <div class="max-w-2xl">
+                <svg class="mx-auto h-24 w-24 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h1 class="text-4xl font-bold text-yellow-400 mt-4 mb-2">Case Closed!</h1>
+                <p class="text-lg text-gray-300 mb-8">You've gathered all the evidence. Your report is ready for review.</p>
+                <div class="flex space-x-4 justify-center">
+                    <button id="review-answers-btn" class="btn-primary font-bold py-3 px-6 rounded-lg">Review the Evidence</button>
+                    <button id="download-work-btn" class="btn-secondary font-bold py-3 px-6 rounded-lg">Download Work File</button>
+                    <button id="download-pdf-btn" class="btn-secondary font-bold py-3 px-6 rounded-lg">Download Report as PDF</button>
+                </div>
+            </div>
+            <div id="admin-link-container" class="absolute bottom-4 right-4">
+                <a href="#" id="admin-link" class="text-sm text-gray-500 hover:text-yellow-400">Admin View</a>
+            </div>
+            <div id="score-summary" class="hidden mt-8 w-full max-w-4xl bg-white text-gray-800 p-6 rounded-lg">
+                <h2 class="text-2xl font-bold mb-4">Case Summary</h2>
+                <div id="score-table-container" class="text-left overflow-auto"></div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Admin Password Modal -->
+    <div id="password-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl text-gray-800">
+            <h3 class="text-xl font-bold mb-4">Enter Admin Password</h3>
+            <input type="password" id="password-input" class="border p-2 rounded w-full mb-4">
+            <div class="flex justify-end space-x-2">
+                <button id="password-cancel" class="btn-secondary py-2 px-4 rounded-lg">Cancel</button>
+                <button id="password-submit" class="btn-primary py-2 px-4 rounded-lg">Submit</button>
+            </div>
+            <p id="password-error" class="text-red-500 text-sm mt-2 hidden">Incorrect Password.</p>
+        </div>
+    </div>
+
+
+<script id="progress-data" type="application/json"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- DATA ---
+    const sourceText = {
+        "Problem 1: The Bake Sale": "The 5th-grade class held a bake sale to raise money for new library books. They sold 48 chocolate chip cookies at $2 each and 35 brownies at $3 each. To get started, they had to spend $25 on supplies like flour, sugar, and chocolate.",
+        "Problem 2: The School Garden": "Students are planting a vegetable garden. They bought 5 packets of carrot seeds with 80 seeds in each packet. They also bought 3 packets of lettuce seeds with 125 seeds in each packet. They want to plant all the seeds in rows of 15.",
+        "Problem 3: The Library Trip": "Leo loves to read. On Monday, he read 45 pages. From Tuesday to Friday, he read 60 pages each day. He finished his book on Saturday by reading the final 75 pages. His next book is 480 pages long.",
+        "Problem 4: The Field Trip Fundraiser": "Three classes are raising money for a field trip that costs a total of $1,500. Mrs. Davis's class raised $380. Mr. Smith's class raised $415. Ms. Chen's class held a car wash and washed 85 cars for $5 each.",
+        "Problem 5: The Craft Store": "Maria and her 3 friends went to the craft store to buy supplies for a project. They bought 4 canvases for $8 each and a paint set for $22. They paid with a $100 bill. They agreed to split the remaining cost of the supplies equally among themselves."
+    };
+
+    const assessmentQuestions = [
+        // Problem 1: The Bake Sale
+        {
+            type: 'mc',
+            cognitiveLevel: 'Identify/Recall',
+            question: 'Based on "The Bake Sale," how much money did the class make from selling cookies alone?',
+            options: ['$73', '$96', '$105', '$201'],
+            answer: '$96',
+            context: "Problem 1: The Bake Sale"
+        },
+        {
+            type: 'mc',
+            cognitiveLevel: 'Infer/Conclude',
+            question: 'Based on "The Bake Sale," what was the total profit the class made after subtracting the cost of supplies?',
+            options: ['$176', '$201', '$226', '$75'],
+            answer: '$176',
+            context: "Problem 1: The Bake Sale"
+        },
+        // Problem 2: The School Garden
+        {
+            type: 'ms',
+            cognitiveLevel: 'Identify/Recall',
+            question: 'Based on "The School Garden," which of the following pieces of information are stated directly in the text? (Select all that apply)',
+            options: ['There are 5 packets of carrot seeds.', 'Each packet of carrot seeds has 80 seeds.', 'The total number of seeds is 775.', 'The seeds will be planted in rows of 15.'],
+            answer: ['There are 5 packets of carrot seeds.', 'Each packet of carrot seeds has 80 seeds.', 'The seeds will be planted in rows of 15.'],
+            context: "Problem 2: The School Garden"
+        },
+        {
+            type: 'mc',
+            cognitiveLevel: 'Infer/Conclude',
+            question: 'Based on "The School Garden," how many full rows of 15 seeds can the students plant?',
+            options: ['50', '51', '52', '775'],
+            answer: '51',
+            context: "Problem 2: The School Garden"
+        },
+        // Problem 3: The Library Trip
+        {
+            type: 'ebsr',
+            cognitiveLevel: 'Infer/Conclude',
+            partA: {
+                question: 'Based on "The Library Trip," what was the average number of pages Leo read per day from Monday to Saturday (6 days)?',
+                options: ['60 pages', '65 pages', '68 pages', '360 pages'],
+                answer: '60 pages'
+            },
+            partB: {
+                question: 'Which sentence from the text provides all the numbers needed to calculate the TOTAL pages read?',
+                options: [
+                    'On Monday, he read 45 pages.', 
+                    'From Tuesday to Friday, he read 60 pages each day.', 
+                    'He finished his book on Saturday by reading the final 75 pages.',
+                    'All of the above sentences are needed.'
+                ],
+                answer: 'All of the above sentences are needed.'
+            },
+            context: "Problem 3: The Library Trip"
+        },
+        // Problem 4: The Field Trip Fundraiser
+        {
+            type: 'mc',
+            cognitiveLevel: 'Identify/Recall',
+            question: 'Based on "The Field Trip Fundraiser," what is the total amount of money the three classes raised together?',
+            options: ['$795', '$1,220', '$1,500', '$800'],
+            answer: '$1,220',
+            context: "Problem 4: The Field Trip Fundraiser"
+        },
+        {
+            type: 'ms',
+            cognitiveLevel: 'Analyze/Evaluate',
+            question: 'Based on "The Field Trip Fundraiser," which of the following statements are true about the fundraiser\'s status? (Select all that apply)',
+            options: [
+                'Ms. Chen\'s class raised the most money.', 
+                'The classes raised more than $1,000 in total.', 
+                'They still need to raise $280 more.', 
+                'They have reached their goal of $1,500.'
+            ],
+            answer: ['Ms. Chen\'s class raised the most money.', 'The classes raised more than $1,000 in total.', 'They still need to raise $280 more.'],
+            context: "Problem 4: The Field Trip Fundraiser"
+        },
+        // Problem 5: The Craft Store
+        {
+            type: 'mc',
+            cognitiveLevel: 'Infer/Conclude',
+            question: 'Which sentence describes the correct procedure to find the amount of change the group received from their $100 bill?',
+            options: [
+                "Multiply 4 by $8, add $22 to the result, and then subtract that total from $100.",
+                "Add $8 and $22, then multiply by 4, and subtract the result from $100.",
+                "Subtract $22 from $100, and then subtract $8.",
+                "Multiply 4 by $8, and then subtract that result from $100."
+            ],
+            answer: "Multiply 4 by $8, add $22 to the result, and then subtract that total from $100.",
+            context: "Problem 5: The Craft Store"
+        },
+        {
+            type: 'mc',
+            cognitiveLevel: 'Analyze/Evaluate',
+            question: 'Which sentence describes the correct procedure to find the final cost for each of the 4 friends?',
+            options: [
+                "First, find the total cost of all supplies ($54), then divide the total by 4.",
+                "First, find the amount of change received ($46), then divide the change by 4.",
+                "First, divide the cost of the paint set ($22) by 4, then add the cost of one canvas ($8).",
+                "First, find the total cost of all supplies ($54), then multiply the total by 4."
+            ],
+            answer: "First, find the total cost of all supplies ($54), then divide the total by 4.",
+            context: "Problem 5: The Craft Store"
+        },
+        // All Problems
+        {
+            type: 'te',
+            cognitiveLevel: 'Analyze/Evaluate',
+            question: 'Drag the operations to the problem that requires them for a full solution.',
+            sources: ['The Bake Sale', 'The School Garden', 'The Craft Store'],
+            targets: ['(x), (+), (-)', '(x), (+), (÷)', '(x), (+), (-), (÷)'],
+            answer: {'The Bake Sale': '(x), (+), (-)', 'The School Garden': '(x), (+), (÷)', 'The Craft Store': '(x), (+), (-), (÷)'},
+            context: 'All Problems'
+        },
+    ];
+
+    const practiceActivities = [
+        { question: "A shirt costs $15. You buy 3 and pay with a $50 bill. How much change do you get?", answer: "5" },
+        { question: "There are 130 students going on a trip. Each bus holds 40 students. How many buses are needed?", answer: "4" },
+        { question: "You run 3 miles a day for 5 days and 5 miles on the 6th day. How many total miles did you run?", answer: "20" },
+        { question: "A recipe needs 2 cups of flour. You want to make 4 batches. You have 10 cups of flour. How much flour will be left?", answer: "2" },
+        { question: "Tickets to a movie cost $9 for kids and $12 for adults. How much for 2 kids and 1 adult?", answer: "30" },
+        { question: "You have 100 pencils. You give 22 to your friend and put the rest into boxes of 12. How many boxes can you fill?", answer: "6" },
+        { question: "A pizza has 8 slices. If a party of 5 people eats 3 slices each, how many pizzas are needed?", answer: "2" },
+        { question: "You earn $10 per hour. You worked for 5 hours and then bought a game for $35. How much money do you have left?", answer: "15" },
+        { question: "A book has 250 pages. You read 30 pages each day for a week. How many pages are left to read?", answer: "40" },
+        { question: "You buy 5 packs of gum for $2 each and 2 candy bars for $3 each. What is the total cost?", answer: "16" },
+        { question: "A farmer has 60 eggs. He sells 12 and then puts the rest into cartons that hold 12 eggs. How many cartons does he need?", answer: "4" },
+        { question: "You have a 200-piece puzzle. You complete 50 pieces on day one and 75 on day two. How many pieces are left?", answer: "75" },
+        { question: "A car travels 60 miles per hour. How far will it travel in 3 hours and 30 minutes?", answer: "210" },
+        { question: "You save $5 every week. How many weeks will it take to save enough for a $45 video game?", answer: "9" },
+        { question: "A garden has 8 rows of 12 tomato plants. A storm ruins 20 plants. How many are left?", answer: "76" },
+        { question: "A phone plan costs $40 a month plus $2 for every extra gigabyte of data. If you use 3 extra gigabytes, what's your bill?", answer: "46" },
+        { question: "You have a ribbon that is 150 cm long. You cut off 3 pieces that are 25 cm each. How much ribbon is left?", answer: "75" },
+        { question: "A baker makes 12 dozen cookies. He sells them in boxes of 8. How many boxes can he sell?", answer: "18" },
+        { question: "You need 3 apples to make a pie. You have 14 apples. After making as many pies as possible, how many apples are left?", answer: "2" },
+        { question: "A dog weighs 20 pounds. It gains 2 pounds a month for 6 months. What is its new weight?", answer: "32" }
+    ];
+
+    // --- STATE ---
+    let appState = {
+        currentView: 'home',
+        currentQuestionIndex: 0,
+        currentPracticeIndex: 0,
+        studentAnswers: {},
+        mode: 'test', // 'test', 'practice', or 'review'
+    };
+
+    // --- DOM ELEMENTS ---
+    const views = {
+        home: document.getElementById('home-view'),
+        assessment: document.getElementById('assessment-view'),
+        practice: document.getElementById('practice-view'),
+        completion: document.getElementById('completion-view'),
+    };
+    const appHeader = document.getElementById('app-header');
+    const questionContainer = document.getElementById('question-container');
+    const practiceContainer = document.getElementById('practice-container');
+    const progressBar = document.getElementById('progress-bar');
+    const progressLabel = document.getElementById('progress-label');
+    const sourceTextContainer = document.getElementById('source-text-container');
+    const passwordModal = document.getElementById('password-modal');
+
+    // --- LOGIC ---
+
+    const showView = (viewId) => {
+        Object.values(views).forEach(v => v.classList.add('hidden'));
+        if (views[viewId]) {
+            views[viewId].classList.remove('hidden');
+        }
+        appHeader.classList.toggle('hidden', viewId === 'home' || viewId === 'completion');
+        appState.currentView = viewId;
+    };
+
+    const renderSourceText = (context) => {
+        let html = '';
+        if (context === 'All Problems') {
+             html = Object.entries(sourceText)
+                .map(([title, text]) => `<div class="mb-4"><h3 class="font-bold text-lg text-yellow-400">${title}</h3><p class="text-gray-300">${text}</p></div>`)
+                .join('');
+        } else if (sourceText[context]) {
+             html = `<div class="mb-4"><h3 class="font-bold text-lg text-yellow-400">${context}</h3><p class="text-gray-300">${sourceText[context]}</p></div>`;
+        }
+        sourceTextContainer.innerHTML = html;
+    };
+
+    const renderQuestion = () => {
+        const qIndex = appState.currentQuestionIndex;
+        const qData = assessmentQuestions[qIndex];
+        renderSourceText(qData.context);
+        
+        let answerHtml = '';
+        const savedAnswer = appState.studentAnswers[qIndex];
+
+        switch (qData.type) {
+            case 'mc':
+                answerHtml = qData.options.map((opt, i) => `
+                    <label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedAnswer === opt ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50 border-gray-200'}">
+                        <input type="radio" name="q${qIndex}" value="${opt}" class="mr-2" ${savedAnswer === opt ? 'checked' : ''} ${appState.mode === 'review' ? 'disabled' : ''}>
+                        ${opt}
+                    </label>
+                `).join('');
+                break;
+            case 'ms':
+                 answerHtml = qData.options.map((opt, i) => `
+                    <label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedAnswer?.includes(opt) ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50 border-gray-200'}">
+                        <input type="checkbox" name="q${qIndex}" value="${opt}" class="mr-2" ${savedAnswer?.includes(opt) ? 'checked' : ''} ${appState.mode === 'review' ? 'disabled' : ''}>
+                        ${opt}
+                    </label>
+                `).join('');
+                break;
+            case 'cr':
+                answerHtml = `<textarea class="w-full border rounded-lg p-2 h-32" placeholder="Type your explanation here..." ${appState.mode === 'review' ? 'disabled' : ''}>${savedAnswer || ''}</textarea>`;
+                break;
+            case 'ebsr':
+                const savedA = savedAnswer ? savedAnswer.partA : null;
+                const savedB = savedAnswer ? savedAnswer.partB : null;
+                answerHtml = `
+                    <div class="mb-4">
+                        <p class="font-semibold mb-2">Part A: ${qData.partA.question}</p>
+                        ${qData.partA.options.map(opt => `
+                            <label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedA === opt ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50 border-gray-200'}">
+                                <input type="radio" name="q${qIndex}_partA" value="${opt}" class="mr-2" ${savedA === opt ? 'checked' : ''} ${appState.mode === 'review' ? 'disabled' : ''}>
+                                ${opt}
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div>
+                        <p class="font-semibold mb-2">Part B: ${qData.partB.question}</p>
+                        ${qData.partB.options.map(opt => `
+                            <label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedB === opt ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50 border-gray-200'}">
+                                <input type="radio" name="q${qIndex}_partB" value="${opt}" class="mr-2" ${savedB === opt ? 'checked' : ''} ${appState.mode === 'review' ? 'disabled' : ''}>
+                                ${opt}
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+                break;
+            case 'te':
+                const drops = qData.sources.map(source => `
+                    <div class="flex items-center mb-2">
+                        <div class="w-1/3 font-semibold">${source}</div>
+                        <div class="w-2/3 drop-zone p-2 rounded-lg flex items-center" data-target="${source}">
+                           ${ (savedAnswer && savedAnswer[source]) ? `<div class="draggable bg-yellow-400 text-blue-900 font-bold p-2 rounded-lg" draggable="true" data-source="${savedAnswer[source]}">${savedAnswer[source]}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                const drags = qData.targets.map(target => `<div class="draggable bg-yellow-400 text-blue-900 font-bold p-2 rounded-lg" draggable="true" data-source="${target}">${target}</div>`).join('');
+                answerHtml = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-bold mb-2">Problems</h4>
+                            ${drops}
+                        </div>
+                        <div id="drag-source-container">
+                            <h4 class="font-bold mb-2">Operation Sets</h4>
+                            <div class="space-y-2">
+                                ${drags}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                break;
+        }
+
+        questionContainer.innerHTML = `
+            <div class="flex-grow overflow-y-auto pr-2">
+                <p class="text-sm text-gray-500 mb-1">Question ${qIndex + 1} of ${assessmentQuestions.length}</p>
+                <h3 class="text-xl font-semibold mb-4">${qData.question || qData.partA.question}</h3>
+                <div>${answerHtml}</div>
+            </div>
+            <div class="mt-6 flex justify-between items-center pt-4 border-t">
+                <button id="prev-btn" class="btn-secondary font-bold py-2 px-6 rounded-lg ${qIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${qIndex === 0 ? 'disabled' : ''}>Previous</button>
+                <button id="next-btn" class="btn-primary font-bold py-2 px-6 rounded-lg">${qIndex === assessmentQuestions.length - 1 ? 'Finish Case' : 'Next'}</button>
+            </div>
+        `;
+
+        updateProgressBar();
+        addQuestionEventListeners();
+    };
+    
+    const renderPractice = () => {
+        const pIndex = appState.currentPracticeIndex;
+        const pData = practiceActivities[pIndex];
+        
+        practiceContainer.innerHTML = `
+            <p class="text-sm text-gray-500 mb-1">Drill ${pIndex + 1} of ${practiceActivities.length}</p>
+            <h3 class="text-2xl font-semibold mb-6 text-center">${pData.question}</h3>
+            <input type="text" id="practice-input" class="border-2 border-gray-300 rounded-lg p-3 text-xl w-full max-w-sm text-center mb-4 focus:border-yellow-400 focus:ring-yellow-400" placeholder="Your Answer">
+            <div id="feedback-container" class="h-8 mb-4 text-center"></div>
+            <div class="flex space-x-4">
+                 <button id="check-answer-btn" class="btn-primary font-bold py-2 px-8 rounded-lg">Check Answer</button>
+                 <button id="try-again-btn" class="btn-secondary font-bold py-2 px-8 rounded-lg hidden">Try Again</button>
+                 <button id="next-practice-btn" class="btn-primary font-bold py-2 px-8 rounded-lg hidden">Next</button>
+            </div>
+        `;
+        updateProgressBar();
+        addPracticeEventListeners();
+    };
+
+    const saveAnswer = () => {
+        const qIndex = appState.currentQuestionIndex;
+        const qData = assessmentQuestions[qIndex];
+        let answer;
+
+        switch (qData.type) {
+            case 'mc':
+                const checkedRadio = questionContainer.querySelector(`input[name="q${qIndex}"]:checked`);
+                answer = checkedRadio ? checkedRadio.value : null;
+                break;
+            case 'ms':
+                answer = Array.from(questionContainer.querySelectorAll(`input[name="q${qIndex}"]:checked`)).map(el => el.value);
+                break;
+            case 'cr':
+                answer = questionContainer.querySelector('textarea').value;
+                break;
+            case 'ebsr':
+                const partAEl = questionContainer.querySelector(`input[name="q${qIndex}_partA"]:checked`);
+                const partBEl = questionContainer.querySelector(`input[name="q${qIndex}_partB"]:checked`);
+                answer = {
+                    partA: partAEl ? partAEl.value : null,
+                    partB: partBEl ? partBEl.value : null
+                };
+                break;
+            case 'te':
+                 answer = {};
+                 questionContainer.querySelectorAll('.drop-zone').forEach(zone => {
+                    const target = zone.dataset.target;
+                    const draggable = zone.querySelector('.draggable');
+                    if (draggable) {
+                        answer[target] = draggable.dataset.source;
+                    }
+                 });
+                 break;
+        }
+        appState.studentAnswers[qIndex] = answer;
+        localStorage.setItem('mathDetectiveProgress', JSON.stringify(appState.studentAnswers));
+    };
+
+    const updateProgressBar = () => {
+        const total = appState.mode === 'test' || appState.mode === 'review' ? assessmentQuestions.length : practiceActivities.length;
+        const current = appState.mode === 'test' || appState.mode === 'review' ? appState.currentQuestionIndex + 1 : appState.currentPracticeIndex + 1;
+        const percent = (current / total) * 100;
+        progressBar.style.width = `${percent}%`;
+        progressLabel.textContent = `Case File: ${current} of ${total}`;
+    };
+
+    const showCompletionScreen = () => {
+        showView('completion');
+    };
+    
+    const showScoreSummary = () => {
+        let correctCount = 0;
+        const tableRows = assessmentQuestions.map((q, i) => {
+            const studentAnswer = appState.studentAnswers[i];
+            let isCorrect = false;
+            let correctAnswerText = '';
+            let studentAnswerText = '';
+
+            switch(q.type) {
+                case 'mc':
+                    isCorrect = studentAnswer === q.answer;
+                    correctAnswerText = q.answer;
+                    studentAnswerText = studentAnswer || '<i>No Answer</i>';
+                    break;
+                case 'cr':
+                case 'te':
+                    isCorrect = false; // Manual grade
+                    correctAnswerText = "<i>Manual Grade</i>";
+                    studentAnswerText = studentAnswer || '<i>No Answer</i>';
+                    if (typeof studentAnswer === 'object' && studentAnswer !== null) {
+                        studentAnswerText = Object.entries(studentAnswer).map(([k,v]) => `<b>${k}</b>: ${v}`).join('<br>');
+                    }
+                    break;
+                case 'ms':
+                    correctAnswerText = q.answer.join(', ');
+                    studentAnswerText = studentAnswer?.join(', ') || '<i>No Answer</i>';
+                    if (studentAnswer && studentAnswer.length === q.answer.length) {
+                        isCorrect = studentAnswer.every(val => q.answer.includes(val));
+                    }
+                    break;
+                case 'ebsr':
+                     const isPartACorrect = studentAnswer?.partA === q.partA.answer;
+                     const isPartBCorrect = studentAnswer?.partB === q.partB.answer;
+                     isCorrect = isPartACorrect && isPartBCorrect;
+                     correctAnswerText = `A: ${q.partA.answer}<br>B: ${q.partB.answer}`;
+                     studentAnswerText = `A: ${studentAnswer?.partA || '<i>No Answer</i>'}<br>B: ${studentAnswer?.partB || '<i>No Answer</i>'}`;
+                     break;
+            }
+            if (isCorrect) correctCount++;
+
+            return `
+                <tr class="border-b">
+                    <td class="p-2 font-semibold">${i + 1}</td>
+                    <td class="p-2">${studentAnswerText}</td>
+                    <td class="p-2">${correctAnswerText}</td>
+                    <td class="p-2 font-bold ${isCorrect ? 'text-green-600' : (correctAnswerText === '<i>Manual Grade</i>' ? 'text-gray-500' : 'text-red-600')}">
+                        ${isCorrect ? 'Correct' : (correctAnswerText === '<i>Manual Grade</i>' ? 'Needs Grading' : 'Incorrect')}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        document.getElementById('score-table-container').innerHTML = `
+            <p class="text-right font-bold mb-2">Auto-Graded Score: ${correctCount} / ${assessmentQuestions.filter(q => q.type !== 'cr' && q.type !== 'te').length}</p>
+            <table class="w-full">
+                <thead><tr class="bg-gray-100 text-left"><th class="p-2">Q#</th><th class="p-2">Your Answer</th><th class="p-2">Correct Answer</th><th class="p-2">Status</th></tr></thead>
+                <tbody>${tableRows}</tbody>
+            </table>
+        `;
+        document.getElementById('score-summary').classList.remove('hidden');
+    };
+
+    // --- EVENT LISTENERS ---
+    
+    function addQuestionEventListeners() {
+        document.getElementById('prev-btn')?.addEventListener('click', () => {
+            if (appState.mode === 'test') saveAnswer();
+            if (appState.currentQuestionIndex > 0) {
+                appState.currentQuestionIndex--;
+                renderQuestion();
+            }
+        });
+        document.getElementById('next-btn')?.addEventListener('click', () => {
+            if (appState.mode === 'test') saveAnswer();
+            if (appState.currentQuestionIndex < assessmentQuestions.length - 1) {
+                appState.currentQuestionIndex++;
+                renderQuestion();
+            } else {
+                 if(appState.mode === 'test') {
+                    showCompletionScreen();
+                 } else { // Review mode
+                    appState.currentQuestionIndex = 0; // Go back to start
+                    renderQuestion();
+                 }
+            }
+        });
+
+        // Drag and Drop listeners
+        if (assessmentQuestions[appState.currentQuestionIndex].type === 'te') {
+            const draggables = document.querySelectorAll('.draggable');
+            const dropZones = document.querySelectorAll('.drop-zone');
+
+            draggables.forEach(draggable => {
+                draggable.addEventListener('dragstart', () => {
+                    draggable.classList.add('opacity-50');
+                });
+                draggable.addEventListener('dragend', () => {
+                    draggable.classList.remove('opacity-50');
+                });
+            });
+
+            dropZones.forEach(zone => {
+                zone.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    zone.classList.add('over');
+                });
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('over');
+                });
+                zone.addEventListener('drop', e => {
+                    e.preventDefault();
+                    zone.classList.remove('over');
+                    const draggedId = document.querySelector('.opacity-50').dataset.source;
+                    const draggedEl = document.querySelector(`[data-source="${draggedId}"]`);
+                    
+                    if(zone.children.length > 0) { // Swap items
+                        const existingEl = zone.children[0];
+                        const sourceContainer = document.getElementById('drag-source-container').children[1];
+                        sourceContainer.appendChild(existingEl);
+                    }
+                    zone.appendChild(draggedEl);
+                });
+            });
+        }
+    }
+    
+    function addPracticeEventListeners() {
+        const checkBtn = document.getElementById('check-answer-btn');
+        const tryAgainBtn = document.getElementById('try-again-btn');
+        const nextBtn = document.getElementById('next-practice-btn');
+        const input = document.getElementById('practice-input');
+        const feedback = document.getElementById('feedback-container');
+        const pData = practiceActivities[appState.currentPracticeIndex];
+
+        checkBtn.addEventListener('click', () => {
+            if (input.value.trim() === pData.answer) {
+                feedback.innerHTML = `<p class="text-green-600 font-bold">Correct!</p>`;
+                input.disabled = true;
+                checkBtn.classList.add('hidden');
+                nextBtn.classList.remove('hidden');
+                tryAgainBtn.classList.add('hidden');
+            } else {
+                feedback.innerHTML = `<p class="text-red-600 font-bold">Not quite, please try again.</p>`;
+                tryAgainBtn.classList.remove('hidden');
+                checkBtn.disabled = true;
+            }
+        });
+        
+        tryAgainBtn.addEventListener('click', () => {
+            input.value = '';
+            input.focus();
+            feedback.innerHTML = '';
+            tryAgainBtn.classList.add('hidden');
+            checkBtn.disabled = false;
+        });
+        
+        nextBtn.addEventListener('click', () => {
+            if (appState.currentPracticeIndex < practiceActivities.length - 1) {
+                appState.currentPracticeIndex++;
+                renderPractice();
+            } else {
+                showView('home');
+            }
+        });
+    }
+
+    document.getElementById('start-test-btn').addEventListener('click', () => {
+        appState.mode = 'test';
+        appState.currentQuestionIndex = 0;
+        showView('assessment');
+        renderQuestion();
+    });
+    
+    document.getElementById('start-practice-btn').addEventListener('click', () => {
+        appState.mode = 'practice';
+        appState.currentPracticeIndex = 0;
+        showView('practice');
+        renderPractice();
+    });
+
+    document.getElementById('home-btn').addEventListener('click', () => {
+        if(appState.mode === 'test') saveAnswer();
+        appState.currentQuestionIndex = 0;
+        appState.currentPracticeIndex = 0;
+        showView('home');
+    });
+
+    document.getElementById('review-answers-btn').addEventListener('click', () => {
+        appState.mode = 'review';
+        appState.currentQuestionIndex = 0;
+        showView('assessment');
+        document.getElementById('next-btn').textContent = "Next"; // Reset button text
+        renderQuestion();
+    });
+    
+    document.getElementById('admin-link').addEventListener('click', (e) => {
+        e.preventDefault();
+        passwordModal.classList.remove('hidden');
+        document.getElementById('password-input').focus();
+    });
+    
+    document.getElementById('password-cancel').addEventListener('click', () => {
+        passwordModal.classList.add('hidden');
+        document.getElementById('password-error').classList.add('hidden');
+        document.getElementById('password-input').value = '';
+    });
+    
+    document.getElementById('password-submit').addEventListener('click', () => {
+        const input = document.getElementById('password-input');
+        if (input.value === '2026') {
+            passwordModal.classList.add('hidden');
+            input.value = '';
+            document.getElementById('password-error').classList.add('hidden');
+            showScoreSummary();
+        } else {
+            document.getElementById('password-error').classList.remove('hidden');
+        }
+    });
+
+    document.getElementById('download-work-btn').addEventListener('click', () => {
+        const fullHtml = document.documentElement.outerHTML;
+        const progressJson = JSON.stringify(appState.studentAnswers);
+        const scriptTag = `<script id="progress-data" type="application/json">${progressJson}<\/script>`;
+        
+        // Replace existing or add new script tag
+        let newHtml;
+        if (fullHtml.includes('<script id="progress-data"')) {
+            newHtml = fullHtml.replace(/<script id="progress-data" type="application\/json">.*?<\/script>/, scriptTag);
+        } else {
+            newHtml = fullHtml.replace('</body>', `${scriptTag}</body>`);
+        }
+        
+        const blob = new Blob([newHtml], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'math_detective_progress.html';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+
+    document.getElementById('download-pdf-btn').addEventListener('click', async () => {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'px',
+            format: 'a4',
+            hotfixes: ['px_scaling'],
+        });
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+
+        const downloadBtn = document.getElementById('download-pdf-btn');
+        const originalText = downloadBtn.textContent;
+        downloadBtn.textContent = 'Generating...';
+        downloadBtn.disabled = true;
+
+        for (let i = 0; i < assessmentQuestions.length; i++) {
+            const qData = assessmentQuestions[i];
+            const studentAnswer = appState.studentAnswers[i];
+            
+            const clone = document.createElement('div');
+            clone.style.width = '800px';
+            clone.style.padding = '20px';
+            clone.style.backgroundColor = 'white';
+            clone.style.fontFamily = 'Inter, sans-serif';
+            clone.style.color = 'black';
+            
+            // Generate static HTML for the question
+            const sourceHtml = `
+                <div style="background-color: #f3f4f6; border: 1px solid #e5e7eb; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                   <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 10px; color: #1f2937;">Source: ${qData.context}</h3>
+                   <p style="color: #4b5563;">${qData.context === 'All Problems' ? 'See all problems below.' : sourceText[qData.context]}</p>
+                </div>`;
+            
+            let answerHtml = '';
+            // Logic to visually mark the answer
+            switch(qData.type){
+                case 'mc':
+                    answerHtml = qData.options.map(opt => `<div style="border: 1px solid #d1d5db; border-radius: 6px; padding: 10px; margin-bottom: 8px; ${studentAnswer === opt ? 'background-color: #fef9c3; border-color: #fcd34d;' : ''}">${studentAnswer === opt ? '<strong>(Selected) </strong>' : ''}${opt}</div>`).join('');
+                    break;
+                case 'ms':
+                     answerHtml = qData.options.map(opt => `<div style="border: 1px solid #d1d5db; border-radius: 6px; padding: 10px; margin-bottom: 8px; ${studentAnswer?.includes(opt) ? 'background-color: #fef9c3; border-color: #fcd34d;' : ''}">${studentAnswer?.includes(opt) ? '<strong>(Selected) </strong>' : ''}${opt}</div>`).join('');
+                    break;
+                case 'cr':
+                     answerHtml = `<div style="border: 1px solid #d1d5db; padding: 10px; border-radius: 6px; min-height: 80px; background-color: #f9fafb;"><p><strong>Student's Response:</strong></p><p>${studentAnswer || '<i>Not answered.</i>'}</p></div>`;
+                     break;
+                 case 'ebsr':
+                    answerHtml = `<div class="mb-4">
+                        <p style="font-weight: 600; margin-bottom: 8px;">Part A: ${qData.partA.question}</p>
+                        ${qData.partA.options.map(opt => `<div style="border: 1px solid #d1d5db; border-radius: 6px; padding: 10px; margin-bottom: 8px; ${studentAnswer?.partA === opt ? 'background-color: #fef9c3; border-color: #fcd34d;' : ''}">${studentAnswer?.partA === opt ? '<strong>(Selected) </strong>' : ''}${opt}</div>`).join('')}
+                        <p style="font-weight: 600; margin-bottom: 8px; margin-top: 15px;">Part B: ${qData.partB.question}</p>
+                        ${qData.partB.options.map(opt => `<div style="border: 1px solid #d1d5db; border-radius: 6px; padding: 10px; margin-bottom: 8px; ${studentAnswer?.partB === opt ? 'background-color: #fef9c3; border-color: #fcd34d;' : ''}">${studentAnswer?.partB === opt ? '<strong>(Selected) </strong>' : ''}${opt}</div>`).join('')}
+                    </div>`;
+                    break;
+                case 'te':
+                    answerHtml = qData.sources.map(source => `<div style="display:flex; align-items:center; margin-bottom: 8px;"><div style="width: 33%; font-weight:600;">${source}</div><div style="width: 67%; border: 1px solid #d1d5db; padding: 10px; border-radius: 6px; background-color: #f9fafb;">${studentAnswer?.[source] || '<i>Empty</i>'}</div></div>`).join('');
+                    break;
+            }
+            
+            clone.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px;">
+                    <h2 style="font-size: 1.5rem; font-weight: 700;">Math Detective Report</h2>
+                    <p style="font-size: 1.125rem; font-weight: 600; color: #4b5563;">Question ${i + 1}</p>
+                </div>
+                ${qData.context !== 'All Problems' ? sourceHtml : ''}
+                <div style="margin-bottom: 20px;">
+                    <h3 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 15px;">${qData.question || qData.partA.question}</h3>
+                    <div>${answerHtml}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(clone);
+            const canvas = await html2canvas(clone, { scale: 2 });
+            document.body.removeChild(clone);
+
+            const imgData = canvas.toDataURL('image/png');
+            const imgProps = pdf.getImageProperties(imgData);
+            const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            let heightLeft = pdfHeight;
+            if (i > 0) {
+                pdf.addPage();
+            }
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+        }
+        
+        pdf.save('math_detective_report.pdf');
+        downloadBtn.textContent = originalText;
+        downloadBtn.disabled = false;
+    });
+
+    const init = () => {
+        const progressDataEl = document.getElementById('progress-data');
+        let loadedProgress = null;
+
+        try {
+            if (progressDataEl && progressDataEl.textContent.trim().length > 2) {
+                loadedProgress = JSON.parse(progressDataEl.textContent);
+            } else {
+                const lsData = localStorage.getItem('mathDetectiveProgress');
+                if (lsData) {
+                    loadedProgress = JSON.parse(lsData);
+                }
+            }
+        } catch(e) {
+            console.error("Could not parse progress data.", e);
+        }
+
+        if (loadedProgress) {
+            appState.studentAnswers = loadedProgress;
+            console.log("Progress loaded.");
+        }
+        
+        showView('home');
+    };
+
+    init();
+});
+</script>
+
+</body>
+</html>
+
+
