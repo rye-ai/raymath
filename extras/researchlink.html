@@ -6,6 +6,8 @@
     <title>Interactive SDG Innovator's Journal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <!-- Chosen Palette: Blueprint & Paper -->
     <!-- Application Structure Plan: The SPA transforms the static worksheet into an interactive digital journal. It uses a sidebar for navigation between the 5 project phases, allowing non-linear access. The main content area for each phase uses interactive form elements (textareas, inputs) and a drawing canvas for the blueprint. All user data is persistently saved to localStorage to allow for multi-session use. This structure was chosen to mirror the guided, step-by-step nature of the original worksheet while enhancing it with digital interactivity and data persistence, making it a more robust tool for students. -->
@@ -123,16 +125,19 @@
 
     <div class="flex flex-col md:flex-row min-h-screen">
         <!-- Sidebar Navigation -->
-        <aside id="sidebar" class="w-full md:w-64 bg-white md:border-r border-gray-200 flex-shrink-0">
+        <aside id="sidebar" class="w-full md:w-64 bg-white md:border-r border-gray-200 flex flex-col">
             <div class="p-4 border-b">
                 <h1 class="text-xl font-bold text-center text-[var(--accent-blue)]">Innovator's Journal</h1>
             </div>
             <nav id="nav-menu" class="p-2 space-y-1">
                 <!-- Navigation links will be injected here -->
             </nav>
-            <div id="header-controls" class="p-4 mt-auto border-t">
-                <button id="print-btn" class="w-full bg-[var(--accent-blue)] text-white font-bold py-2 px-4 rounded-lg hover:bg-[var(--accent-hover)] transition duration-300 flex items-center justify-center">
-                    <i class="fas fa-print mr-2"></i> Print / Export
+            <div id="header-controls" class="p-4 mt-auto border-t space-y-2">
+                <button id="download-btn" class="w-full bg-[var(--accent-blue)] text-white font-bold py-2 px-4 rounded-lg hover:bg-[var(--accent-hover)] transition duration-300 flex items-center justify-center">
+                    <i class="fas fa-download mr-2"></i> Download Work
+                </button>
+                <button id="pdf-btn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300 flex items-center justify-center">
+                    <i class="fas fa-file-pdf mr-2"></i> Download as PDF
                 </button>
             </div>
         </aside>
@@ -145,6 +150,8 @@
         </main>
     </div>
 
+    <script id="progress-data" type="application/json"></script>
+
     <script>
         const journalData = {
             pages: [
@@ -156,7 +163,7 @@
                 { id: 'phase5', title: 'Phase 5: Pitch' },
             ]
         };
-        
+
         let appState = {};
 
         function saveState() {
@@ -164,9 +171,38 @@
         }
 
         function loadState() {
-            const savedState = localStorage.getItem('sdgJournalState');
-            if (savedState) {
-                appState = JSON.parse(savedState);
+            let loadedState = null;
+            const progressDataEl = document.getElementById('progress-data');
+            
+            if (progressDataEl && progressDataEl.textContent.trim()) {
+                try {
+                    loadedState = JSON.parse(progressDataEl.textContent);
+                    // Clear the script tag after loading to prioritize localStorage on next refresh
+                    progressDataEl.textContent = '';
+                } catch (e) {
+                    console.error("Could not parse progress data from script tag:", e);
+                }
+            }
+            
+            if (!loadedState) {
+                try {
+                    const savedState = localStorage.getItem('sdgJournalState');
+                    if (savedState) {
+                        loadedState = JSON.parse(savedState);
+                    }
+                } catch (e) {
+                    console.error("Could not load state from localStorage:", e);
+                }
+            }
+
+            if (loadedState) {
+                appState = loadedState;
+                if (!appState.activePage) {
+                    appState.activePage = 'intro';
+                }
+                 if (!appState.formData) {
+                    appState.formData = {};
+                }
             } else {
                 appState = {
                     activePage: 'intro',
@@ -466,6 +502,82 @@
                 populateForm();
             }
         }
+
+        function generateStaticPageHTML(pageId) {
+            const formData = appState.formData;
+            const escapeHTML = (str) => str ? str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;') : '';
+            
+            const valueOrPlaceholder = (id, placeholder = '<em>Not answered</em>') => {
+                 const value = formData[id];
+                 return value ? `<p class="p-2 bg-gray-100 rounded border">${escapeHTML(value).replace(/\n/g, '<br>')}</p>` : placeholder;
+            };
+
+            switch(pageId) {
+                case 'intro':
+                    return `
+                        <div class="p-8 border-b-2">
+                            <h2 class="text-3xl font-bold text-blue-600 border-b pb-2 mb-6">The SDG Innovator's Workshop</h2>
+                            <p><strong>Name:</strong> ${escapeHTML(formData['student-name']) || 'N/A'}</p>
+                            <p><strong>Date:</strong> ${escapeHTML(formData['student-date']) || 'N/A'}</p>
+                        </div>`;
+                case 'phase1':
+                     return `
+                        <div class="p-8 border-b-2">
+                            <h2 class="text-2xl font-bold mb-4">Phase 1: Research for a Reason</h2>
+                            <h3 class="font-semibold text-lg mt-4 mb-2">1. My Chosen SDG:</h3>
+                            ${valueOrPlaceholder('phase1-sdg')}
+                            <h3 class="font-semibold text-lg mt-4 mb-2">2. My Specific, Decomposed Problem:</h3>
+                            ${valueOrPlaceholder('phase1-problem')}
+                            <h3 class="font-semibold text-lg mt-4 mb-2">3. My Research Filter:</h3>
+                            <h4 class="font-bold text-green-600 mt-2">NEED TO KNOW:</h4>
+                            ${valueOrPlaceholder('phase1-need')}
+                            <h4 class="font-bold text-blue-600 mt-2">NICE TO KNOW:</h4>
+                            ${valueOrPlaceholder('phase1-nice')}
+                        </div>`;
+                case 'phase2':
+                    return `
+                        <div class="p-8 border-b-2">
+                            <h2 class="text-2xl font-bold mb-4">Phase 2: Designing the Blueprint</h2>
+                            <h3 class="font-semibold text-lg mt-4 mb-2 text-red-600">(P) Problem Question:</h3>
+                            ${valueOrPlaceholder('phase2-problem-q')}
+                            <h3 class="font-semibold text-lg mt-4 mb-2 text-blue-600">(M) Mechanism Question:</h3>
+                            ${valueOrPlaceholder('phase2-mechanism-q')}
+                             <h3 class="font-semibold text-lg mt-4 mb-2 text-green-600">(M) Materials Question:</h3>
+                            ${valueOrPlaceholder('phase2-materials-q')}
+                        </div>`;
+                case 'phase3':
+                    return `
+                        <div class="p-8 border-b-2">
+                             <h2 class="text-2xl font-bold mb-4">Phase 3: My Invention's Algorithm</h2>
+                             <ol class="list-decimal list-inside space-y-2">
+                                ${[1,2,3,4,5].map(i => `<li>${valueOrPlaceholder(`phase3-step${i}`)}</li>`).join('')}
+                             </ol>
+                        </div>`;
+                case 'phase4':
+                    const canvasImg = formData['blueprint-canvas'] ? `<img src="${formData['blueprint-canvas']}" class="w-full border rounded-lg mt-2" alt="Student Blueprint">` : '<em>Blueprint not drawn.</em>';
+                    return `
+                        <div class="p-8 border-b-2">
+                            <h2 class="text-2xl font-bold mb-4">Phase 4: Create & Iterate</h2>
+                            <h3 class="font-semibold text-lg mt-4 mb-2">My Prototype Blueprint:</h3>
+                            ${canvasImg}
+                            <h3 class="font-semibold text-lg mt-4 mb-2">My Iteration Plan:</h3>
+                            ${valueOrPlaceholder('phase4-iteration')}
+                        </div>`;
+                case 'phase5':
+                    return `
+                         <div class="p-8 border-b-2">
+                             <h2 class="text-2xl font-bold mb-4">Phase 5: The Innovator's Pitch Planner</h2>
+                            <h3 class="font-semibold text-lg mt-4 mb-2">The Problem:</h3>
+                            ${valueOrPlaceholder('phase5-problem')}
+                            <h3 class="font-semibold text-lg mt-4 mb-2">My Solution:</h3>
+                            ${valueOrPlaceholder('phase5-solution')}
+                            <h3 class="font-semibold text-lg mt-4 mb-2">My "Favorite Mistake":</h3>
+                            ${valueOrPlaceholder('phase5-mistake')}
+                        </div>`;
+                default:
+                    return '';
+            }
+        }
         
         document.addEventListener('DOMContentLoaded', () => {
             loadState();
@@ -483,10 +595,91 @@
                 }
             });
 
-            document.getElementById('print-btn').addEventListener('click', () => {
-                window.print();
+            document.getElementById('download-btn').addEventListener('click', () => {
+                saveState(); 
+                const stateString = JSON.stringify(appState, null, 2);
+                const scriptTag = `<script id="progress-data" type="application/json">${stateString}<\/script>`;
+                
+                const currentHtml = document.documentElement.outerHTML;
+                const newHtml = currentHtml.replace(/<script id="progress-data".*?><\/script>/, scriptTag);
+
+                const blob = new Blob([newHtml], { type: 'text/html' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                const studentName = appState.formData['student-name'] || 'innovator';
+                a.download = `sdg-journal-${studentName.toLowerCase().replace(/ /g, '_')}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+            });
+            
+            document.getElementById('pdf-btn').addEventListener('click', () => {
+                const pdfBtn = document.getElementById('pdf-btn');
+                const originalBtnText = pdfBtn.innerHTML;
+                pdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
+                pdfBtn.disabled = true;
+
+                const { jsPDF } = window.jspdf;
+                const offscreenContainer = document.createElement('div');
+                offscreenContainer.style.position = 'absolute';
+                offscreenContainer.style.left = '-9999px';
+                offscreenContainer.style.width = '800px'; 
+                offscreenContainer.style.fontFamily = 'Inter, sans-serif';
+                offscreenContainer.style.color = '#2d3748';
+                
+                let contentToPrint = '';
+                journalData.pages.forEach(page => {
+                    contentToPrint += generateStaticPageHTML(page.id);
+                });
+                offscreenContainer.innerHTML = contentToPrint;
+                document.body.appendChild(offscreenContainer);
+                
+                html2canvas(offscreenContainer, { scale: 2, useCORS: true }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'px',
+                        format: 'a4'
+                    });
+
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const imgWidth = canvas.width;
+                    const imgHeight = canvas.height;
+                    const ratio = imgWidth / pdfWidth;
+                    const scaledImgHeight = imgHeight / ratio;
+
+                    let heightLeft = scaledImgHeight;
+                    let position = 0;
+
+                    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledImgHeight);
+                    heightLeft -= pdfHeight;
+
+                    while (heightLeft > 0) {
+                        position = heightLeft - scaledImgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledImgHeight);
+                        heightLeft -= pdfHeight;
+                    }
+
+                    const studentName = appState.formData['student-name'] || 'innovator';
+                    pdf.save(`sdg-journal-${studentName.toLowerCase().replace(/ /g, '_')}.pdf`);
+                    
+                    document.body.removeChild(offscreenContainer);
+                    pdfBtn.innerHTML = originalBtnText;
+                    pdfBtn.disabled = false;
+                }).catch(err => {
+                    console.error("PDF generation failed:", err);
+                    document.body.removeChild(offscreenContainer);
+                    pdfBtn.innerHTML = originalBtnText;
+                    pdfBtn.disabled = false;
+                    alert('Sorry, there was an error generating the PDF.');
+                });
             });
         });
     </script>
 </body>
 </html>
+
+
