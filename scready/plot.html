@@ -61,11 +61,11 @@
         .source-text-container::-webkit-scrollbar-thumb { background-color: #f1c40f; border-radius: 20px; }
 
         /* Coordinate Grid Styles */
-        .coordinate-grid { position: relative; width: 400px; height: 400px; background-size: 40px 40px; background-image: linear-gradient(to right, #e5e7eb 1px, transparent 1px), linear-gradient(to bottom, #e5e7eb 1px, transparent 1px); border-left: 2px solid #374151; border-bottom: 2px solid #374151; }
-        .grid-point { position: absolute; width: 16px; height: 16px; background-color: #f1c40f; border-radius: 50%; border: 2px solid #2c3e50; transform: translate(-50%, 50%); cursor: pointer; transition: all 0.2s; }
+        .coordinate-grid { position: relative; background-size: 20px 20px; background-image: linear-gradient(to right, #e5e7eb 1px, transparent 1px), linear-gradient(to bottom, #e5e7eb 1px, transparent 1px); border-left: 2px solid #374151; border-bottom: 2px solid #374151; }
+        .grid-point { position: absolute; width: 12px; height: 12px; background-color: #f1c40f; border-radius: 50%; border: 2px solid #2c3e50; transform: translate(-50%, 50%); cursor: pointer; transition: all 0.2s; }
         .grid-point:hover, .grid-point.selected { background-color: #dc2626; transform: translate(-50%, 50%) scale(1.2); }
         .axis-label { position: absolute; font-weight: 600; color: #4b5563; }
-        .x-axis-label { bottom: -25px; left: 50%; transform: translateX(-50%); }
+        .x-axis-label { bottom: -30px; left: 50%; transform: translateX(-50%); }
         .y-axis-label { left: -60px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
         .grid-number { position: absolute; font-size: 0.75rem; color: #4b5563; }
 
@@ -126,7 +126,7 @@
         <!-- CONFIRMATION VIEW -->
         <main id="confirmation-view" class="h-screen flex flex-col justify-center items-center text-center p-6 bg-gray-800 text-white hidden">
              <div class="max-w-2xl">
-                <svg class="mx-auto h-24 w-24 text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <svg class="mx-auto h-24 w-24 text-yellow-400" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
                 </svg>
                 <h1 class="text-4xl font-bold text-yellow-400 mt-4 mb-2">Ready to submit your findings?</h1>
@@ -172,123 +172,50 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
+    // --- CONFIG ---
+    const GRID_UNIT = 20; // Size of each grid square in pixels
+
     // --- DATA ---
     const sourceText = {
         title: "Detective's Log",
         body: "We have a new case involving a mysterious plant, codenamed the 'Speedy Sprout.' It appeared overnight in the city conservatory. We are tracking its growth daily. The lead botanist, Dr. Aris, believes its growth rate is unlike any known species. We are plotting its height in centimeters (cm) at the same time each day.",
         dataPoints: [
-            {day: 0, height: 0, label: "(0, 0)"},
-            {day: 2, height: 4, label: "(2, 4)"},
-            {day: 4, height: 8, label: "(4, 8)"},
-            {day: 5, height: 10, label: "(5, 10)"},
-            {day: 6, height: 12, label: "(6, 12)"},
-            {day: 8, height: 16, label: "(8, 16)"},
+            {day: 0, height: 0, label: "(0, 0)"}, {day: 2, height: 4, label: "(2, 4)"},
+            {day: 4, height: 8, label: "(4, 8)"}, {day: 5, height: 10, label: "(5, 10)"},
+            {day: 6, height: 12, label: "(6, 12)"}, {day: 8, height: 16, label: "(8, 16)"},
         ],
         conclusion: "Below is the official evidence graph plotting these points. The x-axis represents the Day number, and the y-axis represents the Height in centimeters."
     };
 
     const assessmentQuestions = [
-        // Identify/Recall
-        {
-            type: 'mc',
-            question: "According to the case file, what does the x-axis on the evidence graph represent?",
-            options: ["Height in cm", "Day Number", "Plant Species", "Growth Rate"],
-            answer: "Day Number"
-        },
-        {
-            type: 'mc',
-            question: "What was the recorded height of the Speedy Sprout on Day 8?",
-            options: ["8 cm", "12 cm", "16 cm", "10 cm"],
-            answer: "16 cm"
-        },
-        {
-            type: 'ms',
-            question: "Which of the following ordered pairs represent points plotted on the evidence graph? (Select all that apply)",
-            options: ["(2, 4)", "(3, 6)", "(6, 12)", "(8, 14)"],
-            answer: ["(2, 4)", "(6, 12)"]
-        },
-        // Infer/Conclude
-        {
-            type: 'mc',
-            question: "What does the ordered pair (4, 8) signify in the context of this investigation?",
-            options: [
-                "On day 8, the plant was 4 cm tall.",
-                "The plant grew by 4 cm in 8 days.",
-                "On day 4, the plant was 8 cm tall.",
-                "The plant grew by 8 cm in 4 days."
-            ],
-            answer: "On day 4, the plant was 8 cm tall."
-        },
-        {
-            type: 'ebsr',
-            partA: {
-                question: "Between which two recorded measurements did the plant grow at the fastest rate (cm per day)?",
-                options: ["Day 0 to Day 2", "Day 4 to Day 5", "Day 6 to Day 8", "The rate was constant"],
-                answer: "The rate was constant"
-            },
-            partB: {
-                question: "Which evidence from the log supports this conclusion?",
-                options: [
-                    "The points (0,0) and (2,4) show a growth of 4 cm in 2 days.",
-                    "The plant grew 2 cm every day.",
-                    "The points on the graph form a straight line.",
-                    "All of the above."
-                ],
-                answer: "All of the above."
-            }
-        },
-        {
-            type: 'mc',
-            question: "Based on the pattern shown on the graph, what would be the most likely height of the plant on Day 7?",
-            options: ["12 cm", "13 cm", "14 cm", "15 cm"],
-            answer: "14 cm"
-        },
-        {
-            type: 'te_hotspot',
-            question: "The detective observes the plant again and notes its height is exactly 10 cm. Click on the point on the graph that represents this observation.",
-            answer: "(5, 10)"
-        },
-        // Analyze/Evaluate
-        {
-            type: 'mc',
-            question: "Which statement best describes the overall growth pattern of the Speedy Sprout?",
-            options: [
-                "The plant's growth is random and unpredictable.",
-                "The plant grows faster as it gets older.",
-                "The plant grows at a steady, constant rate.",
-                "The plant's growth is slowing down."
-            ],
-            answer: "The plant grows at a steady, constant rate."
-        },
-        {
-            type: 'ms',
-            question: "Which of the following statements can be concluded from the evidence graph? (Select all that apply)",
-            options: [
-                "The plant doubles in height every two days.",
-                "The plant started growing before it was discovered on Day 0.",
-                "For every day that passes, the plant grows by 2 cm.",
-                "The plant will be 20 cm tall on Day 10 if the pattern continues."
-            ],
-            answer: ["For every day that passes, the plant grows by 2 cm.", "The plant will be 20 cm tall on Day 10 if the pattern continues."]
-        },
-        {
-            type: 'mc',
-            question: "Dr. Aris claims the data from Day 0 to Day 2 is the most significant clue. Why might this be strong evidence that the plant is unusual?",
-            options: [
-                "Because it was the first measurement taken.",
-                "Because growing 4 cm from a seed in just two days is extremely fast.",
-                "Because the point (2, 4) is the easiest to see on the graph.",
-                "Because it's the only point with an even number for the day."
-            ],
-            answer: "Because growing 4 cm from a seed in just two days is extremely fast."
-        },
+        { type: 'mc', question: "According to the case file, what does the x-axis on the evidence graph represent?", options: ["Height in cm", "Day Number", "Plant Species", "Growth Rate"], answer: "Day Number" },
+        { type: 'mc', question: "What was the recorded height of the Speedy Sprout on Day 8?", options: ["8 cm", "12 cm", "16 cm", "10 cm"], answer: "16 cm" },
+        { type: 'ms', question: "Which of the following ordered pairs represent points plotted on the evidence graph? (Select all that apply)", options: ["(2, 4)", "(3, 6)", "(6, 12)", "(8, 14)"], answer: ["(2, 4)", "(6, 12)"] },
+        { type: 'mc', question: "What does the ordered pair (4, 8) signify in the context of this investigation?", options: [ "On day 8, the plant was 4 cm tall.", "The plant grew by 4 cm in 8 days.", "On day 4, the plant was 8 cm tall.", "The plant grew by 8 cm in 4 days." ], answer: "On day 4, the plant was 8 cm tall." },
+        { type: 'ebsr', partA: { question: "Between which two recorded measurements did the plant grow at the fastest rate (cm per day)?", options: ["Day 0 to Day 2", "Day 4 to Day 5", "Day 6 to Day 8", "The rate was constant"], answer: "The rate was constant" }, partB: { question: "Which evidence from the log supports this conclusion?", options: [ "The points (0,0) and (2,4) show a growth of 4 cm in 2 days.", "The plant grew 2 cm every day.", "The points on the graph form a straight line.", "All of the above." ], answer: "All of the above." } },
+        { type: 'mc', question: "Based on the pattern shown on the graph, what would be the most likely height of the plant on Day 7?", options: ["12 cm", "13 cm", "14 cm", "15 cm"], answer: "14 cm" },
+        { type: 'te_hotspot', question: "The detective observes the plant again and notes its height is exactly 10 cm. Click on the point on the graph that represents this observation.", answer: "(5, 10)" },
+        { type: 'mc', question: "Which statement best describes the overall growth pattern of the Speedy Sprout?", options: [ "The plant's growth is random and unpredictable.", "The plant grows faster as it gets older.", "The plant grows at a steady, constant rate.", "The plant's growth is slowing down." ], answer: "The plant grows at a steady, constant rate." },
+        { type: 'ms', question: "Which of the following statements can be concluded from the evidence graph? (Select all that apply)", options: [ "The plant doubles in height every two days.", "The plant started growing before it was discovered on Day 0.", "For every day that passes, the plant grows by 2 cm.", "The plant will be 20 cm tall on Day 10 if the pattern continues." ], answer: ["For every day that passes, the plant grows by 2 cm.", "The plant will be 20 cm tall on Day 10 if the pattern continues."] },
+        { type: 'mc', question: "Dr. Aris claims the data from Day 0 to Day 2 is the most significant clue. Why might this be strong evidence that the plant is unusual?", options: [ "Because it was the first measurement taken.", "Because growing 4 cm from a seed in just two days is extremely fast.", "Because the point (2, 4) is the easiest to see on the graph.", "Because it's the only point with an even number for the day." ], answer: "Because growing 4 cm from a seed in just two days is extremely fast." },
     ];
     
-    // Simplified practice for brevity
     const practiceActivities = [
-        {type: 'identify', question: "What is the ordered pair for the point shown?", point: [3,5], answer: "(3, 5)"},
-        {type: 'plot', question: "Click on the location for the ordered pair (7, 2).", point: [7,2], answer: "(7, 2)"},
-        {type: 'interpret', question: "If x-axis is 'Hours' and y-axis is 'Miles', what does (2, 100) mean?", answer: "Travelled 100 miles in 2 hours."}
+        {type: 'identify', question: "What is the ordered pair for the point shown?", data: [{day: 3, height: 5, label:"(3, 5)"}], answer: "(3, 5)", options: ["(5, 3)", "(3, 5)", "(3, 3)", "(5, 5)"]},
+        {type: 'identify', question: "What is the ordered pair for the point shown?", data: [{day: 7, height: 2, label:"(7, 2)"}], answer: "(7, 2)", options: ["(2, 7)", "(7, 2)", "(7, 7)", "(2, 2)"]},
+        {type: 'identify', question: "What is the ordered pair for the point shown?", data: [{day: 5, height: 9, label:"(5, 9)"}], answer: "(5, 9)", options: ["(9, 5)", "(5, 5)", "(9, 9)", "(5, 9)"]},
+        {type: 'identify', question: "What is the ordered pair for the point shown?", data: [{day: 0, height: 6, label:"(0, 6)"}], answer: "(0, 6)", options: ["(6, 0)", "(0, 6)", "(6, 6)", "(0, 0)"]},
+        {type: 'identify', question: "What is the ordered pair for the point shown?", data: [{day: 8, height: 0, label:"(8, 0)"}], answer: "(8, 0)", options: ["(0, 8)", "(8, 8)", "(8, 0)", "(0, 0)"]},
+        {type: 'plot', question: "Click on the location for the ordered pair (6, 4).", answer: "(6, 4)"},
+        {type: 'plot', question: "Click on the location for the ordered pair (2, 8).", answer: "(2, 8)"},
+        {type: 'plot', question: "Click on the location for the ordered pair (9, 1).", answer: "(9, 1)"},
+        {type: 'plot', question: "Click on the location for the ordered pair (1, 9).", answer: "(1, 9)"},
+        {type: 'plot', question: "Click on the location for the ordered pair (5, 5).", answer: "(5, 5)"},
+        {type: 'interpret', question: "The x-axis is 'Days' and y-axis is 'Books Read'. What does (5, 10) mean?", options: ["Read 5 books in 10 days", "Read 10 books in 5 days", "Read 15 books total"], answer: "Read 10 books in 5 days"},
+        {type: 'interpret', question: "The x-axis is 'Hours Worked' and y-axis is 'Money Earned ($)'. What does (8, 100) mean?", options: ["Worked 100 hours for $8", "Worked 8 hours for $100", "Earned $108 total"], answer: "Worked 8 hours for $100"},
+        {type: 'interpret', question: "The x-axis is 'Games Played' and y-axis is 'Points Scored'. What does (3, 15) mean?", options: ["Scored 3 points in 15 games", "Played 18 games", "Scored 15 points in 3 games"], answer: "Scored 15 points in 3 games"},
+        {type: 'interpret', question: "The x-axis is 'Minutes Exercising' and y-axis is 'Calories Burned'. What does (10, 50) mean?", options: ["Burned 50 calories in 10 minutes", "Burned 10 calories in 50 minutes", "Burned 60 calories total"], answer: "Burned 50 calories in 10 minutes"},
+        {type: 'interpret', question: "The x-axis is 'Laps Run' and y-axis is 'Time (minutes)'. What does (4, 8) mean?", options: ["Took 4 minutes to run 8 laps", "Took 8 minutes to run 4 laps", "Ran 12 laps total"], answer: "Took 8 minutes to run 4 laps"},
     ];
 
     // --- STATE ---
@@ -298,6 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const views = { home: document.getElementById('home-view'), assessment: document.getElementById('assessment-view'), practice: document.getElementById('practice-view'), confirmation: document.getElementById('confirmation-view'), score: document.getElementById('score-view') };
     const appHeader = document.getElementById('app-header');
     const questionContainer = document.getElementById('question-container');
+    const practiceContainer = document.getElementById('practice-container');
     const sourceTextContainer = document.getElementById('source-text-container');
     const progressBar = document.getElementById('progress-bar');
     const progressLabel = document.getElementById('progress-label');
@@ -305,43 +233,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- LOGIC ---
     
-    const renderCoordinateGrid = (points, interactive = false, savedAnswer = null, extraClass = '') => {
-        let gridHtml = `<div class="mx-auto coordinate-grid ${extraClass}" id="grid">
-            <div class="axis-label x-axis-label">Day Number</div>
-            <div class="axis-label y-axis-label">Height (cm)</div>
+    const renderCoordinateGrid = (points, interactive = false, savedAnswer = null, extraClass = '', maxX = 10, maxY = 10) => {
+        const gridWidth = maxX * GRID_UNIT;
+        const gridHeight = maxY * GRID_UNIT;
+        
+        let gridHtml = `<div class="mx-auto coordinate-grid ${extraClass}" id="grid" style="width: ${gridWidth}px; height: ${gridHeight}px;">
+            <div class="axis-label x-axis-label">${interactive ? 'X-Axis' : 'Day Number'}</div>
+            <div class="axis-label y-axis-label">${interactive ? 'Y-Axis' : 'Height (cm)'}</div>
         `;
-        // Draw grid numbers
-        for (let i = 2; i <= 10; i += 2) {
-            gridHtml += `<div class="grid-number" style="bottom: -20px; left: ${i * 40}px; transform: translateX(-50%);">${i}</div>`; // X-axis
+        for (let i = 1; i <= maxX; i ++) {
+            gridHtml += `<div class="grid-number" style="bottom: -20px; left: ${i * GRID_UNIT}px; transform: translateX(-50%);">${i}</div>`;
         }
-        for (let i = 2; i <= 20; i += 2) {
-             gridHtml += `<div class="grid-number" style="bottom: ${i * 20}px; left: -10px; transform: translateY(50%);">${i}</div>`; // Y-axis
+        for (let i = 1; i <= maxY; i++) {
+            if (i % 2 === 0) { // Label every 2 units to avoid clutter on taller grids
+                gridHtml += `<div class="grid-number" style="bottom: ${i * GRID_UNIT}px; left: -15px; transform: translateY(50%);">${i}</div>`;
+            }
         }
-        // Draw points
-        points.forEach(p => {
-            const isSelected = savedAnswer === p.label;
-            gridHtml += `<div class="grid-point ${interactive ? 'hotspot' : ''} ${isSelected ? 'selected' : ''}" style="bottom: ${p.height * 20}px; left: ${p.day * 40}px;" data-coord="${p.label}" title="${p.label}"></div>`;
-        });
+        
+        if (points && points.length > 0) {
+            points.forEach(p => {
+                const isSelected = savedAnswer === p.label;
+                const yPos = p.height * GRID_UNIT;
+                const xPos = p.day * GRID_UNIT;
+                gridHtml += `<div class="grid-point ${interactive ? 'hotspot' : ''} ${isSelected ? 'selected' : ''}" style="bottom: ${yPos}px; left: ${xPos}px;" data-coord="${p.label}" title="${p.label}"></div>`;
+            });
+        }
         gridHtml += `</div>`;
         return gridHtml;
     };
 
     const downloadWorkFile = () => {
-        // Ensure the last answer is saved before downloading, especially if called from score screen
         if(appState.currentView === 'assessment') saveAnswer();
-
         const dataString = JSON.stringify(appState.studentAnswers);
-        
-        // Create a new script tag content
         const scriptTagString = `<script id="progress-data" type="application/json">${dataString}<\/script>`;
-        
-        // Get the current HTML and replace the old script tag with the new one
         let currentHtml = document.documentElement.outerHTML;
         currentHtml = currentHtml.replace(/<script id="progress-data" type="application\/json">.*?<\/script>/, scriptTagString);
-
         const blob = new Blob([currentHtml], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
-        
         const a = document.createElement('a');
         a.href = url;
         a.download = 'math_detective_progress.html';
@@ -353,22 +281,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const downloadPdfReport = async () => {
         const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'px',
-            format: 'a4'
-        });
-        
+        const pdf = new jsPDF({ orientation: 'p', unit: 'px', format: 'a4' });
         const loadingOverlay = document.createElement('div');
         loadingOverlay.innerHTML = `<div class="fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center z-50 text-white"><svg class="animate-spin h-10 w-10 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2a10 10 0 0 0-9.9 10" stroke-width="4" stroke-linecap="round"/></svg><p>Generating PDF Report...</p></div>`;
         document.body.appendChild(loadingOverlay);
-
         const pdfWidth = pdf.internal.pageSize.getWidth();
 
         for (let i = 0; i < assessmentQuestions.length; i++) {
             const qData = assessmentQuestions[i];
             const studentAnswer = appState.studentAnswers[i];
-
             const reportContainer = document.createElement('div');
             reportContainer.style.width = '800px';
             reportContainer.style.padding = '20px';
@@ -377,65 +298,33 @@ document.addEventListener('DOMContentLoaded', () => {
             reportContainer.style.fontFamily = 'Inter, sans-serif';
 
             let answerContent = '';
-            
             const createOptionHtml = (text, isChecked, isCorrectSource) => {
-                let bgColor = '#ffffff'; // white
-                let indicator = '';
-                if (isChecked) {
-                    bgColor = isCorrectSource ? '#dcfce7' : '#fee2e2'; // green-100 or red-100
-                    indicator = isCorrectSource ? ' <strong style="color: #166534;">(Selected - Correct)</strong>' : ' <strong style="color: #991b1b;">(Selected - Incorrect)</strong>';
-                } else if (isCorrectSource) {
-                    indicator = ' <strong style="color: #166534;">(Correct Answer)</strong>';
-                }
+                let bgColor = isChecked ? (isCorrectSource ? '#dcfce7' : '#fee2e2') : '#ffffff';
+                let indicator = isChecked ? (isCorrectSource ? ' <strong style="color: #166534;">(Selected - Correct)</strong>' : ' <strong style="color: #991b1b;">(Selected - Incorrect)</strong>') : (isCorrectSource ? ' <strong style="color: #166534;">(Correct Answer)</strong>' : '');
                 return `<div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 8px; background-color: ${bgColor};">${text}${indicator}</div>`;
             };
 
             switch (qData.type) {
-                case 'mc':
-                    answerContent = qData.options.map(opt => createOptionHtml(opt, studentAnswer === opt, qData.answer === opt)).join('');
-                    break;
-                case 'ms':
-                    answerContent = qData.options.map(opt => createOptionHtml(opt, studentAnswer?.includes(opt), qData.answer.includes(opt))).join('');
-                    break;
+                case 'mc': answerContent = qData.options.map(opt => createOptionHtml(opt, studentAnswer === opt, qData.answer === opt)).join(''); break;
+                case 'ms': answerContent = qData.options.map(opt => createOptionHtml(opt, studentAnswer?.includes(opt), qData.answer.includes(opt))).join(''); break;
                 case 'ebsr':
                     const partA_html = qData.partA.options.map(opt => createOptionHtml(opt, studentAnswer?.partA === opt, qData.partA.answer === opt)).join('');
                     const partB_html = qData.partB.options.map(opt => createOptionHtml(opt, studentAnswer?.partB === opt, qData.partB.answer === opt)).join('');
-                    answerContent = `
-                        <h4 style="font-weight: 600; margin-bottom: 8px;">Part A: ${qData.partA.question}</h4>
-                        ${partA_html}
-                        <h4 style="font-weight: 600; margin-top: 16px; margin-bottom: 8px;">Part B: ${qData.partB.question}</h4>
-                        ${partB_html}
-                    `;
+                    answerContent = `<h4 style="font-weight: 600;">Part A: ${qData.partA.question}</h4>${partA_html}<h4 style="font-weight: 600; margin-top: 1rem;">Part B: ${qData.partB.question}</h4>${partB_html}`;
                     break;
                 case 'te_hotspot':
-                    const tempGrid = renderCoordinateGrid(sourceText.dataPoints, false, studentAnswer, 'source-grid');
-                    answerContent = `
-                        <p>Student selected: <strong>${studentAnswer || 'Unanswered'}</strong>. Correct answer: <strong>${qData.answer}</strong></p>
-                        ${tempGrid}
-                    `;
+                    answerContent = `<p>Student selected: <strong>${studentAnswer || 'Unanswered'}</strong>. Correct: <strong>${qData.answer}</strong></p>${renderCoordinateGrid(sourceText.dataPoints, false, studentAnswer, 'source-grid', 10, 18)}`;
                     break;
             }
 
-            reportContainer.innerHTML = `
-                <div style="padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9;">
-                    <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; border-bottom: 1px solid #ddd; padding-bottom: 0.5rem;">Question ${i + 1}</h3>
-                    <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">${qData.question || qData.partA.question}</p>
-                    <div>${answerContent}</div>
-                </div>
-            `;
-            
+            reportContainer.innerHTML = `<div style="padding: 10px;"><h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">Question ${i + 1}</h3><p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">${qData.question || qData.partA.question}</p><div>${answerContent}</div></div>`;
             document.body.appendChild(reportContainer);
-            
             const canvas = await html2canvas(reportContainer, { scale: 2 });
             const imgData = canvas.toDataURL('image/png');
             const imgProps = pdf.getImageProperties(imgData);
             const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-            if (i > 0) {
-                pdf.addPage();
-            }
+            if (i > 0) pdf.addPage();
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            
             document.body.removeChild(reportContainer);
         }
         
@@ -444,9 +333,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const updateProgressBar = () => {
-        const percentage = ((appState.currentQuestionIndex + 1) / assessmentQuestions.length) * 100;
+        const isPractice = appState.mode === 'practice';
+        const total = isPractice ? practiceActivities.length : assessmentQuestions.length;
+        const current = isPractice ? appState.currentPracticeIndex + 1 : appState.currentQuestionIndex + 1;
+        const percentage = total > 0 ? (current / total) * 100 : 0;
+        
         progressBar.style.width = `${percentage}%`;
-        progressLabel.textContent = `Case File: ${appState.currentQuestionIndex + 1} of ${assessmentQuestions.length}`;
+        progressLabel.textContent = `${isPractice ? 'Drill' : 'Case File'}: ${current} of ${total}`;
     };
 
     const showView = (viewId) => {
@@ -457,65 +350,65 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderSourceText = () => {
-        const graphHtml = renderCoordinateGrid(sourceText.dataPoints, false, null, 'source-grid');
-        sourceTextContainer.innerHTML = `
-            <p class="mb-4 text-gray-300">${sourceText.body}</p>
-            <p class="mb-4 text-gray-300">${sourceText.conclusion}</p>
-            <div class="flex justify-center items-center mt-4">
-                ${graphHtml}
-            </div>
-        `;
+        const graphHtml = renderCoordinateGrid(sourceText.dataPoints, false, null, 'source-grid', 10, 18);
+        sourceTextContainer.innerHTML = `<p class="mb-4 text-gray-300">${sourceText.body}</p><p class="mb-4 text-gray-300">${sourceText.conclusion}</p><div class="flex justify-center items-center mt-4">${graphHtml}</div>`;
     };
 
     const renderQuestion = () => {
         const qIndex = appState.currentQuestionIndex;
         const qData = assessmentQuestions[qIndex];
         renderSourceText();
-        
         let answerHtml = '';
         const savedAnswer = appState.studentAnswers[qIndex];
 
         switch (qData.type) {
-            case 'mc':
-                answerHtml = qData.options.map(opt => `
-                    <label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedAnswer === opt ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50'}">
-                        <input type="radio" name="q${qIndex}" value="${opt}" class="mr-2" ${savedAnswer === opt ? 'checked' : ''} > ${opt}
-                    </label>`).join('');
-                break;
-            case 'ms':
-                 answerHtml = qData.options.map(opt => `
-                    <label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedAnswer?.includes(opt) ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50'}">
-                        <input type="checkbox" name="q${qIndex}" value="${opt}" class="mr-2" ${savedAnswer?.includes(opt) ? 'checked' : ''} > ${opt}
-                    </label>`).join('');
-                break;
-            case 'te_hotspot':
-                answerHtml = renderCoordinateGrid(sourceText.dataPoints, true, savedAnswer, '');
-                break;
+            case 'mc': answerHtml = qData.options.map(opt => `<label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedAnswer === opt ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50'}"><input type="radio" name="q${qIndex}" value="${opt}" class="mr-2" ${savedAnswer === opt ? 'checked' : ''} > ${opt}</label>`).join(''); break;
+            case 'ms': answerHtml = qData.options.map(opt => `<label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedAnswer?.includes(opt) ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50'}"><input type="checkbox" name="q${qIndex}" value="${opt}" class="mr-2" ${savedAnswer?.includes(opt) ? 'checked' : ''} > ${opt}</label>`).join(''); break;
+            case 'te_hotspot': answerHtml = renderCoordinateGrid(sourceText.dataPoints, true, savedAnswer, '', 10, 18); break;
             case 'ebsr':
-                 answerHtml = `
-                    <div class="mb-4">
-                        <p class="font-semibold mb-2">Part A: ${qData.partA.question}</p>
-                        ${qData.partA.options.map(opt => `<label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedAnswer?.partA === opt ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50'}"><input type="radio" name="q${qIndex}_partA" value="${opt}" class="mr-2" ${savedAnswer?.partA === opt ? 'checked' : ''} >${opt}</label>`).join('')}
-                    </div>
-                    <div>
-                        <p class="font-semibold mb-2">Part B: ${qData.partB.question}</p>
-                        ${qData.partB.options.map(opt => `<label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedAnswer?.partB === opt ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50'}"><input type="radio" name="q${qIndex}_partB" value="${opt}" class="mr-2" ${savedAnswer?.partB === opt ? 'checked' : ''} >${opt}</label>`).join('')}
-                    </div>`;
+                 answerHtml = `<div class="mb-4"><p class="font-semibold mb-2">Part A: ${qData.partA.question}</p>${qData.partA.options.map(opt => `<label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedAnswer?.partA === opt ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50'}"><input type="radio" name="q${qIndex}_partA" value="${opt}" class="mr-2" ${savedAnswer?.partA === opt ? 'checked' : ''} >${opt}</label>`).join('')}</div><div><p class="font-semibold mb-2">Part B: ${qData.partB.question}</p>${qData.partB.options.map(opt => `<label class="block border rounded-lg p-3 mb-2 cursor-pointer hover:bg-yellow-100 ${savedAnswer?.partB === opt ? 'bg-yellow-200 border-yellow-400' : 'bg-gray-50'}"><input type="radio" name="q${qIndex}_partB" value="${opt}" class="mr-2" ${savedAnswer?.partB === opt ? 'checked' : ''} >${opt}</label>`).join('')}</div>`;
                 break;
         }
 
-        questionContainer.innerHTML = `
-            <div class="flex-grow overflow-y-auto pr-2">
-                <p class="text-sm text-gray-500 mb-1">Question ${qIndex + 1} of ${assessmentQuestions.length}</p>
-                <h3 class="text-xl font-semibold mb-4">${qData.question || qData.partA.question}</h3>
-                <div>${answerHtml}</div>
-            </div>
-            <div class="mt-6 flex justify-between items-center pt-4 border-t">
-                <button id="prev-btn" class="btn-secondary font-bold py-2 px-6 rounded-lg ${qIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${qIndex === 0 ? 'disabled' : ''}>Previous</button>
-                <button id="next-btn" class="btn-primary font-bold py-2 px-6 rounded-lg">${qIndex === assessmentQuestions.length - 1 ? 'Finish Case' : 'Next'}</button>
-            </div>`;
+        questionContainer.innerHTML = `<div class="flex-grow overflow-y-auto pr-2"><p class="text-sm text-gray-500 mb-1">Question ${qIndex + 1} of ${assessmentQuestions.length}</p><h3 class="text-xl font-semibold mb-4">${qData.question || qData.partA.question}</h3><div>${answerHtml}</div></div><div class="mt-6 flex justify-between items-center pt-4 border-t"><button id="prev-btn" class="btn-secondary font-bold py-2 px-6 rounded-lg ${qIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${qIndex === 0 ? 'disabled' : ''}>Previous</button><button id="next-btn" class="btn-primary font-bold py-2 px-6 rounded-lg">${qIndex === assessmentQuestions.length - 1 ? 'Finish Case' : 'Next'}</button></div>`;
         updateProgressBar();
         addQuestionEventListeners();
+    };
+
+    const renderPractice = () => {
+        const pIndex = appState.currentPracticeIndex;
+        const pData = practiceActivities[pIndex];
+        let activityHtml = '';
+
+        switch (pData.type) {
+            case 'identify':
+                activityHtml = `
+                    ${renderCoordinateGrid(pData.data, false, null, '', 10, 10)}
+                    <div class="mt-4 w-full max-w-sm space-y-2">
+                        ${pData.options.map(opt => `<label class="block w-full border rounded-lg p-3 cursor-pointer hover:bg-yellow-100"><input type="radio" name="practice_mc" value="${opt}" class="mr-2">${opt}</label>`).join('')}
+                    </div>
+                `;
+                break;
+            case 'plot':
+                activityHtml = `${renderCoordinateGrid([], true, null, '', 10, 10)}`; // Blank interactive grid
+                break;
+            case 'interpret':
+                activityHtml = `<div class="space-y-2">${pData.options.map(opt => `<label class="block w-full border rounded-lg p-3 cursor-pointer hover:bg-yellow-100"><input type="radio" name="practice_mc" value="${opt}" class="mr-2">${opt}</label>`).join('')}</div>`;
+                break;
+        }
+
+        practiceContainer.innerHTML = `
+            <p class="text-sm text-gray-500 mb-1">Drill ${pIndex + 1} of ${practiceActivities.length}</p>
+            <h3 class="text-2xl font-semibold mb-6 text-center">${pData.question}</h3>
+            <div class="mb-4">${activityHtml}</div>
+            <div id="feedback-container" class="h-8 mb-4 text-center"></div>
+            <div class="flex space-x-4">
+                 <button id="check-answer-btn" class="btn-primary font-bold py-2 px-8 rounded-lg">Check Answer</button>
+                 <button id="try-again-btn" class="btn-secondary font-bold py-2 px-8 rounded-lg hidden">Try Again</button>
+                 <button id="next-practice-btn" class="btn-primary font-bold py-2 px-8 rounded-lg hidden">Next</button>
+            </div>`;
+        updateProgressBar();
+        addPracticeEventListeners();
     };
     
     const saveAnswer = () => {
@@ -523,21 +416,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const qData = assessmentQuestions[qIndex];
         let answer;
         switch (qData.type) {
-            case 'mc':
-                answer = questionContainer.querySelector(`input[name="q${qIndex}"]:checked`)?.value || null;
-                break;
-            case 'ms':
-                answer = Array.from(questionContainer.querySelectorAll(`input[name="q${qIndex}"]:checked`)).map(el => el.value);
-                break;
-            case 'te_hotspot':
-                answer = questionContainer.querySelector('.grid-point.selected')?.dataset.coord || null;
-                break;
-            case 'ebsr':
-                answer = {
-                    partA: questionContainer.querySelector(`input[name="q${qIndex}_partA"]:checked`)?.value || null,
-                    partB: questionContainer.querySelector(`input[name="q${qIndex}_partB"]:checked`)?.value || null
-                };
-                break;
+            case 'mc': answer = questionContainer.querySelector(`input[name="q${qIndex}"]:checked`)?.value || null; break;
+            case 'ms': answer = Array.from(questionContainer.querySelectorAll(`input[name="q${qIndex}"]:checked`)).map(el => el.value); break;
+            case 'te_hotspot': answer = questionContainer.querySelector('.grid-point.selected')?.dataset.coord || null; break;
+            case 'ebsr': answer = { partA: questionContainer.querySelector(`input[name="q${qIndex}_partA"]:checked`)?.value || null, partB: questionContainer.querySelector(`input[name="q${qIndex}_partB"]:checked`)?.value || null }; break;
         }
         appState.studentAnswers[qIndex] = answer;
         localStorage.setItem('mathDetectiveProgress', JSON.stringify(appState.studentAnswers));
@@ -549,28 +431,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const studentAnswer = appState.studentAnswers[i];
             let isCorrect = false;
             switch(q.type) {
-                case 'mc':
-                case 'te_hotspot':
-                    isCorrect = studentAnswer === q.answer;
-                    break;
-                case 'ms':
-                    if (studentAnswer && studentAnswer.length === q.answer.length) {
-                        isCorrect = q.answer.every(val => studentAnswer.includes(val));
-                    }
-                    break;
-                case 'ebsr':
-                    isCorrect = studentAnswer?.partA === q.partA.answer && studentAnswer?.partB === q.partB.answer;
-                    break;
+                case 'mc': case 'te_hotspot': isCorrect = studentAnswer === q.answer; break;
+                case 'ms': if (studentAnswer && studentAnswer.length === q.answer.length) { isCorrect = q.answer.every(val => studentAnswer.includes(val)); } break;
+                case 'ebsr': isCorrect = studentAnswer?.partA === q.partA.answer && studentAnswer?.partB === q.partB.answer; break;
             }
             if(isCorrect) correctCount++;
         });
-
-        document.getElementById('score-display').innerHTML = `
-            <p class="text-xl text-gray-300">Your final score is:</p>
-            <p class="text-8xl font-bold text-green-400 my-4">${correctCount}<span class="text-4xl text-gray-400"> / ${assessmentQuestions.length}</span></p>
-        `;
-
-        localStorage.setItem('mathDetectiveLocked', 'true'); // Lock the state
+        document.getElementById('score-display').innerHTML = `<p class="text-xl text-gray-300">Your final score is:</p><p class="text-8xl font-bold text-green-400 my-4">${correctCount}<span class="text-4xl text-gray-400"> / ${assessmentQuestions.length}</span></p>`;
+        localStorage.setItem('mathDetectiveLocked', 'true');
     };
     
     function addQuestionEventListeners() {
@@ -591,13 +459,94 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Hotspot listener
         if (assessmentQuestions[appState.currentQuestionIndex].type === 'te_hotspot') {
             document.querySelectorAll('.hotspot').forEach(spot => {
                 spot.addEventListener('click', () => {
                     document.querySelectorAll('.hotspot').forEach(s => s.classList.remove('selected'));
                     spot.classList.add('selected');
                 });
+            });
+        }
+    }
+
+    function addPracticeEventListeners() {
+        const checkBtn = document.getElementById('check-answer-btn');
+        const tryAgainBtn = document.getElementById('try-again-btn');
+        const nextBtn = document.getElementById('next-practice-btn');
+        const feedback = document.getElementById('feedback-container');
+        const pData = practiceActivities[appState.currentPracticeIndex];
+
+        const checkAnswerAction = () => {
+            let userAnswer;
+            let isCorrect = false;
+
+            switch(pData.type) {
+                case 'identify':
+                case 'interpret':
+                    const checkedRadio = practiceContainer.querySelector('input[name="practice_mc"]:checked');
+                    userAnswer = checkedRadio ? checkedRadio.value : null;
+                    isCorrect = userAnswer === pData.answer;
+                    break;
+                case 'plot':
+                     const selectedPoint = practiceContainer.querySelector('.grid-point.selected');
+                     userAnswer = selectedPoint ? selectedPoint.dataset.coord : null;
+                     isCorrect = userAnswer === pData.answer;
+                    break;
+            }
+
+            if (isCorrect) {
+                feedback.innerHTML = `<p class="text-green-600 font-bold">Correct!</p>`;
+                checkBtn.classList.add('hidden');
+                nextBtn.classList.remove('hidden');
+                tryAgainBtn.classList.add('hidden');
+                practiceContainer.querySelectorAll('input').forEach(i => i.disabled = true);
+            } else {
+                feedback.innerHTML = `<p class="text-red-600 font-bold">Not quite, please try again.</p>`;
+                checkBtn.classList.add('hidden');
+                tryAgainBtn.classList.remove('hidden');
+                nextBtn.classList.add('hidden');
+            }
+        };
+
+        checkBtn.addEventListener('click', checkAnswerAction);
+        
+        tryAgainBtn.addEventListener('click', () => {
+            feedback.innerHTML = '';
+            tryAgainBtn.classList.add('hidden');
+            checkBtn.classList.remove('hidden');
+        });
+        
+        nextBtn.addEventListener('click', () => {
+            if (appState.currentPracticeIndex < practiceActivities.length - 1) {
+                appState.currentPracticeIndex++;
+                renderPractice();
+            } else {
+                showView('home');
+            }
+        });
+
+        if (pData.type === 'plot') {
+            const grid = practiceContainer.querySelector('.coordinate-grid');
+            grid.addEventListener('click', (e) => {
+                if(checkBtn.classList.contains('hidden')) return; // Don't allow changes after checking
+                
+                practiceContainer.querySelectorAll('.grid-point.selected').forEach(p => p.remove());
+
+                const rect = grid.getBoundingClientRect();
+                const x = Math.round((e.clientX - rect.left) / GRID_UNIT);
+                const y = Math.round((rect.bottom - e.clientY) / GRID_UNIT);
+
+                const maxX = 10;
+                const maxY = 10;
+
+                if (x >= 0 && x <= maxX && y >= 0 && y <= maxY) {
+                     const pointEl = document.createElement('div');
+                     pointEl.className = 'grid-point selected';
+                     pointEl.style.left = `${x * GRID_UNIT}px`;
+                     pointEl.style.bottom = `${y * GRID_UNIT}px`;
+                     pointEl.dataset.coord = `(${x}, ${y})`;
+                     grid.appendChild(pointEl);
+                }
             });
         }
     }
@@ -609,13 +558,15 @@ document.addEventListener('DOMContentLoaded', () => {
         renderQuestion();
     });
 
-    // Dummy listener for practice button
-     document.getElementById('start-practice-btn').addEventListener('click', () => {
-        alert("Practice Center for this topic is under construction!");
+    document.getElementById('start-practice-btn').addEventListener('click', () => {
+        appState.mode = 'practice';
+        appState.currentPracticeIndex = 0;
+        showView('practice');
+        renderPractice();
     });
     
     document.getElementById('home-btn').addEventListener('click', () => {
-        saveAnswer();
+        if(appState.currentView === 'assessment') saveAnswer();
         showView('home');
     });
 
@@ -631,7 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const init = () => {
-        // Check if student is locked into score view
         if (localStorage.getItem('mathDetectiveLocked') === 'true') {
             const lsData = localStorage.getItem('mathDetectiveProgress');
             if (lsData) appState.studentAnswers = JSON.parse(lsData);
@@ -640,7 +590,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Load progress from <script> tag or localStorage
         try {
             const progressDataEl = document.getElementById('progress-data');
             const data = progressDataEl?.textContent.trim();
@@ -655,14 +604,11 @@ document.addEventListener('DOMContentLoaded', () => {
         showView('home');
     };
     
-    // Simplified PDF generation and other listeners for brevity.
-    // Full functionality for password modal, saving, etc. would be similar to the previous version.
     document.getElementById('password-submit').addEventListener('click', () => {
         if(document.getElementById('password-input').value === '2026') {
              passwordModal.classList.add('hidden');
              document.getElementById('password-input').value = '';
              document.getElementById('password-error').classList.add('hidden');
-             // Admin Reset Logic
              localStorage.removeItem('mathDetectiveProgress');
              localStorage.removeItem('mathDetectiveLocked');
              appState.studentAnswers = {};
