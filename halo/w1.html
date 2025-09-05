@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBL Unit: The SDG Innovators</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- START: Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <!-- END: Firebase SDKs -->
+
+    <style>
+        /* Thematic Custom Styles */
+        :root {
+            --blueprint-blue: #005f73;
+            --safety-yellow: #ee9b00;
+            --success-green: #94d2bd;
+            --light-grey: #f8f9fa;
+            --dark-text: #0a9396;
+            --hover-blue: #0a9396;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--light-grey);
+            background-image: linear-gradient(var(--dark-text) 1px, transparent 1px), linear-gradient(to right, var(--dark-text) 1px, var(--light-grey) 1px);
+            background-size: 20px 20px;
+            background-color: #e9ecef;
+        }
+
+        .tab-active {
+            background-color: var(--blueprint-blue);
+            color: white;
+            border-bottom-color: var(--safety-yellow);
+        }
+        
+        .run-test-btn {
+            background-color: var(--safety-yellow);
+            transition: all 0.2s ease-in-out;
+        }
+        .run-test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .run-test-btn .gear-icon {
+            transition: transform 0.5s ease-in-out;
+        }
+        .run-test-btn:hover .gear-icon {
+            transform: rotate(180deg);
+        }
+
+        .progress-bar-fill {
+            background-color: var(--success-green);
+            transition: width 0.5s ease-in-out;
+        }
+
+        /* Drag and Drop styles */
+        .draggable-item { cursor: grab; transition: opacity 0.2s; }
+        .draggable-item:active { cursor: grabbing; }
+        .drop-target { border: 2px dashed var(--blueprint-blue); }
+        .drop-target.drag-over { background-color: #e0f7fa; border-style: solid; }
+
+        /* Animation for feedback */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .shake-animation { animation: shake 0.5s ease-in-out; }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .pulse-animation { animation: pulse 0.3s ease-in-out; }
+        
+        .auto-grow-textarea {
+            resize: none;
+            overflow: hidden;
+            min-height: 50px;
+        }
+
+        #drawing-canvas {
+            border: 2px solid var(--blueprint-blue);
+            cursor: crosshair;
+            touch-action: none;
+        }
+        .tool-btn.active {
+            background-color: var(--blueprint-blue);
+            color: white;
+        }
+        
+        /* START: Sync Feature Styles */
+        .hidden {
+            display: none;
+        }
+        #setup-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+        }
+        #sync-toggle-label {
+            display: none; /* Hidden by default, shown for teachers */
+        }
+        .disabled-nav {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        /* END: Sync Feature Styles */
+
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden text-gray-800">
+
+    <!-- START: Setup Modal -->
+    <div id="setup-modal">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md text-center">
+            <h2 class="text-2xl font-bold text-[var(--blueprint-blue)] mb-6">Join Session</h2>
+            <div class="space-y-4">
+                <div class="flex justify-center gap-4">
+                    <label class="flex items-center p-3 border-2 rounded-lg cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-[var(--blueprint-blue)]">
+                        <input type="radio" name="role" value="Student" class="mr-2" checked> Student
+                    </label>
+                    <label class="flex items-center p-3 border-2 rounded-lg cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-[var(--blueprint-blue)]">
+                        <input type="radio" name="role" value="Teacher" class="mr-2"> Teacher
+                    </label>
+                </div>
+                <input type="password" id="teacher-password" placeholder="Teacher Password" class="hidden w-full p-2 border-2 rounded-lg">
+                <input type="text" id="room-name" placeholder="Enter Room Name" class="w-full p-2 border-2 rounded-lg">
+                <button id="open-lesson-btn" class="w-full bg-[var(--safety-yellow)] text-white font-bold py-3 px-4 rounded-lg hover:bg-yellow-600 transition duration-300">
+                    Start Lesson
+                </button>
+            </div>
+            <p id="modal-error" class="text-red-500 mt-4 h-4"></p>
+        </div>
+    </div>
+    <!-- END: Setup Modal -->
+    
+    <div id="main-container" class="hidden h-full flex flex-col">
+        <header class="bg-white shadow-md p-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-[var(--blueprint-blue)]"><i class="fas fa-cogs mr-2"></i>The SDG Innovator's Workshop</h1>
+            <div class="flex items-center gap-4">
+                <!-- START: Sync UI Controls -->
+                <div id="role-room-badge" class="bg-gray-200 text-gray-700 text-sm font-semibold px-3 py-1 rounded-full"></div>
+                <label id="sync-toggle-label" class="flex items-center cursor-pointer">
+                    <span class="mr-2 font-semibold text-gray-600">Sync Clicks:</span>
+                    <div class="relative">
+                        <input type="checkbox" id="sync-toggle" class="sr-only">
+                        <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
+                        <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                    </div>
+                </label>
+                <style>
+                    #sync-toggle:checked ~ .dot { transform: translateX(100%); }
+                    #sync-toggle:checked ~ .block { background-color: var(--success-green); }
+                </style>
+                <button id="change-role-room-btn" class="text-sm text-blue-600 hover:underline">Change</button>
+                <!-- END: Sync UI Controls -->
+                <div id="header-controls">
+                    <!-- Dynamic Controls (Back to Lesson/Go to Assessment) will be inserted here -->
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+            <!-- Sidebar Navigation -->
+            <nav class="bg-gray-200 p-2 md:p-4 w-full md:w-64 flex-shrink-0 overflow-y-auto">
+                <h2 class="text-lg font-semibold text-gray-700 mb-4">Project Phases</h2>
+                <div id="tabs-container" class="flex flex-row md:flex-col space-x-2 md:space-x-0 md:space-y-2">
+                    <!-- Tabs will be dynamically generated here -->
+                </div>
+                 <div class="mt-8 space-y-3">
+                    <button id="download-html-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 flex items-center justify-center">
+                        <i class="fas fa-download mr-2"></i> Download Work
+                    </button>
+                    <button id="download-pdf-btn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300 flex items-center justify-center">
+                        <i class="fas fa-file-pdf mr-2"></i> Export as PDF
+                    </button>
+                </div>
+                <input type="file" id="image-uploader" class="hidden" accept="image/*">
+            </nav>
+
+            <!-- Main Content Area -->
+            <div id="content-area" class="flex-1 p-6 bg-white overflow-y-auto relative">
+                <!-- Content will be dynamically inserted here -->
+            </div>
+        </main>
+    </div>
+
+    <script id="progress-data" type="application/json"></script>
+    
+    <script>
+        // --- START: Firebase and Sync Logic ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+            authDomain: "lesson-sync-a223a.firebaseapp.com",
+            projectId: "lesson-sync-a223a",
+            storageBucket: "lesson-sync-a223a.firebasestorage.app",
+            messagingSenderId: "906128715071",
+            appId: "1:906128715071:web:347ea08f4d864fde02778a"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        let unsubscribe = null;
+        let _isApplyingRemote = false;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // --- END: Firebase and Sync Logic ---
+
+        // --- APPLICATION LOGIC ---
+
+        const APP_DATA = {
+            lessons: [
+                {
+                    day: 1,
+                    title: "Decomposing a Problem",
+                    slides: [
+                        { type: 'info', title: "Hook: Sparking Curiosity", content: "Think about the last thing you threw in the trash. Where does it go? What happens to it? This is the start of a long journey." },
+                        { type: 'info', title: "I Do: Interactive Read-Aloud", content: "Let's get ready to read! <strong>Before we start:</strong><ul class='list-disc list-inside mt-2 space-y-1'><li>What do you know about life in the oceans?</li><li>Have you ever seen litter on a beach or near water?</li></ul><strong class='mt-4 block'>Now, as we read 'The Mess That We Made,' think about these questions:</strong><ul class='list-disc list-inside mt-2 space-y-1'><li>How does the trash get into the ocean?</li><li>What do the sea animals feel or do?</li><li>How does marine life get affected?</li></ul><p class='mt-4'>We will map out the chain reaction of how trash travels and causes a big problem.</p>" },
+                        { type: 'info', title: "We Do: Discussing the Story", content: "Let's talk about the story we just read. <ul class='list-disc list-inside mt-2 space-y-1'><li>What is one thing you can do at home to reduce plastic?</li><li>What part of the story made you feel hopeful?</li><li>Who else can help clean up the mess?</li></ul>" },
+                        { type: 'info', title: "We Do: Naming Our Superpower", content: "Now that we've mapped the mess from the story, let's name the powerful thinking skill we used. We took a huge, complicated problem and broke it down into smaller, understandable parts. This is called <strong>Decomposition</strong>.<p class='mt-4'>Think about this: How is breaking down a problem like following a recipe or LEGO instructions?</p><p class='mt-2'>Let's discuss how this works:</p><ul class='list-disc list-inside mt-2 space-y-1'><li>A recipe lists all the ingredients (the parts) and gives you step-by-step instructions (the sequence). You don't do everything at once.</li><li>LEGO instructions show you piece-by-piece how to build something amazing. You focus on one small step at a time.</li></ul>" },
+                        { type: 'info', title: "We Do: Why is This Skill Useful?", content: "<p class='font-bold'>Why is decomposition an innovator's superpower?</p><ul class='list-disc list-inside mt-2 space-y-1'><li><strong>It stops you from feeling overwhelmed.</strong> A giant problem like 'ocean pollution' is scary! But a small part, like 'a trash bag on the street,' is something we can think about solving.</li><li><strong>It helps you see all the parts.</strong> By breaking a problem down, you make sure you don't miss any important steps or causes.</li><li><strong>It helps you make a plan.</strong> Once you have small pieces, you can put them in order and decide where to start first.</li></ul>" },
+                        { type: 'info', title: "Innovator's Goggles: Changing Our View", content: "Now let's put on our 'Innovator's Goggles' and look at the story from a new angle. Great innovators don't just see a problem; they try to see it from many different points of view to understand it fully." },
+                        { type: 'info', title: "Innovator's Goggles: Point of View", content: "<p>Let's discuss the first part:</p><ul class='list-disc list-inside mt-2 space-y-1'><li><strong>Point of View:</strong> Who is telling the story in 'The Mess That We Made'? Is it a character in the story or an outside narrator?</li></ul>" },
+                        { type: 'info', title: "Innovator's Goggles: Perspective", content: "<p>Now, let's change our view:</p><ul class='list-disc list-inside mt-2 space-y-1'><li><strong>Changing Perspective:</strong> How would the story be different if it was told from the perspective of a sea turtle? What would the turtle feel or think when it saw the plastic bag?</li></ul>" },
+                        { type: 'info', title: "Innovator's Goggles: A Wider View", content: "<p>Let's take an even wider view:</p><ul class='list-disc list-inside mt-2 space-y-1'><li><strong>A Wider View:</strong> What if a seagull flying high above narrated the story? What extra details might it see about how the trash gets from the land to the water?</li></ul><p class='mt-4'>Understanding different perspectives helps us understand the problem more deeply before we try to solve it.</p>" },
+                        { type: 'interactive_practice', title: "You Do: Practice with Your Innovator's Goggles", passage: "The wind snatched the bright candy wrapper from Liam’s hand just as he was about to tuck it into his pocket. He watched, horrified, as it danced across the park grass before getting stuck on a rose bush. From across the lawn, Mr. Henderson, the park keeper, paused his sweeping. He sighed, a tired frown creasing his face as he watched the flash of litter spoil the perfect green view he worked so hard to maintain.", questionId: "l1_ela_q1" },
+                        { type: 'interactive_practice', title: "You Do: Practice with Your Innovator's Goggles", passage: "The wind snatched the bright candy wrapper from Liam’s hand just as he was about to tuck it into his pocket. He watched, horrified, as it danced across the park grass before getting stuck on a rose bush. From across the lawn, Mr. Henderson, the park keeper, paused his sweeping. He sighed, a tired frown creasing his face as he watched the flash of litter spoil the perfect green view he worked so hard to maintain.", questionId: "l1_ela_q2" },
+                        { type: 'interactive_practice', title: "You Do: Practice with Your Innovator's Goggles", passage: "The wind snatched the bright candy wrapper from Liam’s hand just as he was about to tuck it into his pocket. He watched, horrified, as it danced across the park grass before getting stuck on a rose bush. From across the lawn, Mr. Henderson, the park keeper, paused his sweeping. He sighed, a tired frown creasing his face as he watched the flash of litter spoil the perfect green view he worked so hard to maintain.", questionId: "l1_ela_q3" },
+                    ],
+                    assessment_passage: {
+                        title: "Day 1 Assessment: Reading passage",
+                        passage: "From my branch high in the canopy, I watched the bulldozers arrive. They were yellow monsters, and their loud roars echoed through our forest home, scaring the colorful macaws into flight. My family of monkeys chattered nervously, clinging to me as one of the giants bit into an ancient kapok tree, a place where generations of our kind had played. Down below, a woman in a hard hat looked at a map, then pointed a decisive finger towards the heart of our world. Her face showed no sadness, only a focused determination that chilled me more than any jungle storm."
+                    },
+                    questions: ["l1_assessment_q1", "l1_assessment_q2", "l1_assessment_q3", "l1_assessment_q4"]
+                },
+                {
+                    day: 2,
+                    title: "Researching for a Reason",
+                    slides: [
+                        { type: 'info', title: "Hook: The Cake Analogy", content: "If you needed to bake a cake right now, would you read a history book about chocolate or watch a 5-minute video on 'How to Bake a Cake'? Why? This is thinking about relevance." },
+                        { type: 'info', title: "I Do (Step 1): Choose a Big Goal", content: "Today, I will model how an innovator does research. My first step is to choose a big, broad SDG. I'm choosing <strong>Goal 7: Affordable and Clean Energy</strong>. This is huge, so I need to break it down." },
+                        { type: 'info', title: "I Do (Step 2): Decompose the Goal", content: "Now, I'll use decomposition. 'Clean Energy' can be broken down into smaller parts: <ul class='list-disc list-inside mt-2 space-y-1'><li>Solar Power</li><li>Wind Power</li><li>Wasted Electricity</li><li>Car Pollution</li></ul><p class='mt-2'>'Car Pollution' seems interesting. I'll decompose that even further into 'Gasoline Fumes' and 'Tire Waste'. I'm going to focus on <strong>Tire Waste</strong>. That's a specific, researchable problem.</p>" },
+                        { type: 'info', title: "I Do (Step 3): Form a Question", content: "Now I have my specific problem: Tire Waste. I need a question to guide my research for a solution. My question is: <br><br><strong class='p-2 bg-yellow-100 rounded'>'How can we stop microplastics from old tires from getting into our rivers?'</strong>" },
+                        { type: 'info', title: "I Do (Step 4): Search and Filter", content: "I'll do a quick search. I found two articles:<br><ol class='list-decimal list-inside mt-2 space-y-2'><li>'The History of Rubber Tires'</li><li>'How Gutter Guards Keep Leaves Out of Drains'</li></ol><br>Now I must use my 'Relevance Filter'. My goal is to invent a machine. The history article is interesting, but it's 'Nice to Know'. It doesn't help me design anything.<br><br>The article on gutter guards isn't about tires, but it's about filtering! This gives me an idea for my machine. It is <strong>'Need to Know'</strong> because it helps me think of a solution." },
+                        { type: 'info', title: "We Do: Let's Walk Through an Example", content: "Let's practice filtering together. Imagine our new mission is to invent a machine to help save bees (SDG 15). We find two pieces of information:<div class='mt-4 flex gap-4'><div class='flex-1 p-3 border rounded-lg'><strong>Info #1:</strong> A fact sheet that says, 'Many bees are harmed by pesticides sprayed on flowers.'</div><div class='flex-1 p-3 border rounded-lg'><strong>Info #2:</strong> An article titled, 'Bees Can See Ultraviolet Light Patterns on Petals.'</div></div><p class='mt-4'>Which one is 'Need to Know' for building our machine? Which is 'Nice to Know'? Discuss with a partner.</p>" },
+                        { type: 'info', title: "We Do: Debriefing the Example", content: "The fact about pesticides is <strong>Need to Know</strong> because it tells us a direct cause of the problem our machine could solve. The fact about ultraviolet light is super interesting, but it's <strong>Nice to Know</strong>. It doesn't directly help us solve the pesticide problem right now." },
+                        { type: 'info', title: "We Do: Creating Our Filter", content: "Now, let's create a 'Relevance Filter' anchor chart together based on our discussion. What makes a piece of information 'Need to Know' versus just 'Nice to Know' for an innovator?" },
+                        { type: 'interactive_practice', title: "We Do: Practice Filtering", passage: "Your new mission is to invent a way to provide clean water in a village (SDG 6). Sort these research findings using the 'Relevance Filter'.", questionId: "l2_interactive_q1" },
+                        { type: 'info', title: "You Do: Your Turn to Research", content: "Choose an SDG you care about. Decompose it into a specific problem and start your research. Your mission: find one relevant fact that gives you an idea for a machine, and one fact that is interesting but not relevant." }
+                    ],
+                    assessment_passage: {
+                        title: "Day 2 Assessment: Finding Relevant Information",
+                        passage: "For each question, read the research plan carefully. Your task is to act as a research assistant and choose the source that will most likely contain useful and relevant information to answer the specific research question."
+                    },
+                    questions: ["l2_assessment_q1", "l2_assessment_q2", "l2_assessment_q3", "l2_assessment_q4", "l2_assessment_q5"]
+                },
+                {
+                    day: 3,
+                    title: "Designing an Algorithm",
+                    slides: [
+                        { type: 'info', title: "Hook: From a Clue to a Plan", content: "Yesterday, you found your first 'clue'—a relevant fact for your invention. But one clue doesn't solve a case! Today, we'll learn how to create a full research plan to gather all the information we need to design a solution." },
+                        { type: 'info', title: "I Do: The Research Plan (P for Problem)", content: "The first part of our 'P.M.M. Research Plan' is understanding the <strong>Problem</strong>. Before we can invent a solution, we must become experts on the problem itself.<div class='mt-4 p-4 border-2 border-red-300 bg-red-50 rounded-lg'><strong class='text-red-600 block text-xl'>P = Problem Facts</strong><p class='mt-2'>We need to ask questions like:</p><ul class='list-disc list-inside mt-2'><li>How big is this problem?</li><li>What are its main causes?</li><li>Who or what is most affected by it?</li></ul></div><p class='mt-4'>For my 'Tire Waste' project, a key problem question is: 'How do microplastics from tires actually get into rivers?'</p>" },
+                        { type: 'info', title: "I Do: The Research Plan (M for Mechanism)", content: "The next part of our plan is researching <strong>Mechanisms</strong>. We need to look for ideas by seeing how other things work in the world.<div class='mt-4 p-4 border-2 border-blue-300 bg-blue-50 rounded-lg'><strong class='text-blue-600 block text-xl'>M = Mechanism Ideas</strong><p class='mt-2'>We need to ask questions like:</p><ul class='list-disc list-inside mt-2'><li>How do existing things that do similar jobs work?</li><li>Think about filters, claws, nets, or sensors.</li></ul></div><p class='mt-4'>For my 'Tire Waste' project, a key mechanism question is: 'How do water filters in homes work?' This could give me ideas for my own filter.</p>" },
+                        { type: 'info', title: "I Do: The Research Plan (M for Materials)", content: "The final part of our plan is researching <strong>Materials</strong>. What our invention is made of is just as important as how it works.<div class='mt-4 p-4 border-2 border-green-300 bg-green-50 rounded-lg'><strong class='text-green-600 block text-xl'>M = Material Properties</strong><p class='mt-2'>We need to ask questions like:</p><ul class='list-disc list-inside mt-2'><li>What materials are strong, waterproof, or safe for the environment?</li><li>What materials are affordable or easy to find?</li></ul></div><p class='mt-4'>For my 'Tire Waste' project, a key material question is: 'What materials are used to filter tiny particles from water?'</p>" },
+                        { type: 'info', title: "I Do: My Research Questions", content: "Based on my P.M.M. plan for stopping tire microplastics, here are the research questions I would write:<ul class='list-disc list-inside mt-2 space-y-2'><li><strong>(P)</strong> How many tires are thrown away each year?</li><li><strong>(P)</strong> How do microplastics from tires actually get into rivers?</li><li><strong>(M)</strong> How do water filters in homes work?</li><li><strong>(M)</strong> How are storm drains designed?</li><li><strong>(M)</strong> What materials are used to filter tiny particles from water?</li></ul><p class='mt-4'>Answering these questions will give me the 'ingredients' I need to invent a solution.</p>" },
+                        { type: 'info', title: "We Do: Planning Our Research", content: "Let's brainstorm together. If our mission is to invent a device that stops plastic bags from harming sea turtles, what is one 'P', one 'M', and one 'M' question we could research?" },
+                        { type: 'info', title: "You Do: Create Your Research Blueprint", content: "Look at the specific problem you identified yesterday. Your task is to write at least three research questions for your own project using the P.M.M. model. One question for 'Problem,' one for 'Mechanism,' and one for 'Materials.'" },
+                        { type: 'info', title: "Transition: From Research to Recipe", content: "Once you have good research, you have the 'ingredients' for an invention. But before you can build, you need a 'recipe' that puts everything in the right order. That recipe is called an algorithm." },
+                        { type: 'info', title: "Hook: The Human Robot", content: "I am a robot! You must write me a very precise, step-by-step list of instructions to make a jam sandwich. Let's see what happens if your instructions aren't clear!" },
+                        { type: 'info', title: "I Do: Modeling the Blueprint", content: "I will create a blueprint for my 'River-Skim 5000' machine. I'll write out the algorithm—the step-by-step process—of how it collects, filters, and releases water." },
+                        { type: 'info', title: "We Do: Debugging Together", content: "Let's review a sample algorithm together. Are the steps in the right order? Is anything missing? This is called 'debugging.'" },
+                        { type: 'info', title: "You Do: Create Your Algorithm", content: "Create the algorithm for your own invention. Write the step-by-step instructions for how your machine will work to solve the problem you researched." }
+                    ],
+                    questions: ["l3_q1", "l3_q2"]
+                },
+                 {
+                    day: 4,
+                    title: "Create & Iterate",
+                    slides: [
+                        { type: 'info', title: "Hook: The Power of Prototypes", content: "Look at these pictures of the first computer mouse or first iPhone. They weren't perfect! They were prototypes—first drafts to test an idea. Today, you'll draw your first blueprint." },
+                        { type: 'info', title: "I Do: Creating a Blueprint", content: "I will model how to draw a blueprint for my 'River-Skim 5000' machine. A good blueprint is a diagram that shows all the important parts and explains how they work together. I'll make sure to add labels and arrows to show the steps from my algorithm. " },
+                        { type: 'drawing_practice', title: "You Do: Draw Your Prototype Blueprint", questionId: "l4_drawing" },
+                        { type: 'info', title: "We Do: The Blueprint Gallery Walk", content: "Let's do a 'Gallery Walk' to see everyone's amazing ideas. We will use the 'I Notice / I Wonder' protocol to give kind and helpful feedback on each other's blueprints. The goal is to help each other improve our designs." },
+                        { type: 'interactive_practice', title: "You Do: Time to Iterate", passage: "Think about the great feedback you received from your classmates during the gallery walk.", questionId: "l4_iteration" }
+                    ],
+                    questions: ["l4_q1", "l4_q2"]
+                },
+                {
+                    day: 5,
+                    title: "The Innovator's Showcase",
+                    slides: [
+                        { type: 'info', title: "Hook: What Makes a Great Pitch?", content: "Let's watch a short, exciting video of a real kid inventor pitching their idea. What makes their presentation powerful and convincing?" },
+                        { type: 'info', title: "I Do: Planning the Pitch", content: "I will model how to use the 'Innovator's Pitch Planner' to structure a presentation, including the problem, the solution, how it works, and my 'favorite mistake'—how feedback helped me iterate." },
+                        { type: 'info', title: "We Do: Rehearsal Workshop", content: "In pairs, let's practice our pitches. The listener's job is to say what they remember most, helping the presenter know if their main points are clear." },
+                        { type: 'info', title: "You Do: Present and Reflect", content: "Present your innovation! At the showcase, you'll share your entire journey, from the SDG you chose to the final, iterated prototype you built. Then, you will complete a final reflection on your learning." }
+                    ],
+                    questions: ["l5_q1", "l5_q2", "l5_q3"]
+                }
+            ],
+            questions: [
+                { "id": "l1_ela_q1", "type": "mc", "prompt": "Which sentence best explains how the author reveals Mr. Henderson's perspective on the event?", "visual": "emoji:🤔", "data": { "options": ["By stating that he stopped sweeping his work.", "By using the words 'sighed' and 'tired frown' to show his disappointment and frustration.", "By describing the park as having a 'perfect green view.'", "By showing that he was on the other side of the lawn."] }, "correct": "By using the words 'sighed' and 'tired frown' to show his disappointment and frustration." },
+                { "id": "l1_ela_q2", "type": "mc", "prompt": "If the story were told from the candy wrapper's point of view, how would the description of the event most likely change?", "visual": "emoji:🌬️", "data": { "options": ["It would focus on Liam's horror and Mr. Henderson's frown.", "It would describe the feeling of being light and free, carried by the wind on an exciting journey.", "It would describe the park keeper's hard work in detail.", "It would be a sad story about being lost."] }, "correct": "It would describe the feeling of being light and free, carried by the wind on an exciting journey." },
+                { "id": "l1_ela_q3", "type": "mc", "prompt": "Why was telling the story from a Third Person point of view that shows both Liam's and Mr. Henderson's feelings an effective choice for the author?", "visual": "emoji:🎭", "data": { "options": ["Because it makes the story longer and more detailed.", "Because it proves that littering is always a bad thing to do.", "Because it shows that the same event can cause different negative feelings (horror vs. frustration) in different people, making the problem seem more significant.", "Because it allows the reader to know what the candy wrapper is thinking."] }, "correct": "Because it shows that the same event can cause different negative feelings (horror vs. frustration) in different people, making the problem seem more significant." },
+
+                { "id": "l1_assessment_q1", "type": "mc", "prompt": "This passage is narrated from which point of view?", "visual": "emoji:🐒", "data": { "options": ["First Person (a character in the story)", "Third Person (an outside narrator)"] }, "correct": "First Person (a character in the story)" },
+                { "id": "l1_assessment_q2", "type": "mc", "prompt": "Which phrase from the text most powerfully reveals the narrator's perspective of fear and loss?", "visual": "icon:fa-solid fa-tree", "data": { "options": ["'chattered nervously, clinging to me'", "'high in the canopy'", "'looked at a map'", "'generations of our kind had played'"] }, "correct": "'chattered nervously, clinging to me'" },
+                { "id": "l1_assessment_q3", "type": "mc", "prompt": "How would the description of the event likely change if it were told from the perspective of the woman in the hard hat?", "visual": "icon:fa-solid fa-hard-hat", "data": { "options": ["It would describe the monkeys' chattering as a happy sound of greeting.", "It would focus on the exciting challenge of clearing the land for a new project that will help people.", "It would include more details about the ancient history of the kapok tree.", "It would describe the bulldozers as slow and ineffective."] }, "correct": "It would focus on the exciting challenge of clearing the land for a new project that will help people." },
+                { "id": "l1_assessment_q4", "type": "mc", "prompt": "What is the author's most likely purpose for choosing the monkey's point of view to narrate this event?", "visual": "icon:fa-solid fa-bullseye", "data": { "options": ["To provide a detailed, factual report on the process of deforestation.", "To make the reader feel sympathy for the forest animals and understand the emotional impact of deforestation.", "To show the benefits of building new things for human communities.", "To persuade the reader that monkeys are smarter than humans."] }, "correct": "To make the reader feel sympathy for the forest animals and understand the emotional impact of deforestation." },
+
+                { "id": "l2_interactive_q1", "type": "drag-drop-sort", "prompt": "", "visual": "icon:fa-solid fa-faucet-drip", "data": { "items": ["Boiling water for 1 minute kills most harmful bacteria.", "The ancient Romans built incredible aqueducts to move water.", "A simple sand and gravel filter can remove dirt and sediment from water."], "categories": ["NEED TO KNOW (for inventing a solution)", "NICE TO KNOW (interesting but not essential)"] }, "correct": { "NEED TO KNOW (for inventing a solution)": ["Boiling water for 1 minute kills most harmful bacteria.", "A simple sand and gravel filter can remove dirt and sediment from water."], "NICE TO KNOW (interesting but not essential)": ["The ancient Romans built incredible aqueducts to move water."] } },
+                
+                { "id": "l2_assessment_q1", "type": "mc", "prompt": "A student's research question is 'How have home computers changed since they were first introduced?'. Which source is most relevant?", "visual": "icon:fa-solid fa-computer", "data": { "options": ["A website that explains how to upgrade old computers.", "A magazine article titled “How Computers Can Help Solve Everyday Problems”.", "A book titled 'The History and Future of Computers'.", "A website that shows how to safely get rid of old computers."] }, "correct": "A book titled 'The History and Future of Computers'." },
+                { "id": "l2_assessment_q2", "type": "mc", "prompt": "A student's research question is 'What is the most effective way to remove large plastic waste from the ocean's surface?'. Which source is most relevant?", "visual": "icon:fa-solid fa-water", "data": { "options": ["A technical report comparing different ocean cleanup technologies.", "A blog post about how to reduce your use of plastic straws.", "An article describing how sea turtles mistake plastic for food.", "A book about the history of the invention of plastic."] }, "correct": "A technical report comparing different ocean cleanup technologies." },
+                { "id": "l2_assessment_q3", "type": "mc", "prompt": "A student's research question is 'How can farmers in dry climates use less water to grow crops?'. Which source is most relevant?", "visual": "icon:fa-solid fa-seedling", "data": { "options": ["A cookbook with recipes for roasted vegetables.", "A scientific journal article about drip irrigation techniques.", "A website that tracks the global prices of corn and wheat.", "A history book about farming equipment from the 1900s."] }, "correct": "A scientific journal article about drip irrigation techniques." },
+                { "id": "l2_assessment_q4", "type": "mc", "prompt": "A student's research question is 'What are the main challenges in storing energy generated by solar panels?'. Which source is most relevant?", "visual": "icon:fa-solid fa-solar-panel", "data": { "options": ["A news article about the benefits of switching to solar energy.", "A biography of the inventor of the first solar cell.", "An engineering website titled 'Battery Technology for Solar Power Storage'.", "A DIY guide on how to build a small solar-powered phone charger."] }, "correct": "An engineering website titled 'Battery Technology for Solar Power Storage'." },
+                { "id": "l2_assessment_q5", "type": "mc", "prompt": "A student's research question is 'What are the most effective ways to reduce traffic congestion in large cities?'. Which source is most relevant?", "visual": "icon:fa-solid fa-car-side", "data": { "options": ["A travel blog about the most beautiful cities to visit.", "A car magazine that reviews new models of electric vehicles.", "A city planning report that analyzes public transportation systems.", "A history book about the invention of the automobile."] }, "correct": "A city planning report that analyzes public transportation systems." },
+                
+                { "id": "l3_q1", "type": "mc", "prompt": "Why did the 'Human Robot' fail to make the jam sandwich correctly in the class activity?", "visual": "emoji:🤖", "data": { "options": ["The robot was not smart enough.", "The instructions were not precise and detailed enough.", "The robot didn't like jam."] }, "correct": "The instructions were not precise and detailed enough." },
+                { "id": "l3_q2", "type": "drag-drop-sort", "prompt": "You are programming a robot! Drag and drop these steps to create the correct algorithm for making a jam sandwich.", "visual": "icon:fa-solid fa-list-ol", "data": { "items": ["Step 1: Pick up a slice of bread.", "Step 2: Pick up the knife.", "Step 3: Put jam on the bread with the knife.", "Step 4: Take the lid off the jam jar."], "categories": ["Correct Algorithm Order"] }, "correct": { "Correct Algorithm Order": ["Step 1: Pick up a slice of bread.", "Step 4: Take the lid off the jam jar.", "Step 2: Pick up the knife.", "Step 3: Put jam on the bread with the knife."] } },
+                
+                { "id": "l4_drawing", "type": "drawing_canvas", "prompt": "Use the tools to draw a blueprint of your invention. Label the key parts and show how it works.", "visual": "" },
+                { "id": "l4_iteration", "type": "text-box", "prompt": "Based on the feedback from your peers, what is one change you will make to your blueprint to improve it? Describe your change below.", "data": { "size": 200 }, "correct": "" },
+                { "id": "l4_q1", "type": "mc", "prompt": "What is the main job of a prototype?", "visual": "A simple, hand-drawn sketch of a car with rough lines and labels like 'wheel' and 'engine'.", "data": { "options": ["To be a perfect, finished product sold in stores.", "To be a first-draft model that helps you test an idea.", "To be a beautiful piece of art."] }, "correct": "To be a first-draft model that helps you test an idea." },
+                { "id": "l4_q2", "type": "true-false", "prompt": "Iteration is the process of making changes to your design based on feedback.", "visual": "icon:fa-solid fa-arrows-rotate", "data": { "options": [ "True", "False" ] }, "correct": "True" },
+                
+                { "id": "l5_q1", "type": "mc", "prompt": "Why is the 'My Favorite Mistake' part of the innovator's pitch important?", "visual": "icon:fa-solid fa-lightbulb", "data": { "options": ["It shows you never make mistakes.", "It shows that you learned and improved your idea based on challenges.", "It's a way to blame your classmates for bad feedback."] }, "correct": "It shows that you learned and improved your idea based on challenges." },
+                { "id": "l5_q2", "type": "mc", "prompt": "What is the main purpose of going through the whole innovation process, from research to prototyping?", "visual": "emoji:🚀", "data": { "options": ["To get a good grade.", "To build something that looks cool.", "To deeply understand a problem so you can create a solution that actually works."] }, "correct": "To deeply understand a problem so you can create a solution that actually works." },
+                { "id": "l5_q3", "type": "drag-drop-match", "prompt": "Match the key term from our project to its correct definition.", "visual": "", "data": { "draggables": ["Decomposition", "Algorithm", "Prototype", "Iteration"], "dropTargets": ["Breaking a big problem into smaller parts.", "A step-by-step plan or recipe.", "A first-draft model to test an idea.", "The process of improving a design based on feedback."] }, "correct": { "Decomposition": "Breaking a big problem into smaller parts.", "Algorithm": "A step-by-step plan or recipe.", "Prototype": "A first-draft model to test an idea.", "Iteration": "The process of improving a design based on feedback." } }
+            ]
+        };
+
+        let appState = {};
+
+        // --- STATE MANAGEMENT ---
+        function initializeState() {
+            const defaultState = {
+                currentDay: 1,
+                userAnswers: {},
+                userImages: {},
+                progress: {},
+                // START: Sync State
+                role: 'Student',
+                room: null,
+                allowFreeExplore: true, // Students can explore by default
+                // END: Sync State
+            };
+             APP_DATA.lessons.forEach(lesson => {
+                defaultState.progress[lesson.day] = {
+                    lessonSlide: 0,
+                    assessmentSlide: 0,
+                    view: 'lesson', // 'lesson' or 'assessment'
+                    completed: false
+                };
+            });
+            appState = defaultState;
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem('sdgInnovatorsProgress', JSON.stringify(appState));
+            } catch (e) {
+                console.error("Could not save state to localStorage", e);
+            }
+        }
+
+        function loadState() {
+            let loadedState = null;
+            const progressDataEl = document.getElementById('progress-data');
+            
+            if (progressDataEl && progressDataEl.textContent.trim()) {
+                try {
+                    loadedState = JSON.parse(progressDataEl.textContent);
+                } catch (e) {
+                    console.error("Could not parse progress data from script tag:", e);
+                }
+            }
+            
+            if (!loadedState) {
+                try {
+                    const savedState = localStorage.getItem('sdgInnovatorsProgress');
+                    if (savedState) {
+                        loadedState = JSON.parse(savedState);
+                    }
+                } catch (e) {
+                    console.error("Could not load state from localStorage:", e);
+                }
+            }
+
+            if(loadedState) {
+                // Merge loaded state with default, keeping sync state from session
+                const { role, room, allowFreeExplore } = appState;
+                appState = loadedState;
+                appState.role = role;
+                appState.room = room;
+                appState.allowFreeExplore = allowFreeExplore;
+
+            } else {
+                initializeState();
+            }
+        }
+        
+        // --- RENDERING ---
+        const contentArea = document.getElementById('content-area');
+        const tabsContainer = document.getElementById('tabs-container');
+        const headerControls = document.getElementById('header-controls');
+        
+        function render() {
+            renderTabs();
+            renderHeaderControls();
+            renderContent();
+            updateNavControlsState();
+            saveState();
+        }
+
+        function renderTabs() {
+            tabsContainer.innerHTML = '';
+            APP_DATA.lessons.forEach(lesson => {
+                const isActive = lesson.day === appState.currentDay;
+                const tab = document.createElement('button');
+                tab.className = `w-full text-left p-3 rounded-lg font-semibold transition duration-200 ${isActive ? 'tab-active' : 'bg-white hover:bg-gray-100 text-gray-600'}`;
+                tab.innerHTML = `<i class="fas fa-tools mr-2"></i>Day ${lesson.day}: ${lesson.title}`;
+                tab.onclick = () => {
+                    if (_isApplyingRemote) return;
+                    appState.currentDay = lesson.day;
+                    appState.progress[appState.currentDay].lessonSlide = 0; // Reset slide on tab change
+                    render();
+                    syncPush();
+                };
+                tabsContainer.appendChild(tab);
+            });
+        }
+        
+        function renderHeaderControls() {
+            // START: Sync UI Update
+            const badge = document.getElementById('role-room-badge');
+            const syncToggleLabel = document.getElementById('sync-toggle-label');
+            const syncToggle = document.getElementById('sync-toggle');
+
+            if (appState.role && appState.room) {
+                 badge.textContent = `${appState.role} • room: ${appState.room}`;
+            }
+
+            if (appState.role === 'Teacher') {
+                syncToggleLabel.style.display = 'flex';
+                syncToggle.checked = !appState.allowFreeExplore;
+            } else {
+                syncToggleLabel.style.display = 'none';
+            }
+            // END: Sync UI Update
+
+            headerControls.innerHTML = '';
+            const currentProgress = appState.progress[appState.currentDay];
+            const button = document.createElement('button');
+            button.className = 'bg-[var(--blueprint-blue)] text-white font-bold py-2 px-4 rounded-lg hover:bg-[var(--hover-blue)] transition duration-300 flex items-center justify-center';
+
+            if (currentProgress.view === 'lesson') {
+                button.innerHTML = `Go to Assessment <i class="fas fa-arrow-right ml-2"></i>`;
+                button.onclick = () => switchView('assessment');
+            } else {
+                button.innerHTML = `<i class="fas fa-arrow-left mr-2"></i> Back to Lesson`;
+                button.onclick = () => switchView('lesson');
+            }
+            headerControls.appendChild(button);
+        }
+
+        function renderContent() {
+            const currentProgress = appState.progress[appState.currentDay];
+            const currentDayData = APP_DATA.lessons.find(l => l.day === appState.currentDay);
+            
+            if (currentProgress.view === 'lesson') {
+                renderLessonView(currentDayData, currentProgress);
+            } else {
+                renderAssessmentView(currentDayData, currentProgress);
+            }
+        }
+        
+       function renderLessonView(dayData, progress) {
+            const lessonSlides = dayData.slides;
+            const slide = lessonSlides[progress.lessonSlide];
+            let slideHTML = '';
+
+            if (slide.type === 'info') {
+                 slideHTML = `
+                    <div class="bg-white p-8 rounded-xl shadow-lg h-full flex flex-col">
+                        <h2 class="text-3xl font-bold text-[var(--blueprint-blue)] mb-4">${slide.title}</h2>
+                        <div class="text-lg text-gray-700 flex-1">${slide.content}</div>
+                    </div>
+                `;
+            } else if (slide.type === 'interactive_practice') {
+                 const question = APP_DATA.questions.find(q => q.id === slide.questionId);
+                 slideHTML = `
+                    <div class="bg-white p-8 rounded-xl shadow-lg h-full flex flex-col" id="question-${question.id}-container">
+                        <h2 class="text-3xl font-bold text-[var(--blueprint-blue)] mb-4">${slide.title}</h2>
+                        <div class="flex-1 flex flex-col md:flex-row gap-6 my-4">
+                            <div class="w-full md:w-1/2 flex flex-col">
+                                <h3 class="font-bold mb-2">Passage:</h3>
+                                <div class="p-4 border-l-4 border-[var(--blueprint-blue)] bg-gray-50 rounded-r-lg text-lg flex-1">
+                                    <p class="italic">${slide.passage}</p>
+                                </div>
+                            </div>
+                            <div class="w-full md:w-1/2 flex flex-col">
+                                 <h3 class="font-bold mb-2">${question.prompt}</h3>
+                                <div id="interaction-container-${question.id}">${generateInteraction(question)}</div>
+                                <div id="feedback-container-${question.id}" class="h-10 text-lg font-semibold my-2"></div>
+                                <button class="run-test-btn text-white font-bold py-2 px-6 rounded-lg flex items-center self-start mt-4" onclick="handleCheckAnswer('${question.id}')">
+                                    <span class="gear-icon mr-2">⚙️</span> Check My Answer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (slide.type === 'drawing_practice') {
+                const question = APP_DATA.questions.find(q => q.id === slide.questionId);
+                slideHTML = `
+                    <div class="bg-white p-8 rounded-xl shadow-lg h-full flex flex-col">
+                        <h2 class="text-3xl font-bold text-[var(--blueprint-blue)] mb-4">${slide.title}</h2>
+                        <p class="text-lg text-gray-700 mb-4">${question.prompt}</p>
+                        <div class="flex-1 flex flex-col items-center">
+                            <div class="flex gap-2 mb-4 items-center" id="canvas-controls-${question.id}">
+                                <button class="tool-btn border-2 p-2 rounded" data-tool="pen" title="Pen"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="tool-btn border-2 p-2 rounded" data-tool="eraser" title="Eraser"><i class="fas fa-eraser"></i></button>
+                                <input type="color" class="tool-btn" data-tool="color" value="#005f73" title="Color Picker">
+                                <input type="range" min="1" max="20" value="5" class="tool-btn" data-tool="size" title="Brush Size">
+                                <button class="tool-btn border-2 p-2 rounded" data-tool="clear" title="Clear Canvas"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                            <canvas id="drawing-canvas-${question.id}" width="600" height="400" class="bg-white rounded-lg shadow-inner"></canvas>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            const navHTML = `
+                <div class="flex justify-between mt-8">
+                    <button class="bg-gray-300 text-gray-700 font-bold py-2 px-6 rounded-lg ${progress.lessonSlide === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-400'}" ${progress.lessonSlide === 0 ? 'disabled' : ''} onclick="navigateLesson(-1)">Previous</button>
+                    ${progress.lessonSlide === lessonSlides.length - 1 
+                        ? `<button class="bg-[var(--safety-yellow)] text-white font-bold py-2 px-6 rounded-lg hover:bg-yellow-600" onclick="switchView('assessment')">Go to Assessment</button>`
+                        : `<button class="bg-[var(--blueprint-blue)] text-white font-bold py-2 px-6 rounded-lg hover:bg-[var(--hover-blue)]" onclick="navigateLesson(1)">Next</button>`
+                    }
+                </div>
+            `;
+
+            contentArea.innerHTML = slideHTML + navHTML;
+            
+            if (slide.type === 'interactive_practice') {
+                const question = APP_DATA.questions.find(q => q.id === slide.questionId);
+                if (question.type === 'drag-drop-sort' || question.type === 'drag-drop-match') {
+                    attachDragDropListeners(question.id);
+                }
+            } else if (slide.type === 'drawing_practice') {
+                initializeCanvas(`drawing-canvas-${slide.questionId}`, slide.questionId);
+            }
+        }
+        
+        function renderAssessmentView(dayData, progress) {
+            const questionIds = dayData.questions;
+            const totalQuestions = questionIds.length;
+            const currentQuestionIndex = progress.assessmentSlide;
+            
+            if (progress.completed || currentQuestionIndex >= totalQuestions) {
+                renderCompletionScreen();
+                return;
+            }
+
+            const questionId = questionIds[currentQuestionIndex];
+            const question = APP_DATA.questions.find(q => q.id === questionId);
+
+            let questionHTML = `<div class="bg-white p-8 rounded-xl shadow-lg h-full flex flex-col" id="question-${question.id}-container">
+                <div class="progress-bar w-full bg-gray-200 rounded-full h-4 mb-4">
+                    <div class="progress-bar-fill h-4 rounded-full" style="width: ${((currentQuestionIndex + 1) / totalQuestions) * 100}%"></div>
+                </div>
+                
+                <div class="flex-1 flex flex-col md:flex-row gap-6 my-4">
+                    <div class="w-full md:w-1/2 flex flex-col">
+                        <h3 class="font-bold mb-2">${dayData.assessment_passage.title}</h3>
+                        <div class="p-4 border-l-4 border-[var(--blueprint-blue)] bg-gray-50 rounded-r-lg text-lg flex-1">
+                            ${dayData.assessment_passage.passage}
+                        </div>
+                    </div>
+                    <div class="w-full md:w-1/2" id="interaction-container-${question.id}">
+                        <h3 class="font-bold mb-2">${question.prompt}</h3>
+                        ${generateInteraction(question)}
+                    </div>
+                </div>
+                
+                <div class="h-10 my-2"></div>
+                
+                <div class="flex justify-between mt-auto">
+                    <button class="bg-gray-300 text-gray-700 font-bold py-2 px-6 rounded-lg ${currentQuestionIndex === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-400'}" ${currentQuestionIndex === 0 ? 'disabled' : ''} onclick="navigateAssessment(-1)">Previous</button>
+                    <button class="bg-[var(--blueprint-blue)] text-white font-bold py-2 px-6 rounded-lg hover:bg-[var(--hover-blue)]" onclick="navigateAssessment(1)">Next Step</button>
+                </div>
+            </div>`;
+            
+            contentArea.innerHTML = questionHTML;
+            
+            if (question.type === 'drag-drop-sort' || question.type === 'drag-drop-match') {
+                attachDragDropListeners(question.id);
+            }
+        }
+
+        function renderCompletionScreen() {
+             contentArea.innerHTML = `
+                <div class="text-center p-8 rounded-xl shadow-lg h-full flex flex-col justify-center items-center bg-green-50">
+                    <h2 class="text-4xl font-bold text-green-700 mb-4">Mission Success!</h2>
+                    <p class="text-xl text-gray-600 mb-8">Great work! You've completed this phase of the project.</p>
+                     <div class="flex space-x-4">
+                         <button onclick="switchView('lesson')" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-600 transition">Review Lesson</button>
+                         <button onclick="resetAssessment()" class="bg-yellow-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-yellow-600 transition">Try Again</button>
+                     </div>
+                    <button id="teacher-view-btn" class="absolute bottom-4 right-4 text-xs text-gray-500 hover:underline">Admin</button>
+                </div>
+            `;
+            document.getElementById('teacher-view-btn').onclick = showTeacherView;
+        }
+
+        // --- INTERACTION & VISUAL GENERATORS ---
+        function generateVisual(visualString, questionId) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'w-full h-full flex flex-col items-center justify-center relative';
+
+            if (appState.userImages[questionId]) {
+                const img = document.createElement('img');
+                img.src = appState.userImages[questionId];
+                img.className = 'max-w-full max-h-full object-contain rounded-lg';
+                wrapper.appendChild(img);
+                const removeBtn = document.createElement('button');
+                removeBtn.innerHTML = '&times;';
+                removeBtn.className = 'absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold';
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    delete appState.userImages[questionId];
+                    render();
+                };
+                wrapper.appendChild(removeBtn);
+                return wrapper;
+            }
+
+            const defaultVisualContainer = document.createElement('div');
+            defaultVisualContainer.className = 'w-full h-full flex items-center justify-center cursor-pointer p-4 rounded-lg hover:bg-gray-200 transition';
+            defaultVisualContainer.title = 'Click to upload a custom image';
+            
+            let visualElement;
+
+            if (visualString && visualString.startsWith('emoji:')) {
+                visualElement = document.createElement('span');
+                visualElement.className = 'text-8xl';
+                visualElement.textContent = visualString.substring(6);
+            } else if (visualString && visualString.startsWith('icon:')) {
+                visualElement = document.createElement('i');
+                visualElement.className = `${visualString.substring(5)} text-8xl text-[var(--dark-text)]`;
+            } else if (visualString) {
+                visualElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                visualElement.setAttribute('viewBox', '0 0 100 100');
+                visualElement.setAttribute('class', 'w-full h-full');
+                if (visualString.includes('large, dark blue square')) {
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', '5'); rect.setAttribute('y', '25'); rect.setAttribute('width', '30'); rect.setAttribute('height', '30'); rect.setAttribute('fill', '#005f73');
+                    visualElement.appendChild(rect);
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', 'M40 40 L 55 40 L 55 30 L 70 45 L 55 60 L 55 50 L 40 50 Z');
+                    path.setAttribute('fill', '#0a9396');
+                    visualElement.appendChild(path);
+                    for (let i = 0; i < 2; i++) {
+                        for (let j = 0; j < 2; j++) {
+                            const smallRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                            smallRect.setAttribute('x', 75 + j * 12);
+                            smallRect.setAttribute('y', 25 + i * 12);
+                            smallRect.setAttribute('width', '10');
+                            smallRect.setAttribute('height', '10');
+                            smallRect.setAttribute('fill', '#94d2bd');
+                            visualElement.appendChild(smallRect);
+                        }
+                    }
+                } else if (visualString.includes('hand-drawn sketch of a car')) {
+                    visualElement.innerHTML = `<path d="M10 70 Q 20 50, 40 55 T 80 60 L 90 70 Z" fill="none" stroke="#0a9396" stroke-width="2"/><circle cx="25" cy="70" r="8" fill="none" stroke="#005f73" stroke-width="2"/><circle cx="75" cy="70" r="8" fill="none" stroke="#005f73" stroke-width="2"/><text x="50" y="30" font-size="8" text-anchor="middle">Engine</text><text x="25" y="90" font-size="8" text-anchor="middle">Wheel</text>`;
+                }
+            } else {
+                 visualElement = document.createElement('div');
+                 visualElement.className = 'text-center text-gray-500';
+                 visualElement.innerHTML = `<i class="fas fa-image text-6xl mb-2"></i><p>No visual for this question.</p>`;
+            }
+
+            defaultVisualContainer.appendChild(visualElement);
+            defaultVisualContainer.onclick = () => {
+                const uploader = document.getElementById('image-uploader');
+                uploader.dataset.questionId = questionId;
+                uploader.click();
+            };
+            wrapper.appendChild(defaultVisualContainer);
+            return wrapper;
+        }
+
+        function generateInteraction(question) {
+            switch(question.type) {
+                case 'mc':
+                case 'true-false':
+                    return question.data.options.map((option, index) => `
+                        <label for="${question.id}-opt${index}" class="flex items-center p-4 my-2 border-2 rounded-lg cursor-pointer hover:border-[var(--hover-blue)] has-[:checked]:bg-blue-50 has-[:checked]:border-[var(--blueprint-blue)] transition duration-200">
+                            <input type="radio" name="${question.id}" id="${question.id}-opt${index}" value="${option}" class="mr-4 h-5 w-5" onchange="updateAnswer('${question.id}')">
+                            <span class="flex-1 text-lg">${option}</span>
+                        </label>
+                    `).join('');
+                case 'text-box':
+                    const answer = appState.userAnswers[question.id] || '';
+                    return `<textarea class="w-full p-2 border-2 rounded-lg auto-grow-textarea" maxlength="${question.data.size}" oninput="updateAnswer('${question.id}')" placeholder="Type your answer here...">${answer}</textarea>`;
+                case 'drag-drop-sort':
+                     return `
+                        <div class="flex flex-col h-full">
+                            <div class="mb-4 p-4 border rounded-lg bg-gray-100 min-h-[80px]" id="source-${question.id}">
+                                ${question.data.items.filter(item => {
+                                    const userAnswer = appState.userAnswers[question.id] || {};
+                                    return !Object.values(userAnswer).flat().includes(item);
+                                }).map(item => `<div class="draggable-item inline-block bg-white p-2 m-1 rounded shadow cursor-grab" draggable="true" data-item="${item}">${item}</div>`).join('')}
+                            </div>
+                            <div class="flex-1 grid grid-cols-1 gap-4">
+                                ${question.data.categories.map(cat => `
+                                    <div class="flex flex-col">
+                                        <h3 class="font-bold text-center mb-2">${cat}</h3>
+                                        <div class="drop-target flex-1 p-2 rounded-lg bg-gray-50 min-h-[100px]" data-category="${cat}">
+                                             ${(appState.userAnswers[question.id]?.[cat] || []).map(item => `<div class="draggable-item bg-white p-2 m-1 rounded shadow cursor-grab" draggable="true" data-item="${item}">${item}</div>`).join('')}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>`;
+                case 'drag-drop-match':
+                    return `
+                        <div class="grid grid-cols-2 gap-x-8 gap-y-4 items-center">
+                             ${question.data.draggables.map((draggable, index) => {
+                                 const dropTarget = question.data.dropTargets[index];
+                                 const userAnswer = appState.userAnswers[question.id] || {};
+                                 const droppedItem = Object.keys(userAnswer).find(key => userAnswer[key] === dropTarget);
+                                 return `
+                                    <div class="drop-target p-4 rounded-lg text-center" data-category="${dropTarget}">
+                                        ${droppedItem ? `<div class="draggable-item bg-white p-2 rounded shadow cursor-grab" draggable="true" data-item="${droppedItem}">${droppedItem}</div>` : ''}
+                                    </div>
+                                    <div class="p-4 rounded-lg bg-gray-200 text-left font-semibold">${dropTarget}</div>
+                                 `;
+                             }).join('')}
+                             <div class="col-span-2 mt-4 p-4 border rounded-lg bg-gray-100 min-h-[60px]" id="source-${question.id}">
+                                 ${question.data.draggables.filter(item => {
+                                    const userAnswer = appState.userAnswers[question.id] || {};
+                                    return !Object.keys(userAnswer).includes(item);
+                                }).map(item => `<div class="draggable-item inline-block bg-white p-2 m-1 rounded shadow cursor-grab" draggable="true" data-item="${item}">${item}</div>`).join('')}
+                             </div>
+                        </div>
+                    `;
+                default:
+                    return '<p>Interaction type not implemented.</p>';
+            }
+        }
+        
+        // --- EVENT HANDLERS & LOGIC ---
+        function updateAnswer(questionId) {
+            const question = APP_DATA.questions.find(q => q.id === questionId);
+            const container = document.getElementById(`question-${questionId}-container`);
+            
+            if (question.type === 'drawing_canvas') {
+                const canvas = document.getElementById(`drawing-canvas-${questionId}`);
+                if (canvas) {
+                    appState.userAnswers[questionId] = canvas.toDataURL();
+                }
+            } else {
+                switch (question.type) {
+                    case 'mc':
+                    case 'true-false':
+                        const selected = container.querySelector(`input[name="${question.id}"]:checked`);
+                        appState.userAnswers[question.id] = selected ? selected.value : null;
+                        break;
+                    case 'text-box':
+                        appState.userAnswers[question.id] = container.querySelector('textarea').value;
+                        break;
+                }
+            }
+            saveState();
+        }
+
+        function handleCheckAnswer(questionId) {
+            const question = APP_DATA.questions.find(q => q.id === questionId);
+            const userAnswer = appState.userAnswers[questionId];
+            const feedbackContainer = document.getElementById(`feedback-container-${questionId}`);
+            if (!feedbackContainer) return;
+
+            let isCorrect = false;
+
+            switch(question.type) {
+                case 'mc':
+                case 'true-false':
+                case 'text-box':
+                    isCorrect = userAnswer === question.correct;
+                    break;
+                case 'drag-drop-sort':
+                case 'drag-drop-match':
+                     isCorrect = JSON.stringify(userAnswer) === JSON.stringify(question.correct);
+                     break;
+            }
+            
+            feedbackContainer.classList.remove('text-green-600', 'text-red-600');
+            const affirmations = ["Brilliant design!", "Your logic is flawless!", "Great thinking, Innovator!", "System check complete: Perfect!"];
+            const nudges = ["Not quite. Let's look at the blueprint again.", "A small bug in the system. Try again!", "Good hypothesis! Let's run another test."];
+
+            if (isCorrect) {
+                feedbackContainer.classList.add('text-green-600');
+                feedbackContainer.textContent = affirmations[Math.floor(Math.random() * affirmations.length)];
+            } else {
+                feedbackContainer.classList.add('text-red-600');
+                feedbackContainer.textContent = nudges[Math.floor(Math.random() * nudges.length)];
+                document.getElementById(`question-${question.id}-container`).classList.add('shake-animation');
+                setTimeout(() => document.getElementById(`question-${question.id}-container`).classList.remove('shake-animation'), 500);
+            }
+        }
+        
+        // Navigation
+        function switchView(view) {
+            if (_isApplyingRemote) return;
+            appState.progress[appState.currentDay].view = view;
+            render();
+            syncPush();
+        }
+
+        function navigateLesson(direction) {
+            if (_isApplyingRemote) return;
+            const dayData = APP_DATA.lessons.find(l => l.day === appState.currentDay);
+            const slideCount = dayData.slides.length;
+
+            let currentSlide = appState.progress[appState.currentDay].lessonSlide;
+            currentSlide += direction;
+            if (currentSlide >= 0 && currentSlide < slideCount) {
+                 appState.progress[appState.currentDay].lessonSlide = currentSlide;
+                 render();
+                 syncPush();
+            }
+        }
+
+        function navigateAssessment(direction) {
+            if (_isApplyingRemote) return;
+            let currentSlide = appState.progress[appState.currentDay].assessmentSlide;
+            const totalQuestions = APP_DATA.lessons.find(l => l.day === appState.currentDay).questions.length;
+            currentSlide += direction;
+            if (currentSlide >= 0 && currentSlide <= totalQuestions) {
+                appState.progress[appState.currentDay].assessmentSlide = currentSlide;
+                if (currentSlide === totalQuestions) {
+                    appState.progress[appState.currentDay].completed = true;
+                }
+                 render();
+                 syncPush();
+            }
+        }
+
+        function resetAssessment() {
+            const progress = appState.progress[appState.currentDay];
+            progress.assessmentSlide = 0;
+            progress.completed = false;
+            // Clear answers for this day
+            const questionIds = APP_DATA.lessons.find(l => l.day === appState.currentDay).questions;
+            questionIds.forEach(id => {
+                delete appState.userAnswers[id];
+            });
+            render();
+        }
+
+        // --- SPECIALIZED LISTENERS ---
+        let draggedItem = null;
+        let sourceContainer = null;
+        let dropSucceeded = false;
+
+        function attachDragDropListeners(questionId) {
+            const container = document.getElementById(`question-${questionId}-container`);
+            if (!container) return;
+
+            container.querySelectorAll('.draggable-item').forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedItem = e.target;
+                    sourceContainer = draggedItem.parentNode;
+                    dropSucceeded = false;
+                    setTimeout(() => e.target.style.opacity = '0.5', 0);
+                });
+
+                item.addEventListener('dragend', (e) => {
+                    setTimeout(() => {
+                        if (draggedItem) {
+                            draggedItem.style.opacity = '1';
+                        }
+                        draggedItem = null;
+                        sourceContainer = null;
+                    }, 0);
+                });
+            });
+
+            container.querySelectorAll('.drop-target, #source-' + questionId).forEach(target => {
+                target.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    target.classList.add('drag-over');
+                });
+
+                target.addEventListener('dragleave', e => {
+                    target.classList.remove('drag-over');
+                });
+
+                target.addEventListener('drop', e => {
+                    e.preventDefault();
+                    target.classList.remove('drag-over');
+                    if (draggedItem && draggedItem.parentNode !== target) {
+                        const question = APP_DATA.questions.find(q => q.id === questionId);
+                        
+                        if (question.type === 'drag-drop-match' && target.classList.contains('drop-target') && target.children.length > 0) {
+                            const existingItem = target.querySelector('.draggable-item');
+                            sourceContainer.appendChild(existingItem);
+                        }
+                        
+                        target.appendChild(draggedItem);
+                        dropSucceeded = true;
+                        updateDragDropAnswer(questionId);
+                    }
+                });
+            });
+        }
+
+        function updateDragDropAnswer(questionId) {
+            const question = APP_DATA.questions.find(q => q.id === questionId);
+            const container = document.getElementById(`question-${questionId}-container`);
+            const answer = {};
+
+            if (question.type === 'drag-drop-sort') {
+                 container.querySelectorAll('.drop-target').forEach(target => {
+                    const category = target.dataset.category;
+                    answer[category] = Array.from(target.querySelectorAll('.draggable-item')).map(item => item.dataset.item);
+                 });
+            } else if (question.type === 'drag-drop-match') {
+                 container.querySelectorAll('.drop-target').forEach(target => {
+                    const dropDef = target.dataset.category;
+                    const droppedItem = target.querySelector('.draggable-item');
+                    if (droppedItem) {
+                        answer[droppedItem.dataset.item] = dropDef;
+                    }
+                 });
+            }
+
+            appState.userAnswers[question.id] = answer;
+            saveState();
+        }
+        
+        function initializeCanvas(canvasId, questionId) {
+            const canvas = document.getElementById(canvasId);
+            const controls = document.getElementById(`canvas-controls-${questionId}`);
+            if (!canvas || !controls) return;
+
+            const ctx = canvas.getContext('2d');
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+            
+            let toolState = {
+                color: '#005f73',
+                size: 5,
+                tool: 'pen'
+            };
+            
+            // Load saved drawing
+            if (appState.userAnswers[questionId]) {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = appState.userAnswers[questionId];
+            }
+
+            function getMousePos(canvas, evt) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: evt.clientX - rect.left,
+                    y: evt.clientY - rect.top
+                };
+            }
+            
+            function getTouchPos(canvas, touch) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: touch.clientX - rect.left,
+                    y: touch.clientY - rect.top
+                };
+            }
+
+            function draw(e) {
+                if (!isDrawing) return;
+                const pos = e.touches ? getTouchPos(canvas, e.touches[0]) : getMousePos(canvas, e);
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                [lastX, lastY] = [pos.x, pos.y];
+            }
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                const pos = getMousePos(canvas, e);
+                [lastX, lastY] = [pos.x, pos.y];
+                ctx.strokeStyle = toolState.tool === 'pen' ? toolState.color : '#FFFFFF';
+                ctx.lineWidth = toolState.size;
+                ctx.lineCap = 'round';
+            });
+            
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isDrawing = true;
+                const pos = getTouchPos(canvas, e.touches[0]);
+                [lastX, lastY] = [pos.x, pos.y];
+                ctx.strokeStyle = toolState.tool === 'pen' ? toolState.color : '#FFFFFF';
+                ctx.lineWidth = toolState.size;
+                ctx.lineCap = 'round';
+            }, { passive: false });
+
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                draw(e);
+            }, { passive: false });
+
+            const stopDrawing = () => {
+                if(isDrawing) {
+                    isDrawing = false;
+                    updateAnswer(questionId);
+                }
+            };
+            
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            canvas.addEventListener('touchend', stopDrawing);
+
+            // Controls
+            controls.addEventListener('click', (e) => {
+                const clickedTool = e.target.closest('.tool-btn');
+                if (!clickedTool) return;
+
+                const tool = clickedTool.dataset.tool;
+                if (tool === 'clear') {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    updateAnswer(questionId);
+                } else if (tool === 'pen' || tool === 'eraser') {
+                    toolState.tool = tool;
+                    controls.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+                    clickedTool.classList.add('active');
+                }
+            });
+
+            controls.addEventListener('change', (e) => {
+                const changedTool = e.target.closest('.tool-btn');
+                if (!changedTool) return;
+                const tool = changedTool.dataset.tool;
+                if (tool === 'color') {
+                    toolState.color = changedTool.value;
+                } else if (tool === 'size') {
+                    toolState.size = changedTool.value;
+                }
+            });
+            // Set initial active button
+            controls.querySelector('[data-tool="pen"]').classList.add('active');
+        }
+
+
+        // Image Upload
+        document.getElementById('image-uploader').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            const questionId = event.target.dataset.questionId;
+            if (file && questionId) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    appState.userImages[questionId] = e.target.result;
+                    render(); // Re-render to show the new image
+                };
+                reader.readAsDataURL(file);
+            }
+            event.target.value = ''; // Reset for next upload
+        });
+
+        // Speech API
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert('Sorry, your browser does not support text-to-speech.');
+            }
+        }
+
+        // Teacher View
+        function showTeacherView() {
+            const password = prompt("Enter teacher password:");
+            if (password === "2026") {
+                const currentDayData = APP_DATA.lessons.find(l => l.day === appState.currentDay);
+                let score = 0;
+                let total = 0;
+                let reportHTML = `<div class="mt-8 p-4 border-2 border-dashed border-gray-400 rounded-lg text-left w-full max-w-2xl">
+                    <h3 class="text-2xl font-bold text-center mb-4">Score Summary</h3>
+                    <ul>`;
+                
+                currentDayData.questions.forEach(qId => {
+                    const q = APP_DATA.questions.find(item => item.id === qId);
+                    const userAnswer = appState.userAnswers[qId];
+                    let isCorrect = JSON.stringify(userAnswer) === JSON.stringify(q.correct);
+
+                    if (q.type !== 'text-box' && q.type !== 'drawing_canvas') { // Exclude open-ended for scoring
+                        total++;
+                        if (isCorrect) score++;
+                        reportHTML += `<li class="mb-2 p-2 rounded ${isCorrect ? 'bg-green-100' : 'bg-red-100'}"><strong>${q.prompt}</strong>: ${isCorrect ? 'Correct' : 'Incorrect'}</li>`;
+                    }
+                });
+                
+                reportHTML += `</ul><p class="text-center font-bold text-xl mt-4">Total Score: ${score} / ${total}</p></div>`;
+                contentArea.querySelector('.text-center').insertAdjacentHTML('beforeend', reportHTML);
+                document.getElementById('teacher-view-btn').style.display = 'none';
+            } else {
+                alert("Incorrect password.");
+            }
+        }
+        
+        // --- SAVING & EXPORTING ---
+        document.getElementById('download-html-btn').addEventListener('click', () => {
+            saveState(); // Ensure the latest state is captured
+            const stateString = JSON.stringify(appState);
+            const scriptTag = `<script id="progress-data" type="application/json">${stateString}<\/script>`;
+            
+            // Clone the entire document to avoid modifying the live page
+            const newHtml = document.documentElement.outerHTML.replace(/<script id="progress-data".*?><\/script>/, scriptTag);
+
+            const blob = new Blob([newHtml], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'sdg-innovators-progress.html';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        });
+
+        document.getElementById('download-pdf-btn').addEventListener('click', () => {
+            const { jsPDF } = window.jspdf;
+            const offscreenContainer = document.createElement('div');
+            offscreenContainer.style.position = 'absolute';
+            offscreenContainer.style.left = '-9999px';
+            offscreenContainer.style.width = '800px'; // A4-like width
+            document.body.appendChild(offscreenContainer);
+
+            // Generate static content for all days
+            APP_DATA.lessons.forEach(lesson => {
+                let lessonContent = `<div class="p-4 border-b-2 border-gray-300">
+                    <h1 class="text-2xl font-bold mb-4 text-center">Day ${lesson.day}: ${lesson.title}</h1>`;
+                
+                lesson.questions.forEach(qId => {
+                    const q = APP_DATA.questions.find(item => item.id === qId);
+                    const userAnswer = appState.userAnswers[qId];
+                    let answerDisplay = '<p><em>Not answered</em></p>';
+
+                    if (userAnswer) {
+                        if (q.type === 'drawing_canvas') {
+                            answerDisplay = `<img src="${userAnswer}" class="w-full border rounded-lg" alt="Student Drawing">`;
+                        }
+                        else {
+                            switch(q.type) {
+                                case 'mc':
+                                case 'true-false':
+                                    answerDisplay = `<p>Selected: <strong>${userAnswer}</strong></p>`;
+                                    break;
+                                case 'text-box':
+                                    answerDisplay = `<p>Response: <span class="block border p-2 rounded bg-gray-50">${userAnswer}</span></p>`;
+                                    break;
+                                case 'drag-drop-sort':
+                                    answerDisplay = Object.entries(userAnswer).map(([cat, items]) => 
+                                        `<div><strong>${cat}:</strong> ${items.join(', ')}</div>`
+                                    ).join('');
+                                    break;
+                                case 'drag-drop-match':
+                                    answerDisplay = Object.entries(userAnswer).map(([item, target]) => 
+                                        `<div><strong>${item}</strong> &rarr; ${target}</div>`
+                                    ).join('');
+                                    break;
+                            }
+                        }
+                    }
+
+                    lessonContent += `<div class="mb-4 p-2 bg-white shadow rounded">
+                        <h3 class="font-semibold">${q.prompt}</h3>
+                        <div class="mt-2 text-sm text-gray-700">${answerDisplay}</div>
+                    </div>`;
+                });
+
+                lessonContent += '</div>';
+                offscreenContainer.innerHTML += lessonContent;
+            });
+            
+            html2canvas(offscreenContainer, { scale: 2 }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'px',
+                    format: 'a4'
+                });
+
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const imgWidth = canvas.width;
+                const imgHeight = canvas.height;
+                const ratio = imgWidth / pdfWidth;
+                const scaledImgHeight = imgHeight / ratio;
+
+                let heightLeft = scaledImgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledImgHeight);
+                heightLeft -= pdfHeight;
+
+                while (heightLeft > 0) {
+                    position = heightLeft - scaledImgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, scaledImgHeight);
+                    heightLeft -= pdfHeight;
+                }
+
+                pdf.save('sdg-innovators-work.pdf');
+                document.body.removeChild(offscreenContainer);
+            }).catch(err => {
+                console.error("PDF generation failed:", err);
+                document.body.removeChild(offscreenContainer);
+            });
+        });
+        
+        // --- START: Sync and Initialization Logic ---
+        
+        function syncPush() {
+            if (appState.role !== 'Teacher' || !appState.room || _isApplyingRemote || !firebase.auth().currentUser) {
+                return;
+            }
+            const currentProgress = appState.progress[appState.currentDay];
+            const slide = currentProgress.view === 'lesson' ? currentProgress.lessonSlide : currentProgress.assessmentSlide;
+            
+            const syncData = {
+                day: appState.currentDay,
+                slide: slide,
+                view: currentProgress.view,
+                allowFreeExplore: appState.allowFreeExplore,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            const collectionPath = 'rooms';
+            db.collection(collectionPath).doc(appState.room).set(syncData, { merge: true })
+                .catch(error => console.error("Error pushing sync state: ", error));
+        }
+
+        async function initializeFirebase(role, room) {
+            try {
+                await firebase.auth().signInAnonymously();
+                const collectionPath = 'rooms';
+
+                if (role === 'Teacher') {
+                    syncPush(); // Push initial state
+                } else { // Student
+                    unsubscribe = db.collection(collectionPath).doc(room).onSnapshot(doc => {
+                        if (doc.exists) {
+                            _isApplyingRemote = true;
+                            const data = doc.data();
+                            
+                            appState.allowFreeExplore = data.allowFreeExplore;
+                            updateNavControlsState();
+
+                            if (!appState.allowFreeExplore) {
+                                // Ensure the day's progress object exists
+                                if (!appState.progress[data.day]) {
+                                     appState.progress[data.day] = { lessonSlide: 0, assessmentSlide: 0, view: 'lesson', completed: false };
+                                }
+                                const currentProgress = appState.progress[data.day];
+                                
+                                if (appState.currentDay !== data.day) {
+                                    appState.currentDay = data.day;
+                                }
+                                if (currentProgress.view !== data.view) {
+                                    currentProgress.view = data.view;
+                                }
+                                if (data.view === 'lesson') {
+                                    currentProgress.lessonSlide = data.slide;
+                                } else {
+                                    currentProgress.assessmentSlide = data.slide;
+                                }
+                                render();
+                            }
+                            _isApplyingRemote = false;
+                        }
+                    }, err => {
+                        console.error("Firestore snapshot error: ", err);
+                    });
+                }
+            } catch (error) {
+                 console.error("Firebase auth error:", error);
+            }
+        }
+        
+        function disconnectFirebase() {
+            if (unsubscribe) {
+                unsubscribe();
+                unsubscribe = null;
+            }
+        }
+        
+        function updateNavControlsState() {
+            const isEnabled = appState.role === 'Teacher' || appState.allowFreeExplore;
+            document.querySelectorAll('#content-area button, #tabs-container button, #header-controls button').forEach(btn => {
+                if (isEnabled) {
+                    btn.classList.remove('disabled-nav');
+                } else {
+                    btn.classList.add('disabled-nav');
+                }
+            });
+        }
+        
+        function showSetupModal() {
+            const modal = document.getElementById('setup-modal');
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            document.getElementById('main-container').classList.add('hidden');
+        }
+
+        function hideSetupModal() {
+            const modal = document.getElementById('setup-modal');
+            modal.style.display = 'none';
+            document.getElementById('main-container').classList.remove('hidden');
+        }
+
+        // Setup Modal Listeners
+        document.querySelector('input[name="role"][value="Teacher"]').addEventListener('change', () => {
+            document.getElementById('teacher-password').classList.remove('hidden');
+        });
+        document.querySelector('input[name="role"][value="Student"]').addEventListener('change', () => {
+            document.getElementById('teacher-password').classList.add('hidden');
+        });
+        
+        document.getElementById('open-lesson-btn').addEventListener('click', () => {
+            const role = document.querySelector('input[name="role"]:checked').value;
+            const roomName = document.getElementById('room-name').value.trim();
+            const password = document.getElementById('teacher-password').value;
+            const errorEl = document.getElementById('modal-error');
+            
+            if (!roomName) {
+                errorEl.textContent = 'Please enter a room name.';
+                return;
+            }
+            if (role === 'Teacher' && password !== '2026') {
+                errorEl.textContent = 'Incorrect teacher password.';
+                return;
+            }
+            
+            errorEl.textContent = '';
+            const session = { role, room: roomName };
+            localStorage.setItem('sdgInnovatorsSession', JSON.stringify(session));
+            startApp();
+        });
+        
+        document.getElementById('change-role-room-btn').addEventListener('click', () => {
+            disconnectFirebase();
+            localStorage.removeItem('sdgInnovatorsSession');
+            showSetupModal();
+        });
+        
+        document.getElementById('sync-toggle-label').addEventListener('click', (e) => {
+            e.preventDefault();
+            const password = prompt("Enter teacher password to change sync mode:");
+            if (password === '2026') {
+                const syncToggle = document.getElementById('sync-toggle');
+                syncToggle.checked = !syncToggle.checked; // Manually toggle state
+                appState.allowFreeExplore = !syncToggle.checked;
+                renderHeaderControls(); // Update UI
+                syncPush(); // Push new state
+            } else if (password !== null) {
+                alert("Incorrect password.");
+            }
+        });
+
+        // --- INITIALIZATION ---
+        async function startApp() {
+            const savedSession = localStorage.getItem('sdgInnovatorsSession');
+            if (savedSession) {
+                const { role, room } = JSON.parse(savedSession);
+                loadState();
+                appState.role = role;
+                appState.room = room;
+                hideSetupModal();
+                await initializeFirebase(role, room);
+                render();
+            } else {
+                showSetupModal();
+            }
+        }
+        startApp();
+        // --- END: Sync and Initialization Logic ---
+
+    </script>
+</body>
+</html>
+
+
