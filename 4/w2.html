@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4th Grade Math: Word Problems</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Kalam:wght@700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        .theme-heading {
+            font-family: 'Kalam', cursive;
+        }
+        .slide-container {
+            min-height: calc(100vh - 8rem);
+        }
+        .btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca;
+        }
+        .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        .btn-success {
+            background-color: #16a34a;
+            color: white;
+        }
+        .btn-danger {
+            background-color: #dc2626;
+            color: white;
+        }
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s;
+        }
+        .slide { display: none; }
+        .slide.active { display: flex; }
+        
+        .mc-option {
+            border: 2px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+        .mc-option:hover {
+            border-color: #4f46e5;
+            background-color: #eef2ff;
+        }
+        .mc-option.selected {
+            border-color: #4f46e5;
+            background-color: #c7d2fe;
+            font-weight: 600;
+        }
+        
+        /* Animation for feedback */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .feedback {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Sync Toggle Styles */
+        .toggle-bg:after {
+            content: '';
+            @apply absolute top-0.5 left-0.5 bg-white border border-gray-300 rounded-full h-5 w-5 transition shadow-sm;
+        }
+        input:checked + .toggle-bg:after {
+            transform: translateX(100%);
+            @apply border-white;
+        }
+        input:checked + .toggle-bg {
+            @apply bg-indigo-600;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+    <!-- Hydration Data Block -->
+    <script id="progress-data" type="application/json"></script>
+
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
+            <h2 class="text-3xl font-bold text-center mb-6 theme-heading text-indigo-700">Join a Session</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="font-semibold text-gray-700">Select your role:</label>
+                    <div class="flex items-center space-x-4 mt-2">
+                        <label class="flex items-center">
+                            <input type="radio" name="role" value="Student" class="form-radio h-5 w-5 text-indigo-600" checked>
+                            <span class="ml-2 text-lg">Student</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="role" value="Teacher" class="form-radio h-5 w-5 text-indigo-600">
+                            <span class="ml-2 text-lg">Teacher</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="teacher-password-container" class="hidden">
+                    <label for="teacher-password" class="block font-semibold text-gray-700">Teacher Password</label>
+                    <input type="password" id="teacher-password" class="w-full p-2 border border-gray-300 rounded-md mt-1">
+                </div>
+                <div>
+                    <label for="room-name" class="block font-semibold text-gray-700">Room Name</label>
+                    <input type="text" id="room-name" class="w-full p-2 border border-gray-300 rounded-md mt-1" placeholder="e.g., class-a">
+                </div>
+                <p id="setup-error" class="text-red-500 text-sm h-4"></p>
+                <button id="start-lesson-btn" class="w-full btn btn-primary py-3 text-lg font-bold rounded-lg">Start Lesson</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Main Application Container -->
+    <div id="app" class="max-w-7xl mx-auto p-4 md:p-6 opacity-0">
+
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-6 p-4 bg-white rounded-xl shadow-md sticky top-4 z-10">
+            <h1 class="text-2xl md:text-3xl font-bold text-indigo-700 theme-heading">Math Detective Agency</h1>
+            <div class="flex items-center gap-4">
+                 <div id="role-room-badge" class="hidden items-center gap-4">
+                    <span class="px-3 py-1 bg-gray-200 text-gray-800 rounded-full font-semibold text-sm"></span>
+                    <button id="change-role-room-btn" class="text-sm text-indigo-600 hover:underline">Change</button>
+                </div>
+                 <div id="teacher-sync-container" class="hidden items-center gap-2">
+                    <span class="font-semibold text-gray-700">Sync:</span>
+                    <label class="flex items-center cursor-pointer">
+                        <div class="relative">
+                            <input type="checkbox" id="sync-toggle" class="sr-only">
+                            <div class="toggle-bg block bg-gray-200 w-11 h-6 rounded-full"></div>
+                        </div>
+                    </label>
+                    <span id="sync-status" class="font-semibold w-10 text-left text-gray-500">OFF</span>
+                </div>
+                <button id="home-btn" class="btn btn-secondary px-4 py-2 rounded-lg font-semibold shadow hidden">Home</button>
+            </div>
+        </header>
+        
+        <main>
+            <!-- Home Screen View -->
+            <div id="home-view" class="slide active flex-col items-center justify-center text-center p-8">
+                <div class="card p-8 md:p-12 w-full max-w-4xl">
+                    <h2 class="text-4xl font-bold mb-2">Welcome, Detective!</h2>
+                    <p class="text-lg text-gray-600 mb-8">Your mission is to solve word problems using the Story-Number Sentence-Answer strategy. Choose a case file to begin.</p>
+                    <div id="day-selection" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Day selection buttons will be injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lesson View -->
+            <div id="lesson-view" class="slide flex-col items-center">
+                <div id="lesson-content" class="w-full"></div>
+                <div class="w-full max-w-4xl mt-6 flex justify-between items-center">
+                    <button id="lesson-prev-btn" class="btn btn-secondary px-6 py-2 rounded-lg font-semibold shadow">Previous</button>
+                    <div id="lesson-progress" class="text-gray-600 font-semibold"></div>
+                    <button id="lesson-next-btn" class="btn btn-primary px-6 py-2 rounded-lg font-semibold shadow">Next</button>
+                </div>
+            </div>
+
+            <!-- Practice View -->
+            <div id="practice-view" class="slide flex-col items-center">
+                <div id="practice-content" class="w-full"></div>
+                <div class="w-full max-w-4xl mt-6 flex justify-between items-center">
+                     <div id="practice-progress" class="text-gray-600 font-semibold"></div>
+                     <div id="practice-nav-buttons" class="flex gap-4"></div>
+                </div>
+            </div>
+
+            <!-- Test View -->
+            <div id="test-view" class="slide flex-col items-center">
+                <div id="test-content" class="w-full"></div>
+                <div class="w-full max-w-5xl mt-6 flex justify-between items-center">
+                    <button id="test-prev-btn" class="btn btn-secondary px-6 py-2 rounded-lg font-semibold shadow">Previous</button>
+                    <div id="test-progress" class="text-gray-600 font-semibold"></div>
+                    <button id="test-next-btn" class="btn btn-primary px-6 py-2 rounded-lg font-semibold shadow">Next</button>
+                </div>
+            </div>
+            
+            <!-- Confirmation View -->
+            <div id="confirmation-view" class="slide flex-col items-center justify-center text-center p-8">
+                <div class="card p-12 w-full max-w-2xl">
+                    <h2 class="text-3xl font-bold mb-4">Ready to submit your findings?</h2>
+                    <p class="text-gray-600 mb-8">Once you submit, your score will be final. You can review your answers one last time.</p>
+                    <div class="flex justify-center gap-6">
+                        <button id="review-answers-btn" class="btn btn-secondary px-6 py-3 rounded-lg font-semibold shadow-lg text-lg">Review Answers</button>
+                        <button id="submit-for-grading-btn" class="btn btn-success px-6 py-3 rounded-lg font-semibold shadow-lg text-lg">Submit for Grading</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Score View -->
+            <div id="score-view" class="slide flex-col items-center justify-center text-center p-8">
+                <div class="card p-12 w-full max-w-2xl">
+                    <h2 class="text-3xl font-bold mb-4">Case Closed!</h2>
+                    <p class="text-lg text-gray-600 mb-6">Here's your final report:</p>
+                    <div id="score-display" class="text-7xl font-bold text-indigo-600 mb-8"></div>
+                    <div class="space-x-4">
+                        <button id="download-pdf-btn" class="btn btn-primary px-6 py-3 rounded-lg font-semibold shadow-lg">Download Report (PDF)</button>
+                        <button id="download-work-btn" class="btn btn-secondary px-6 py-3 rounded-lg font-semibold shadow-lg">Download Work (HTML)</button>
+                    </div>
+                     <div class="mt-8">
+                        <a href="#" id="admin-reset-link" class="text-xs text-gray-400 hover:text-gray-600">Admin Reset</a>
+                    </div>
+                </div>
+            </div>
+            
+             <!-- Loading Spinner -->
+            <div id="loading-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex-col items-center justify-center hidden">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-white"></div>
+                <p class="text-white mt-4 text-lg">Generating PDF Report...</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // --- INSTRUCTIONAL BLUEPRINT ---
+        const instructionalBlueprint = {
+            days: [
+                {
+                    title: "Case File 1: The Grand Addition",
+                    lesson: [
+                        { type: 'I Do', content: `<h3 class="text-2xl font-bold mb-4">The Story-Number Sentence-Answer Strategy</h3><p class="text-lg">Welcome, detective! To solve any word problem, we use a three-step strategy. It's our secret weapon for cracking cases!</p><ol class="list-decimal list-inside text-left mt-6 space-y-4 text-lg bg-gray-50 p-6 rounded-lg"><li><strong class="text-indigo-600">Story:</strong> First, we read the problem carefully to understand the story. What is happening? What clues (numbers) do we have? What mystery do we need to solve?</li><li><strong class="text-indigo-600">Number Sentence:</strong> Next, we translate the story into a number sentence (an equation). This is our plan of attack. We use our clues to set up the math. This is a form of an <strong class="font-bold">algorithm</strong>, a set of steps to solve a problem.</li><li><strong class="text-indigo-600">Answer:</strong> Finally, we solve the number sentence to find the answer and close the case!</li></ol>`},
+                        { type: 'I Do', content: `<h3 class="text-2xl font-bold mb-4">I Do: Solving an Addition Case</h3><p class="text-lg mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded"><strong>The Case:</strong> The city library had 2,451 science books. This year, they added 1,328 more science books. How many science books do they have now?</p><div class="text-left space-y-4"><p><strong class="text-indigo-600">1. Story:</strong> The library started with some books and got more. The total number of books is increasing. This tells me I need to add.</p><p><strong class="text-indigo-600">2. Number Sentence:</strong> The clues are 2,451 and 1,328. My plan is: 2,451 + 1,328 = ?</p><p><strong class="text-indigo-600">3. Answer:</strong> I'll solve it using <strong class="font-bold">decomposition</strong> (breaking numbers down by place value).<br><code class="block bg-gray-100 p-4 rounded mt-2">&nbsp;&nbsp;2451 --> 2000 + 400 + 50 + 1<br>+ 1328 --> 1000 + 300 + 20 + 8<br>--------------------------------<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3000 + 700 + 70 + 9 = 3779</code><p class="font-bold text-xl mt-4">The library now has 3,779 science books.</p></div>`},
+                        { type: 'We Do', step: 1, prompt: "The local arcade sold 4,215 game tokens on Saturday. On Sunday, they sold 3,672 tokens. How many tokens did they sell in total?", question: "First, let's understand the <strong>Story</strong>. Are we combining totals or finding a difference?", options: ["Combining", "Finding a difference"], correct: "Combining", feedback: "Correct! We are combining the tokens from both days, so we need to add." },
+                        { type: 'We Do', step: 2, prompt: "The local arcade sold 4,215 game tokens on Saturday. On Sunday, they sold 3,672 tokens. How many tokens did they sell in total?", question: "Great! Now, write the <strong>Number Sentence</strong> for this story.", input: true, correct: "4215+3672=?", feedback: "Excellent! That's the correct number sentence to solve this problem." },
+                        { type: 'We Do', step: 3, prompt: "The arcade sold 4,215 tokens on Saturday and 3,672 on Sunday. <br><strong>Number Sentence:</strong> 4215 + 3672 = ?", question: "Finally, find the <strong>Answer</strong>. Solve the number sentence.", input: true, correct: "7887", feedback: "Case closed! They sold 7,887 tokens in total. Great job!" }
+                    ],
+                    practice: [ { q: "A video game company sold 5,670 copies of a new game in the first week and 3,215 copies in the second week. How many copies were sold in total?", a: "8885" }, { q: "A farmer planted 1,482 corn seeds and 2,315 bean seeds. How many seeds did he plant altogether?", a: "3797" }, { q: "Last year, a theme park had 6,724 visitors. This year, it had 2,175 more visitors than last year. How many visitors did it have this year?", a: "8899" }, { q: "A construction company used 4,550 bricks for one house and 4,230 for another. How many bricks were used for both houses?", a: "8780" }, { q: "A charity raised $7,245 in one month and $2,650 in the next month. What was the total amount raised?", a: "9895" }, { q: "An airplane flew 3,421 miles on one trip and 4,567 miles on another. What is the total distance it flew?", a: "7988" }, { q: "A factory produced 8,150 toy cars and 1,720 toy trucks. How many toys did it produce in total?", a: "9870" }, { q: "A bookstore has 5,381 fiction books and 4,217 non-fiction books. How many books are in the store?", a: "9598" }, { q: "A city has a population of 8,234 adults and 1,655 children. What is the total population of the city?", a: "9889" }, { q: "A website got 6,345 clicks on Monday and 3,211 clicks on Tuesday. How many clicks did it get over the two days?", a: "9556" } ],
+                    test: [ { type: 'mc', dok: 1, q: "A mail carrier delivered 4,567 letters in one week and 2,312 letters the next week. How many letters did the mail carrier deliver in total?", options: ["6,879", "6,878", "6,255", "2,255"], a: "6,879" }, { type: 'mc', dok: 2, q: "A zoo has 1,245 mammals and 2,531 reptiles. How many mammals and reptiles does the zoo have in total?", options: ["1,286", "3,776", "3,775", "4,776"], a: "3,776", distractorInsight: "Distractors based on place value errors and subtraction." }, { type: 'ms', dok: 2, q: "A school library has 3,450 books. It receives a donation of 1,235 more books. Which two statements are true?", options: ["The library now has 4,685 books.", "The correct operation is subtraction.", "The total number of books is less than 4,000.", "The number sentence is 3,450 + 1,235 = ?"], a: ["The library now has 4,685 books.", "The number sentence is 3,450 + 1,235 = ?"] }, { type: 'text', dok: 3, q: "A baker made 2,500 cookies in the morning. He made 1,875 more in the afternoon. He needs to know his total for the day. Explain why addition is the correct operation to solve this problem.", a: "Addition is correct because he is combining two amounts (morning cookies and afternoon cookies) to find a total. The word 'more' also suggests combining." }, { type: 'ebsr', dok: 2, q: "The manager of a popular concert hall is reviewing ticket sales. For a big show, 4,782 tickets were sold for Friday night, and 4,915 tickets were sold for Saturday night.", partA: { q: "Which night had higher ticket sales?", options: ["Friday night", "Saturday night"]}, partB: { q: "What was the grand total of tickets sold for both nights combined?", options: ["133", "8,697", "9,697", "9,797"]}, a: { partA: "Saturday night", partB: "9,697" } } ]
+                },
+                {
+                    title: "Case File 2: The Subtraction Situation",
+                    lesson: [ { type: 'I Do', content: `<h3 class="text-2xl font-bold mb-4">Review: The Strategy</h3><p class="text-lg">Remember our three-step <strong class="font-bold">algorithm</strong>, detective:</p><ol class="list-decimal list-inside text-left mt-6 space-y-4 text-lg bg-gray-50 p-6 rounded-lg"><li><strong class="text-indigo-600">Story:</strong> Understand what's happening. Are we taking something away? Finding a difference?</li><li><strong class="text-indigo-600">Number Sentence:</strong> Translate the story into a math equation.</li><li><strong class="text-indigo-600">Answer:</strong> Solve the equation to crack the case.</li></ol>` }, { type: 'I Do', content: `<h3 class="text-2xl font-bold mb-4">I Do: Solving a Subtraction Case</h3><p class="text-lg mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded"><strong>The Case:</strong> A cargo ship started its journey with 8,542 containers. It dropped off 3,217 containers at the first port. How many containers are left on the ship?</p><div class="text-left space-y-4"><p><strong class="text-indigo-600">1. Story:</strong> The ship started with a large number of containers, and some were removed. The total is decreasing. This tells me I need to subtract.</p><p><strong class="text-indigo-600">2. Number Sentence:</strong> The clues are 8,542 and 3,217. My plan is: 8,542 - 3,217 = ?</p><p><strong class="text-indigo-600">3. Answer:</strong> I'll solve it using a standard <strong class="font-bold">algorithm</strong>, paying attention to place value. Sometimes you have to regroup (or borrow).<br><code class="block bg-gray-100 p-4 rounded mt-2 text-right">8542<br>- 3217<br>----<br>5325</code><p class="font-bold text-xl mt-4">There are 5,325 containers left on the ship.</p></div>` }, { type: 'We Do', step: 1, prompt: "A mountain is 9,876 feet tall. A hiker has climbed 4,350 feet so far. How many more feet does the hiker need to climb to reach the top?", question: "First, let's understand the <strong>Story</strong>. Are we combining totals or finding how much is left/the difference?", options: ["Combining", "Finding the difference"], correct: "Finding the difference", feedback: "Exactly! We need to find the difference between the total height and how far the hiker has already climbed." }, { type: 'We Do', step: 2, prompt: "A mountain is 9,876 feet tall. A hiker has climbed 4,350 feet so far. How many more feet does the hiker need to climb to reach the top?", question: "Great! Now, write the <strong>Number Sentence</strong> for this story.", input: true, correct: "9876-4350=?", feedback: "Perfect! That number sentence will lead us to the answer." }, { type: 'We Do', step: 3, prompt: "A mountain is 9,876 feet tall. A hiker has climbed 4,350 feet. <br><strong>Number Sentence:</strong> 9876 - 4350 = ?", question: "Finally, find the <strong>Answer</strong>. Solve the number sentence.", input: true, correct: "5526", feedback: "You did it! The hiker has 5,526 feet left to climb." } ],
+                    practice: [ { q: "A company had 9,580 employees. If 1,240 employees retired, how many employees are left?", a: "8340" }, { q: "A warehouse had 7,894 boxes. A truck took 3,452 boxes away. How many boxes remain in the warehouse?", a: "4442" }, { q: "The city budget is $8,950. So far, $5,420 has been spent. How much money is left in the budget?", a: "3530" }, { q: "A car has a 1,250-mile warranty. The owner has driven 1,120 miles. How many miles are left on the warranty?", a: "130" }, { q: "A stadium has 8,500 seats. 6,250 seats are filled. How many seats are empty?", a: "2250" }, { q: "A whale weighs 9,990 pounds. A dolphin weighs 450 pounds. What is the difference in their weights?", a: "9540" }, { q: "A tank held 5,600 gallons of water. 2,350 gallons were used. How much water is left?", a: "3250" }, { q: "A book has 4,210 pages. A student has read 1,100 pages. How many pages are left to read?", a: "3110" }, { q: "A rocket traveled 9,876 miles. The target was 9,999 miles. How much farther does it need to go?", a: "123" }, { q: "A school fundraiser goal is $7,500. They have raised $6,150. How much more money do they need to raise?", a: "1350" } ],
+                    test: [ { type: 'mc', dok: 1, q: "A video game has a high score of 8,765 points. Your current score is 4,321 points. What is the difference between your score and the high score?", options: ["4,444", "4,445", "13,086", "4,344"], a: "4,444" }, { type: 'mc', dok: 2, q: "A movie theater sold 5,678 tickets in a week. 2,345 of those tickets were for children. How many tickets were for adults?", options: ["8,023", "3,332", "3,333", "2,333"], a: "3,333", distractorInsight: "Distractors based on addition error and place value mistakes." }, { type: 'ms', dok: 2, q: "A farmer harvested 6,500 apples. He sold 4,250 of them at the market. Which two statements are true?", options: ["He has 2,250 apples left.", "He has more apples left than he sold.", "The number sentence is 6,500 + 4,250 = ?.", "The number of apples he started with is the largest number in the problem."], a: ["He has 2,250 apples left.", "The number of apples he started with is the largest number in the problem."] }, { type: 'text', dok: 3, q: "Create a short word problem that could be solved with the number sentence 7,800 - 2,100 = ?", a: "Answers will vary. Example: A store had 7,800 hats. They sold 2,100 hats. How many hats are left?" }, { type: 'ebsr', dok: 2, q: "An air traffic controller is monitoring two airplanes. Plane A is cruising at an altitude of 9,500 feet, while Plane B is flying lower at 7,200 feet.", partA: { q: "Which airplane is closer to space?", options: ["Plane A", "Plane B"]}, partB: { q: "How many feet would Plane B need to climb to be at the same altitude as Plane A?", options: ["16,700 feet", "2,300 feet", "2,200 feet", "1,300 feet"]}, a: { partA: "Plane A", partB: "2,300 feet" } } ]
+                },
+                {
+                    title: "Case File 3: The Mixed-Up Mystery",
+                    lesson: [ { type: 'I Do', content: `<h3 class="text-2xl font-bold mb-4">Solving Two-Step Cases</h3><p class="text-lg">Sometimes, a case isn't so simple. It might require two steps: both addition AND subtraction. The most important part of our <strong class="font-bold">algorithm</strong> here is the <strong>Story</strong> step. We have to read carefully to figure out the order of operations.</p>` }, { type: 'I Do', content: `<h3 class="text-2xl font-bold mb-4">I Do: Solving a Two-Step Case</h3><p class="text-lg mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded"><strong>The Case:</strong> A museum started the day with 4,560 visitors. 1,230 more visitors arrived in the afternoon. Then, 2,150 visitors left before closing. How many visitors were in the museum at closing time?</p><div class="text-left space-y-4"><p><strong class="text-indigo-600">1. Story:</strong> First, more visitors came, so the total increased (addition). Then, some visitors left, so the total decreased (subtraction). I have to do two calculations.</p><p><strong class="text-indigo-600">2. Number Sentences:</strong><br>Step 1 (Add): 4,560 + 1,230 = ?<br>Step 2 (Subtract): [Answer from Step 1] - 2,150 = ?</p><p><strong class="text-indigo-600">3. Answer:</strong><br><code class="block bg-gray-100 p-4 rounded mt-2">Step 1: 4560 + 1230 = 5790<br>Step 2: 5790 - 2150 = 3640</code><p class="font-bold text-xl mt-4">There were 3,640 visitors in the museum at closing time.</p></div>` }, { type: 'We Do', step: 1, prompt: "A pet store had 1,500 fish. They sold 350 fish, but then received a new shipment of 500 fish. How many fish do they have now?", question: "First, let's break down the <strong>Story</strong>. What happens first?", options: ["They sell fish", "They get new fish"], correct: "They sell fish", feedback: "Correct! The story says they sold fish first, so we'll start with subtraction." }, { type: 'We Do', step: 2, prompt: "A pet store had 1,500 fish. They sold 350 fish, but then received a new shipment of 500 fish.", question: "Okay, what is the <strong>Number Sentence</strong> for the first step?", input: true, correct: "1500-350=?", feedback: "Excellent! And 1500 - 350 = 1150. Now what's the number sentence for the second step?" }, { type: 'We Do', step: 3, prompt: "A pet store had 1,500 fish. They sold 350, leaving 1,150. Then they got 500 more. Number sentence for step 2 was 1150 + 500 = ?", question: "Finally, what's the final <strong>Answer</strong>?", input: true, correct: "1650", feedback: "Case solved! The pet store now has 1,650 fish." } ],
+                    practice: [ { q: "A library has 5,200 books. It lends out 1,100 books and then receives 800 new books. How many books does the library have now?", a: "4900" }, { q: "A food truck starts with 800 hot dogs. It sells 650 and then cooks 200 more. How many hot dogs does it have?", a: "350" }, { q: "A baker makes 1,200 muffins. He sells 950 and throws away 50 that were burned. How many muffins are left?", a: "200" }, { q: "A concert has 9,000 tickets available. 4,500 are sold online and 2,000 are sold at the door. How many tickets are left?", a: "2500" }, { q: "A factory makes 7,800 pencils. 500 are given to a school and 3,100 are sold to a store. How many pencils are left?", a: "4200" }, { q: "A phone has 6,000 photos. The owner deletes 1,500 old photos but then takes 750 new ones. How many photos are on the phone?", a: "5250" }, { q: "A bank account has $3,400. A deposit of $1,200 is made, and then a withdrawal of $500 is made. What is the new balance?", a: "4100" }, { q: "A farm has 2,500 chickens. 800 are sold, but 450 new chicks hatch. How many chickens are on the farm?", a: "2150" }, { q: "A website has 9,500 users. 1,200 users delete their accounts, but 2,000 new users sign up. How many users does the website have now?", a: "10300" }, { q: "A company starts with 4,800 employees. 300 retire, and 600 new employees are hired. How many employees does the company have?", a: "5100" } ],
+                    test: [ { type: 'mc', dok: 2, q: "A parking garage has 2,500 spots. On Monday, 1,800 cars parked. On Tuesday, 1,600 cars parked. What is the combined total of cars for both days?", options: ["200", "3,400", "4,300", "4,100"], a: "3,400" }, { type: 'mc', dok: 2, q: "A train starts with 850 passengers. At the first stop, 120 passengers get off. At the second stop, 200 new passengers get on. How many passengers are on the train now?", options: ["530", "930", "730", "1,170"], a: "930", distractorInsight: "Distractors based on incorrect order of operations." }, { type: 'ms', dok: 3, q: "A school has $9,000 for new equipment. They spend $3,500 on computers and $2,000 on sports gear. Which two statements are true?", options: ["They spent $5,500 in total.", "They have $4,500 left.", "They have $3,500 left.", "They spent more on sports gear than computers."], a: ["They spent $5,500 in total.", "They have $3,500 left."] }, { type: 'text', dok: 3, q: "Analyze the solution: A store has 1,000 shirts. They sell 400 and receive a new shipment of 200. Student's answer: 1000 + 200 = 1200, then 1200 - 400 = 800. Is this student's order of operations correct for the story? Explain why or why not.", a: "The order is incorrect. The story says they sell shirts first, so the first step should be 1000 - 400. The student added the new shipment before accounting for the sale." }, { type: 'ebsr', dok: 2, q: "An author has a goal to write a book that is 9,500 words long. After her first month of writing, she had 3,200 words. In her second month, she wrote another 4,100 words.", partA: { q: "What is the total number of words she has written after two months?", options: ["900", "7,300", "1,100", "16,800"]}, partB: { q: "How many more words must she write to reach her goal?", options: ["2,200", "7,300", "6,300", "3,400"]}, a: { partA: "7,300", partB: "2,200" } } ]
+                }
+            ]
+        };
+
+        // --- FIREBASE & SYNC STATE ---
+        let db, auth;
+        let roomName, userRole;
+        let firestoreUnsubscribe = null;
+        let _isApplyingRemote = false; // Flag to prevent sync loops
+        const firebaseConfig = { apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU", authDomain: "lesson-sync-a223a.firebaseapp.com", projectId: "lesson-sync-a223a", storageBucket: "lesson-sync-a223a.firebasestorage.app", messagingSenderId: "906128715071", appId: "1:906128715071:web:347ea08f4d864fde02778a" };
+
+        // --- APPLICATION STATE ---
+        let state = {
+            currentView: 'home',
+            currentDayIndex: null,
+            currentSlideIndex: 0,
+            mode: null,
+            studentAnswers: {},
+            testLocked: false,
+            score: 0,
+            allowFreeExplore: true // Teacher's sync toggle state
+        };
+
+        // --- DOM ELEMENT REFERENCES ---
+        const appContainer = document.getElementById('app');
+        const setupModal = document.getElementById('setup-modal');
+        const views = { home: document.getElementById('home-view'), lesson: document.getElementById('lesson-view'), practice: document.getElementById('practice-view'), test: document.getElementById('test-view'), confirmation: document.getElementById('confirmation-view'), score: document.getElementById('score-view') };
+        const homeBtn = document.getElementById('home-btn');
+        const daySelectionContainer = document.getElementById('day-selection');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        
+        // --- SETUP MODAL LOGIC ---
+        const roleRadios = document.querySelectorAll('input[name="role"]');
+        const teacherPasswordContainer = document.getElementById('teacher-password-container');
+        const startLessonBtn = document.getElementById('start-lesson-btn');
+        const roomNameInput = document.getElementById('room-name');
+        const teacherPasswordInput = document.getElementById('teacher-password');
+        const setupErrorEl = document.getElementById('setup-error');
+
+        roleRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                teacherPasswordContainer.classList.toggle('hidden', radio.value !== 'Teacher');
+            });
+        });
+
+        startLessonBtn.addEventListener('click', () => {
+            const role = document.querySelector('input[name="role"]:checked').value;
+            const room = roomNameInput.value.trim().toLowerCase();
+            const password = teacherPasswordInput.value;
+            
+            setupErrorEl.textContent = '';
+            if (!room) {
+                setupErrorEl.textContent = 'Please enter a room name.';
+                return;
+            }
+            if (role === 'Teacher' && password !== '2026') {
+                setupErrorEl.textContent = 'Incorrect teacher password.';
+                return;
+            }
+
+            localStorage.setItem('userRole', role);
+            localStorage.setItem('roomName', room);
+            
+            setupModal.style.display = 'none';
+            appContainer.style.opacity = '1';
+            
+            initializeAppLogic();
+        });
+
+        // --- HEADER UI & ROLE/ROOM CHANGE ---
+        const roleRoomBadge = document.getElementById('role-room-badge');
+        const changeRoleRoomBtn = document.getElementById('change-role-room-btn');
+
+        changeRoleRoomBtn.addEventListener('click', () => {
+            if (firestoreUnsubscribe) {
+                firestoreUnsubscribe();
+                firestoreUnsubscribe = null;
+            }
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('roomName');
+            location.reload(); // Easiest way to reset the whole state
+        });
+        
+        // --- SYNC LOGIC ---
+        function syncPush() {
+            if (userRole !== 'Teacher' || !roomName || _isApplyingRemote) return;
+
+            const syncState = {
+                view: state.currentView,
+                day: state.currentDayIndex,
+                slide: state.currentSlideIndex,
+                mode: state.mode,
+                allowFreeExplore: state.allowFreeExplore,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            db.collection('rooms').doc(roomName).set(syncState)
+                .catch(error => console.error("Error pushing state:", error));
+        }
+
+        function setupFirestoreListener() {
+            if (userRole !== 'Student' || !roomName) return;
+
+            if (firestoreUnsubscribe) firestoreUnsubscribe();
+
+            firestoreUnsubscribe = db.collection('rooms').doc(roomName).onSnapshot(doc => {
+                if (doc.exists) {
+                    _isApplyingRemote = true;
+                    const data = doc.data();
+                    
+                    updateNavControls(!data.allowFreeExplore);
+
+                    // Only force navigation if sync is active
+                    if (!data.allowFreeExplore) {
+                        const hasChanged = state.currentView !== data.view ||
+                                           state.currentDayIndex !== data.day ||
+                                           state.currentSlideIndex !== data.slide ||
+                                           state.mode !== data.mode;
+
+                        if (hasChanged) {
+                            state.currentView = data.view;
+                            state.currentDayIndex = data.day;
+                            state.currentSlideIndex = data.slide;
+                            state.mode = data.mode;
+                            
+                            // Re-render based on received state
+                            if (state.mode === 'lesson') startLesson(state.currentDayIndex, state.currentSlideIndex);
+                            else if (state.mode === 'practice') startPractice(state.currentDayIndex, state.currentSlideIndex);
+                            else if (state.mode === 'test') startTest(state.currentDayIndex, state.currentSlideIndex);
+                            else if (state.currentView === 'home') renderHome();
+                            else switchView(state.currentView);
+                        }
+                    }
+                     _isApplyingRemote = false;
+                }
+            });
+        }
+        
+        function updateNavControls(syncLocked) {
+             const allNavButtons = document.querySelectorAll('#lesson-prev-btn, #lesson-next-btn, #test-prev-btn, #test-next-btn, #practice-nav-buttons button, .day-btn, #review-answers-btn, #submit-for-grading-btn');
+             allNavButtons.forEach(btn => {
+                btn.disabled = syncLocked;
+             });
+        }
+
+        // --- VIEW MANAGEMENT ---
+        function switchView(viewName) {
+            state.currentView = viewName;
+            Object.values(views).forEach(view => view.classList.remove('active'));
+            if (views[viewName]) {
+                views[viewName].classList.add('active');
+            }
+            homeBtn.classList.toggle('hidden', viewName === 'home');
+            syncPush();
+        }
+
+        homeBtn.addEventListener('click', () => {
+            resetState();
+            switchView('home');
+        });
+
+        function resetState() {
+            state.currentDayIndex = null;
+            state.currentSlideIndex = 0;
+            state.mode = null;
+            state.studentAnswers = {};
+        }
+
+        function updateSyncStatusUI() {
+            const syncToggle = document.getElementById('sync-toggle');
+            const syncStatusEl = document.getElementById('sync-status');
+            if (!syncStatusEl) return; 
+
+            if (syncToggle.checked) {
+                syncStatusEl.textContent = 'ON';
+                syncStatusEl.classList.remove('text-gray-500');
+                syncStatusEl.classList.add('text-indigo-600');
+            } else {
+                syncStatusEl.textContent = 'OFF';
+                syncStatusEl.classList.remove('text-indigo-600');
+                syncStatusEl.classList.add('text-gray-500');
+            }
+        }
+
+        // --- INITIALIZATION ---
+        function initializeAppLogic() {
+            userRole = localStorage.getItem('userRole');
+            roomName = localStorage.getItem('roomName');
+
+            if (!userRole || !roomName) {
+                setupModal.style.display = 'flex';
+                appContainer.style.opacity = '0';
+                return;
+            }
+
+            // Update header
+            roleRoomBadge.querySelector('span').textContent = `${userRole} • room: ${roomName}`;
+            roleRoomBadge.classList.remove('hidden');
+            roleRoomBadge.classList.add('flex');
+            
+            const teacherSyncContainer = document.getElementById('teacher-sync-container');
+            if(userRole === 'Teacher'){
+                teacherSyncContainer.classList.remove('hidden');
+                teacherSyncContainer.classList.add('flex');
+                const syncToggle = document.getElementById('sync-toggle');
+                syncToggle.checked = !state.allowFreeExplore;
+                syncToggle.addEventListener('change', (e) => {
+                    state.allowFreeExplore = !e.target.checked;
+                    updateSyncStatusUI();
+                    syncPush();
+                });
+                updateSyncStatusUI();
+            }
+
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            db = firebase.firestore();
+
+            // CRITICAL: All Firestore operations must happen after sign-in
+            auth.signInAnonymously().then(() => {
+                console.log("Firebase anonymous sign-in successful.");
+                if (userRole === 'Student') {
+                    setupFirestoreListener();
+                }
+                // Now that we are authenticated, proceed with app logic
+                initAppContent(); 
+            }).catch(error => {
+                console.error("Firebase sign-in failed:", error);
+                alert("Could not connect to the classroom session. Please check your connection and try again.");
+            });
+        }
+
+        function initAppContent() {
+            const progressDataEl = document.getElementById('progress-data');
+            if (progressDataEl && progressDataEl.textContent.trim()) {
+                try {
+                    const savedState = JSON.parse(progressDataEl.textContent);
+                    Object.assign(state, savedState);
+                    if(state.currentView === 'score'){
+                         renderScore();
+                         switchView('score');
+                    } else {
+                        if (state.mode === 'lesson') startLesson(state.currentDayIndex, state.currentSlideIndex);
+                        else if (state.mode === 'practice') startPractice(state.currentDayIndex, state.currentSlideIndex);
+                        else if (state.mode === 'test') startTest(state.currentDayIndex, state.currentSlideIndex);
+                        else renderHome();
+                    }
+                    return;
+                } catch (e) { console.error("Failed to parse progress data:", e); localStorage.clear(); }
+            }
+
+            const lockedDay = localStorage.getItem('testLockedDay');
+            if(lockedDay !== null) {
+                state.currentDayIndex = parseInt(lockedDay, 10);
+                state.studentAnswers = JSON.parse(localStorage.getItem(`studentAnswers_day${state.currentDayIndex}`) || '{}');
+                state.score = parseInt(localStorage.getItem(`score_day${state.currentDayIndex}`) || '0', 10);
+                state.testLocked = true;
+                renderScore();
+                switchView('score');
+                return;
+            }
+            renderHome();
+        }
+
+        function renderHome() {
+            daySelectionContainer.innerHTML = '';
+            instructionalBlueprint.days.forEach((day, index) => {
+                const dayCard = document.createElement('div');
+                dayCard.className = 'bg-indigo-50 p-6 rounded-lg border-2 border-indigo-200';
+                dayCard.innerHTML = `
+                    <h3 class="text-2xl font-bold text-indigo-800 mb-4">${day.title}</h3>
+                    <div class="flex flex-col space-y-3">
+                        <button data-day="${index}" data-mode="lesson" class="day-btn btn btn-primary w-full py-2 font-semibold">Start Lesson</button>
+                        <button data-day="${index}" data-mode="practice" class="day-btn btn btn-secondary w-full py-2 font-semibold">Practice Center</button>
+                        <button data-day="${index}" data-mode="test" class="day-btn btn btn-danger w-full py-2 font-semibold">Take the Test</button>
+                    </div>
+                `;
+                daySelectionContainer.appendChild(dayCard);
+            });
+
+            document.querySelectorAll('.day-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const dayIndex = parseInt(e.target.dataset.day);
+                    const mode = e.target.dataset.mode;
+                    if (mode === 'lesson') startLesson(dayIndex);
+                    else if (mode === 'practice') startPractice(dayIndex);
+                    else if (mode === 'test') startTest(dayIndex);
+                });
+            });
+             switchView('home');
+        }
+
+        // --- LESSON LOGIC ---
+        function startLesson(dayIndex, startSlide = 0) {
+            state.currentDayIndex = dayIndex;
+            state.mode = 'lesson';
+            state.currentSlideIndex = startSlide;
+            renderLessonSlide();
+            switchView('lesson');
+        }
+
+        function renderLessonSlide() {
+            state.currentSlideIndex = Math.min(state.currentSlideIndex, instructionalBlueprint.days[state.currentDayIndex].lesson.length - 1);
+            const slideData = instructionalBlueprint.days[state.currentDayIndex].lesson[state.currentSlideIndex];
+            let html = `<div class="card p-8 md:p-12 w-full max-w-4xl slide-container mx-auto flex flex-col justify-center">`;
+            if (slideData.type === 'I Do') {
+                html += slideData.content;
+            } else if (slideData.type === 'We Do') {
+                 html += `<h3 class="text-2xl font-bold mb-4">We Do: Step ${slideData.step} of 3</h3>
+                          <p class="text-lg mb-6 bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded">${slideData.prompt}</p>
+                          <p class="text-lg font-semibold mb-4">${slideData.question}</p>`;
+                if (slideData.options) {
+                    html += `<div class="space-y-3 we-do-options">${slideData.options.map(opt => `<button class="block w-full text-left p-3 rounded-lg border-2 border-gray-300 hover:bg-indigo-100">${opt}</button>`).join('')}</div>`;
+                }
+                if (slideData.input) {
+                    html += `<input type="text" id="we-do-input" class="w-full p-3 border-2 border-gray-300 rounded-lg text-lg" placeholder="Type your answer..."><button id="we-do-submit" class="mt-4 btn btn-primary px-6 py-2">Check</button>`;
+                }
+                html += `<div id="we-do-feedback" class="mt-4 text-lg"></div>`;
+            }
+            html += `</div>`;
+            document.getElementById('lesson-content').innerHTML = html;
+
+            if (slideData.type === 'We Do') {
+                if(slideData.options) {
+                    document.querySelectorAll('.we-do-options button').forEach(btn => btn.addEventListener('click', () => handleWeDoAnswer(btn.textContent)));
+                }
+                if(slideData.input) {
+                    const submitBtn = document.getElementById('we-do-submit');
+                    const inputEl = document.getElementById('we-do-input');
+                    submitBtn.addEventListener('click', () => handleWeDoAnswer(inputEl.value.trim().replace(/,/g, '')));
+                    inputEl.addEventListener('keypress', (e) => { if (e.key === 'Enter') submitBtn.click(); });
+                }
+            }
+            updateLessonNav();
+            syncPush();
+        }
+        
+        function handleWeDoAnswer(answer) {
+            const slideData = instructionalBlueprint.days[state.currentDayIndex].lesson[state.currentSlideIndex];
+            const feedbackEl = document.getElementById('we-do-feedback');
+            const sanitizedCorrect = slideData.correct.replace(/[\s\W]/g, '');
+            const sanitizedAnswer = answer.replace(/[\s\W]/g, '');
+
+            if(sanitizedAnswer.toLowerCase() === sanitizedCorrect.toLowerCase()){
+                feedbackEl.innerHTML = `<p class="font-bold text-green-600 feedback">${slideData.feedback}</p>`;
+                if(slideData.options) document.querySelectorAll('.we-do-options button').forEach(btn => btn.disabled = true);
+                if(slideData.input) {
+                    document.getElementById('we-do-input').disabled = true;
+                    document.getElementById('we-do-submit').disabled = true;
+                }
+            } else {
+                feedbackEl.innerHTML = `<p class="font-bold text-red-600 feedback">Not quite, try again detective!</p>`;
+            }
+        }
+
+        function updateLessonNav() {
+            const dayData = instructionalBlueprint.days[state.currentDayIndex];
+            const prevBtn = document.getElementById('lesson-prev-btn');
+            const nextBtn = document.getElementById('lesson-next-btn');
+            
+            document.getElementById('lesson-progress').textContent = `Slide ${state.currentSlideIndex + 1} of ${dayData.lesson.length}`;
+            prevBtn.disabled = state.currentSlideIndex === 0;
+            nextBtn.disabled = state.currentSlideIndex === dayData.lesson.length - 1;
+        }
+
+        document.getElementById('lesson-prev-btn').addEventListener('click', () => {
+            if (state.currentSlideIndex > 0) {
+                state.currentSlideIndex--;
+                renderLessonSlide();
+            }
+        });
+        document.getElementById('lesson-next-btn').addEventListener('click', () => {
+            const dayData = instructionalBlueprint.days[state.currentDayIndex];
+            if (state.currentSlideIndex < dayData.lesson.length - 1) {
+                state.currentSlideIndex++;
+                renderLessonSlide();
+            } else {
+                renderHome();
+            }
+        });
+
+        // --- PRACTICE LOGIC ---
+        function startPractice(dayIndex, startSlide = 0) {
+            state.currentDayIndex = dayIndex;
+            state.mode = 'practice';
+            state.currentSlideIndex = startSlide;
+            renderPracticeSlide();
+            switchView('practice');
+        }
+        
+        function renderPracticeSlide() {
+             state.currentSlideIndex = Math.min(state.currentSlideIndex, instructionalBlueprint.days[state.currentDayIndex].practice.length - 1);
+            const slideData = instructionalBlueprint.days[state.currentDayIndex].practice[state.currentSlideIndex];
+            document.getElementById('practice-content').innerHTML = `
+                <div class="card p-8 md:p-12 w-full max-w-4xl slide-container mx-auto flex flex-col justify-center items-center text-center">
+                    <h3 class="text-2xl font-semibold mb-8">${slideData.q}</h3>
+                    <input type="text" id="practice-input" class="w-full max-w-sm p-3 border-2 border-gray-300 rounded-lg text-lg text-center" placeholder="Your Answer">
+                    <div id="practice-feedback" class="mt-4 h-10 text-lg font-semibold"></div>
+                </div>`;
+            updatePracticeNav();
+            syncPush();
+        }
+
+        function updatePracticeNav() {
+            document.getElementById('practice-nav-buttons').innerHTML = `
+                 <button id="check-answer-btn" class="btn btn-primary px-6 py-2">Check Answer</button>
+                 <button id="try-again-btn" class="btn btn-secondary px-6 py-2 hidden">Try Again</button>
+                 <button id="next-practice-btn" class="btn btn-success px-6 py-2 hidden">Next</button>`;
+            document.getElementById('check-answer-btn').addEventListener('click', checkPracticeAnswer);
+            document.getElementById('try-again-btn').addEventListener('click', () => {
+                document.getElementById('practice-input').value = '';
+                document.getElementById('practice-input').disabled = false;
+                document.getElementById('practice-feedback').textContent = '';
+                document.getElementById('check-answer-btn').classList.remove('hidden');
+                document.getElementById('try-again-btn').classList.add('hidden');
+            });
+            document.getElementById('next-practice-btn').addEventListener('click', nextPracticeSlide);
+            document.getElementById('practice-progress').textContent = `Problem ${state.currentSlideIndex + 1} of ${instructionalBlueprint.days[state.currentDayIndex].practice.length}`;
+        }
+        
+        function checkPracticeAnswer() {
+            const slideData = instructionalBlueprint.days[state.currentDayIndex].practice[state.currentSlideIndex];
+            const input = document.getElementById('practice-input');
+            const feedbackEl = document.getElementById('practice-feedback');
+            if (input.value.trim().replace(/,/g, '') === slideData.a) {
+                feedbackEl.textContent = 'Correct!';
+                feedbackEl.className = 'mt-4 h-10 text-lg font-semibold text-green-600 feedback';
+                input.disabled = true;
+                document.getElementById('check-answer-btn').classList.add('hidden');
+                document.getElementById('next-practice-btn').classList.remove('hidden');
+            } else {
+                feedbackEl.textContent = 'Not quite...';
+                feedbackEl.className = 'mt-4 h-10 text-lg font-semibold text-red-600 feedback';
+                document.getElementById('check-answer-btn').classList.add('hidden');
+                document.getElementById('try-again-btn').classList.remove('hidden');
+            }
+        }
+
+        function nextPracticeSlide() {
+            const dayData = instructionalBlueprint.days[state.currentDayIndex];
+            if(state.currentSlideIndex < dayData.practice.length - 1) {
+                state.currentSlideIndex++;
+                renderPracticeSlide();
+            } else {
+                renderHome();
+            }
+        }
+
+        // --- TEST LOGIC (largely unchanged, but syncs state) ---
+        function startTest(dayIndex, startSlide = 0) {
+            state.currentDayIndex = dayIndex;
+            state.mode = 'test';
+            state.currentSlideIndex = startSlide;
+            state.studentAnswers = {};
+            renderTestSlide();
+            switchView('test');
+        }
+
+        function renderTestSlide() {
+            state.currentSlideIndex = Math.min(state.currentSlideIndex, instructionalBlueprint.days[state.currentDayIndex].test.length - 1);
+            const qData = instructionalBlueprint.days[state.currentDayIndex].test[state.currentSlideIndex];
+            const savedAnswer = state.studentAnswers[state.currentSlideIndex];
+            let html = `<div class="card p-8 md:p-12 w-full max-w-5xl slide-container mx-auto flex flex-col justify-center">
+                        <p class="text-sm font-semibold text-indigo-600 mb-2">Question ${state.currentSlideIndex + 1} of ${instructionalBlueprint.days[state.currentDayIndex].test.length} (DOK ${qData.dok})</p>`;
+            switch (qData.type) {
+                case 'mc': html += `<p class="text-xl font-medium mb-6">${qData.q}</p><div class="space-y-3">${qData.options.map((opt, i) => `<div id="mc-opt-${i}" class="mc-option p-4 rounded-lg cursor-pointer ${savedAnswer === opt ? 'selected' : ''}">${opt}</div>`).join('')}</div>`; break;
+                case 'ms': html += `<p class="text-xl font-medium mb-6">${qData.q}</p><p class="text-sm text-gray-500 mb-4">Select all that apply.</p><div class="space-y-3">${qData.options.map((opt, i) => `<div id="ms-opt-${i}" class="mc-option p-4 rounded-lg cursor-pointer ${(savedAnswer && savedAnswer.includes(opt)) ? 'selected' : ''}">${opt}</div>`).join('')}</div>`; break;
+                case 'text': html += `<p class="text-xl font-medium mb-6">${qData.q}</p><textarea id="text-input" class="w-full p-3 border-2 border-gray-300 rounded-lg text-lg" rows="4" placeholder="Explain your reasoning...">${savedAnswer || ''}</textarea>`; break;
+                case 'ebsr': html += `<p class="text-xl font-medium mb-8">${qData.q}</p><div class="grid md:grid-cols-2 gap-8"><div><h4 class="font-bold text-lg mb-2">Part A</h4><p class="text-lg mb-4">${qData.partA.q}</p><div class="space-y-3">${qData.partA.options.map((opt, i) => `<div id="ebsr-a-opt-${i}" class="mc-option ebsr-a p-4 rounded-lg cursor-pointer ${savedAnswer && savedAnswer.partA === opt ? 'selected' : ''}">${opt}</div>`).join('')}</div></div><div><h4 class="font-bold text-lg mb-2">Part B</h4><p class="text-lg mb-4">${qData.partB.q}</p><div class="space-y-3">${qData.partB.options.map((opt, i) => `<div id="ebsr-b-opt-${i}" class="mc-option ebsr-b p-4 rounded-lg cursor-pointer ${savedAnswer && savedAnswer.partB === opt ? 'selected' : ''}">${opt}</div>`).join('')}</div></div></div>`; break;
+            }
+            html += `</div>`;
+            document.getElementById('test-content').innerHTML = html;
+            addTestAnswerListeners(qData.type);
+            updateTestNav();
+            syncPush();
+        }
+        
+        function addTestAnswerListeners(type) { /* Unchanged */
+            switch(type) {
+                case 'mc': document.querySelectorAll('.mc-option').forEach(el => el.addEventListener('click', (e) => { document.querySelectorAll('.mc-option').forEach(opt => opt.classList.remove('selected')); e.currentTarget.classList.add('selected'); saveTestAnswer(e.currentTarget.textContent); })); break;
+                case 'ms': document.querySelectorAll('.mc-option').forEach(el => el.addEventListener('click', (e) => { e.currentTarget.classList.toggle('selected'); const selectedOptions = Array.from(document.querySelectorAll('.mc-option.selected')).map(opt => opt.textContent); saveTestAnswer(selectedOptions); })); break;
+                case 'text': document.getElementById('text-input').addEventListener('input', (e) => saveTestAnswer(e.target.value)); break;
+                case 'ebsr':
+                    document.querySelectorAll('.ebsr-a').forEach(el => el.addEventListener('click', (e) => { document.querySelectorAll('.ebsr-a').forEach(opt => opt.classList.remove('selected')); e.currentTarget.classList.add('selected'); let current = state.studentAnswers[state.currentSlideIndex] || {}; saveTestAnswer({...current, partA: e.currentTarget.textContent}); }));
+                    document.querySelectorAll('.ebsr-b').forEach(el => el.addEventListener('click', (e) => { document.querySelectorAll('.ebsr-b').forEach(opt => opt.classList.remove('selected')); e.currentTarget.classList.add('selected'); let current = state.studentAnswers[state.currentSlideIndex] || {}; saveTestAnswer({...current, partB: e.currentTarget.textContent}); }));
+                    break;
+            }
+        }
+        function saveTestAnswer(answer) { state.studentAnswers[state.currentSlideIndex] = answer; }
+        function updateTestNav() { /* Unchanged */
+            const dayData = instructionalBlueprint.days[state.currentDayIndex];
+            const prevBtn = document.getElementById('test-prev-btn');
+            const nextBtn = document.getElementById('test-next-btn');
+            document.getElementById('test-progress').textContent = `Question ${state.currentSlideIndex + 1} of ${dayData.test.length}`;
+            prevBtn.disabled = state.currentSlideIndex === 0;
+            nextBtn.textContent = (state.currentSlideIndex === dayData.test.length - 1) ? 'Finish' : 'Next';
+        }
+        document.getElementById('test-prev-btn').addEventListener('click', () => { if (state.currentSlideIndex > 0) { state.currentSlideIndex--; renderTestSlide(); } });
+        document.getElementById('test-next-btn').addEventListener('click', () => { const dayData = instructionalBlueprint.days[state.currentDayIndex]; if (state.currentSlideIndex < dayData.test.length - 1) { state.currentSlideIndex++; renderTestSlide(); } else { switchView('confirmation'); } });
+
+        // --- CONFIRMATION & SCORE LOGIC (Unchanged) ---
+        document.getElementById('review-answers-btn').addEventListener('click', () => { state.currentSlideIndex = 0; renderTestSlide(); switchView('test'); });
+        document.getElementById('submit-for-grading-btn').addEventListener('click', () => { gradeTest(); state.testLocked = true; localStorage.setItem('testLockedDay', state.currentDayIndex); localStorage.setItem(`studentAnswers_day${state.currentDayIndex}`, JSON.stringify(state.studentAnswers)); localStorage.setItem(`score_day${state.currentDayIndex}`, state.score); renderScore(); switchView('score'); });
+        function gradeTest() { /* Unchanged */
+            const testData = instructionalBlueprint.days[state.currentDayIndex].test;
+            let correctAnswers = 0;
+            testData.forEach((q, index) => {
+                const userAnswer = state.studentAnswers[index];
+                if(userAnswer === undefined) return;
+                let isCorrect = false;
+                switch(q.type) {
+                    case 'mc': isCorrect = (userAnswer === q.a); break;
+                    case 'text': isCorrect = (userAnswer.length > 10); break; // simple check for effort
+                    case 'ms': isCorrect = q.a.length === userAnswer.length && q.a.every(val => userAnswer.includes(val)); break;
+                    case 'ebsr': isCorrect = userAnswer && userAnswer.partA === q.a.partA && userAnswer.partB === q.a.partB; break;
+                }
+                if (isCorrect) correctAnswers++;
+            });
+            state.score = correctAnswers;
+        }
+        function renderScore() { document.getElementById('score-display').textContent = `${state.score} / ${instructionalBlueprint.days[state.currentDayIndex].test.length}`; }
+        document.getElementById('admin-reset-link').addEventListener('click', (e) => { e.preventDefault(); const password = prompt("Enter admin password to reset:"); if (password === "2026") { localStorage.removeItem('testLockedDay'); localStorage.removeItem(`studentAnswers_day${state.currentDayIndex}`); localStorage.removeItem(`score_day${state.currentDayIndex}`); state.testLocked = false; alert("Test has been reset."); resetState(); renderHome(); } else if (password !== null) { alert("Incorrect password."); } });
+        
+        // --- EXPORTING LOGIC (Unchanged) ---
+        document.getElementById('download-work-btn').addEventListener('click', () => { /* Unchanged */
+            const stateToSave = { currentView: state.currentView, currentDayIndex: state.currentDayIndex, currentSlideIndex: state.currentSlideIndex, mode: state.mode, studentAnswers: state.studentAnswers, testLocked: state.testLocked, score: state.score };
+            const jsonString = JSON.stringify(stateToSave);
+            const tempDoc = document.cloneNode(true);
+            tempDoc.getElementById('progress-data').textContent = jsonString;
+            const htmlContent = tempDoc.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `math_detective_progress_${new Date().toISOString().slice(0,10)}.html`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        });
+        document.getElementById('download-pdf-btn').addEventListener('click', async () => { /* Unchanged */
+            loadingOverlay.style.display = 'flex';
+            const { jsPDF } = window.jspdf; const pdf = new jsPDF({ orientation: 'p', unit: 'px', format: 'a4' });
+            const dayData = instructionalBlueprint.days[state.currentDayIndex]; const testData = dayData.test;
+            const pdfWidth = pdf.internal.pageSize.getWidth(); const pdfHeight = pdf.internal.pageSize.getHeight();
+            const titleContainer = document.createElement('div');
+            titleContainer.className = 'p-10 bg-white text-center'; titleContainer.style.width = '450px';
+            titleContainer.innerHTML = `<h1 style="font-size: 24px; font-weight: bold; color: #4f46e5;">Math Detective Agency</h1><h2 style="font-size: 20px; font-weight: bold; margin-top: 1rem;">${dayData.title} - Final Report</h2><p style="font-size: 32px; font-weight: bold; margin-top: 2rem;">Score: ${state.score} / ${testData.length}</p><p style="font-size: 14px; color: #6b7280; margin-top: 1rem;">Report generated on: ${new Date().toLocaleDateString()}</p>`;
+            document.body.appendChild(titleContainer);
+            const titleCanvas = await html2canvas(titleContainer); const titleImgData = titleCanvas.toDataURL('image/png');
+            pdf.addImage(titleImgData, 'PNG', 0, 0, pdfWidth, pdfHeight * 0.4);
+            document.body.removeChild(titleContainer);
+            for (let i = 0; i < testData.length; i++) {
+                const qData = testData[i]; const studentAnswer = state.studentAnswers[i];
+                const container = document.createElement('div');
+                container.style.width = '500px'; container.style.padding = '20px'; container.style.backgroundColor = 'white'; container.style.fontFamily = 'Inter, sans-serif';
+                let answerHtml = `<p style="margin-top: 1rem; font-style: italic; color: #6b7280;">No answer provided.</p>`;
+                if (studentAnswer !== undefined && studentAnswer !== null) {
+                     switch(qData.type) {
+                        case 'mc': answerHtml = qData.options.map(opt => `<div style="padding: 8px; border: 1px solid #ccc; border-radius: 5px; margin-top: 5px; ${opt === studentAnswer ? 'background-color: #c7d2fe; font-weight: bold;' : ''}">${opt}</div>`).join(''); break;
+                        case 'ms': answerHtml = qData.options.map(opt => `<div style="padding: 8px; border: 1px solid #ccc; border-radius: 5px; margin-top: 5px; ${studentAnswer.includes(opt) ? 'background-color: #c7d2fe; font-weight: bold;' : ''}">${opt}</div>`).join(''); break;
+                        case 'text': answerHtml = `<div style="padding: 8px; border: 1px solid #ccc; border-radius: 5px; margin-top: 5px; background-color: #f3f4f6;">${studentAnswer || ''}</div>`; break;
+                        case 'ebsr': answerHtml = `<h4 style="font-weight: bold; margin-top: 1rem;">Part A</h4>${qData.partA.options.map(opt => `<div style="padding: 8px; border: 1px solid #ccc; border-radius: 5px; margin-top: 5px; ${studentAnswer.partA === opt ? 'background-color: #c7d2fe; font-weight: bold;' : ''}">${opt}</div>`).join('')}<h4 style="font-weight: bold; margin-top: 1rem;">Part B</h4>${qData.partB.options.map(opt => `<div style="padding: 8px; border: 1px solid #ccc; border-radius: 5px; margin-top: 5px; ${studentAnswer.partB === opt ? 'background-color: #c7d2fe; font-weight: bold;' : ''}">${opt}</div>`).join('')}`; break;
+                     }
+                }
+                container.innerHTML = `<p style="font-weight: bold; color: #4f46e5;">Question ${i + 1}</p><p style="margin-top: 8px; font-size: 16px;">${qData.q}</p><div style="margin-top: 1rem;">${answerHtml}</div>`;
+                document.body.appendChild(container);
+                const canvas = await html2canvas(container, { scale: 2 });
+                const imgData = canvas.toDataURL('image/png'); const imgHeight = canvas.height * pdfWidth / canvas.width;
+                pdf.addPage(); pdf.addImage(imgData, 'PNG', 15, 20, pdfWidth - 30, imgHeight);
+                document.body.removeChild(container);
+            }
+            pdf.save(`math_report_${state.currentDayIndex + 1}.pdf`);
+            loadingOverlay.style.display = 'none';
+        });
+
+        // --- Start the App ---
+        initializeAppLogic();
+    });
+    </script>
+</body>
+</html>
+
+
