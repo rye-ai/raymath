@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Adventure: 3-Day Lesson</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDKs (v10 compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f9ff; /* light sky blue */
+        }
+        .hidden { display: none; }
+        .slide-content { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn:disabled {
+            cursor: not-allowed;
+            background-color: #9ca3af;
+            opacity: 0.7;
+        }
+        .option-btn {
+            border: 2px solid transparent;
+        }
+        .option-btn.selected {
+            border-color: #3b82f6; /* blue-500 */
+            background-color: #dbeafe; /* blue-100 */
+        }
+        .option-btn.correct {
+            background-color: #dcfce7 !important; /* green-100 */
+            border-color: #22c55e !important; /* green-500 */
+        }
+        .option-btn.incorrect {
+            background-color: #fee2e2 !important; /* red-100 */
+            border-color: #ef4444 !important; /* red-500 */
+        }
+        /* Day Tab Styles */
+        .day-tab {
+            cursor: pointer;
+            padding: 0.75rem 1.5rem;
+            border-bottom: 3px solid transparent;
+            color: #475569; /* slate-600 */
+        }
+        .day-tab.active {
+            color: #2563eb; /* blue-600 */
+            border-bottom-color: #2563eb;
+            font-weight: 600;
+        }
+        /* Lesson Step Styles */
+        .lesson-step-box {
+            background-color: #f8fafc; /* slate-50 */
+            border-left: 4px solid #3b82f6; /* blue-500 */
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        /* Sync Toggle */
+        .toggle-bg:after { content: ''; @apply absolute top-0.5 left-0.5 bg-white border border-gray-300 rounded-full h-5 w-5 transition shadow-sm; }
+        input:checked + .toggle-bg:after { @apply transform translate-x-full; }
+        input:checked + .toggle-bg { @apply bg-blue-600; }
+
+        @media print {
+            body, html { background-color: #ffffff; color: #000000; }
+            .no-print { display: none !important; }
+        }
+        .pdf-clone-container {
+            background-color: white;
+            color: black;
+            font-family: 'Inter', sans-serif;
+            border: 1px solid #ccc;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body class="antialiased text-slate-800">
+
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <h2 class="text-2xl font-bold text-center mb-6 text-slate-800">Join Classroom Session</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Select your role:</label>
+                    <div class="mt-2 flex rounded-md shadow-sm">
+                        <div class="relative flex items-stretch flex-grow focus-within:z-10">
+                            <label class="w-1/2 p-3 border border-gray-300 rounded-l-md text-center cursor-pointer has-[:checked]:bg-blue-500 has-[:checked]:text-white has-[:checked]:border-blue-500">
+                                <input type="radio" name="role" value="student" class="sr-only" checked>Student
+                            </label>
+                            <label class="w-1/2 p-3 border-t border-b border-r border-gray-300 rounded-r-md text-center cursor-pointer has-[:checked]:bg-blue-500 has-[:checked]:text-white has-[:checked]:border-blue-500">
+                                <input type="radio" name="role" value="teacher" class="sr-only">Teacher
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div id="teacher-password-container" class="hidden">
+                    <label for="teacher-password" class="block text-sm font-medium text-slate-700">Teacher Password</label>
+                    <input type="password" id="teacher-password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                </div>
+                <div>
+                    <label for="room-name" class="block text-sm font-medium text-slate-700">Room Name</label>
+                    <input type="text" id="room-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2" placeholder="e.g., class-A">
+                </div>
+                <div id="setup-error" class="text-red-500 text-sm text-center h-4"></div>
+            </div>
+            <div class="mt-6">
+                <button id="start-lesson-session-btn" class="btn w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg">Start Lesson</button>
+            </div>
+        </div>
+    </div>
+    
+    <script id="progress-data" type="application/json"></script>
+
+    <div id="app" class="min-h-screen flex flex-col hidden">
+        <header id="app-header" class="bg-white shadow-md p-4 flex justify-between items-center no-print">
+            <h1 class="text-xl md:text-2xl font-bold text-blue-600">3-Day Math Adventure</h1>
+            <div class="flex items-center gap-4">
+                 <div id="role-room-badge" class="hidden items-center gap-4 bg-slate-100 rounded-full px-4 py-1.5">
+                    <span class="text-sm font-semibold text-slate-600"></span>
+                    <button id="change-role-room-btn" class="text-xs text-blue-500 hover:underline">Change</button>
+                 </div>
+                 <div id="sync-toggle-container" class="hidden items-center space-x-2">
+                    <span class="text-sm font-medium text-gray-700">Sync Classroom:</span>
+                    <label for="sync-toggle" class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="sync-toggle" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+                <button id="home-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hidden">All Days</button>
+            </div>
+        </header>
+
+        <main class="flex-grow container mx-auto p-4 md:p-8">
+            <!-- Home View (Day Selector) -->
+            <div id="home-view" class="">
+                <div class="text-center bg-white p-8 rounded-xl shadow-lg">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-2">Welcome, Math Adventurer!</h2>
+                    <p class="text-slate-600 mb-8 max-w-2xl mx-auto">Select a day to begin your adventure in adding and subtracting up to 1000.</p>
+                    <div class="border-b border-gray-200 mb-6">
+                        <nav class="-mb-px flex justify-center space-x-8" aria-label="Tabs">
+                            <div id="day-1-tab" class="day-tab active">Day 1</div>
+                            <div id="day-2-tab" class="day-tab">Day 2</div>
+                            <div id="day-3-tab" class="day-tab">Day 3</div>
+                        </nav>
+                    </div>
+                    <div id="day-content-container">
+                        <!-- Day content will be rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lesson View -->
+            <div id="lesson-view" class="hidden"></div>
+            <!-- Test View -->
+            <div id="test-view" class="hidden"></div>
+            <!-- Practice View -->
+            <div id="practice-view" class="hidden"></div>
+            <!-- Confirmation View -->
+            <div id="confirmation-view" class="hidden"></div>
+            <!-- Score View -->
+            <div id="score-view" class="hidden"></div>
+            
+            <div id="loading-spinner" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+                <div class="bg-white p-6 rounded-lg shadow-xl text-center">
+                    <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="font-semibold text-slate-700">Generating your PDF report...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+      authDomain: "lesson-sync-a223a.firebaseapp.com",
+      projectId: "lesson-sync-a223a",
+      storageBucket: "lesson-sync-a223a.firebasestorage.app",
+      messagingSenderId: "906128715071",
+      appId: "1:906128715071:web:347ea08f4d864fde02778a"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    const app = {
+        // DATA
+        lessonPlan: {
+            'day-1': {
+                title: 'Addition & Subtraction with Regrouping',
+                lesson: [
+                    // I Do
+                    { type: 'ido', story: 'A bakery made 248 cupcakes on Monday and 175 cupcakes on Tuesday. How many cupcakes did they make in all?', steps: [ { title: '1. Understand the Story', text: 'The story is about combining two amounts (Monday\'s cupcakes and Tuesday\'s cupcakes) to find a total. This means we need to add.' }, { title: '2. Write the Number Sentence', text: 'We write down the numbers from the story as an addition problem: <br><strong class="font-mono text-lg">248 + 175 = ?</strong>' }, { title: '3. Find the Answer', text: 'We solve the problem by adding the columns, regrouping when needed. The final answer is <strong class="font-mono text-lg">423</strong>.' } ] },
+                    { type: 'ido', story: 'Max had 524 building blocks. He used 289 blocks to build a castle. How many blocks does he have left?', steps: [ { title: '1. Understand the Story', text: 'The story is about starting with an amount and taking some away. This means we need to subtract.' }, { title: '2. Write the Number Sentence', text: 'We write down the numbers as a subtraction problem: <br><strong class="font-mono text-lg">524 - 289 = ?</strong>' }, { title: '3. Find the Answer', text: 'We solve by subtracting, regrouping from the tens and hundreds place. The answer is <strong class="font-mono text-lg">235</strong>.' } ] },
+                    // We Do
+                    { type: 'wedo', story: 'The library has 615 books. 258 of the books are checked out. How many books are on the shelves?', story_check: { question: 'What is happening in this story?', options: ['Two groups of books are being joined', 'Some books are being taken away from the total'], answer: 'Some books are being taken away from the total' }, sentence_check: { prompt: 'Write the number sentence for this story.', answer: '615 - 258 = ?' }, answer_check: { prompt: 'Now, solve the problem. What is the final answer?', answer: '357' } },
+                    { type: 'wedo', story: 'On a farm, there are 367 cows and 284 chickens. How many animals are there in total?', story_check: { question: 'What is happening in this story?', options: ['The number of animals is decreasing', 'Two groups of animals are being combined'], answer: 'Two groups of animals are being combined' }, sentence_check: { prompt: 'Write the number sentence for this story.', answer: '367 + 284 = ?' }, answer_check: { prompt: 'Now, solve the problem. What is the final answer?', answer: '651' } },
+                    { type: 'wedo', story: 'A video game has 842 points to earn. So far, you have earned 575 points. How many more points do you need?', story_check: { question: 'What is happening in this story?', options: ['We are finding the difference between the total and what we have', 'We are adding the total points and the points we have'], answer: 'We are finding the difference between the total and what we have' }, sentence_check: { prompt: 'Write the number sentence for this story.', answer: '842 - 575 = ?' }, answer_check: { prompt: 'Now, solve the problem. What is the final answer?', answer: '267' } },
+                ],
+                assessment: [ { id: 1, type: 'mcq', dok: 2, question: 'What is the sum of 378 + 243?', options: ['521', '621', '611', '511'], correctAnswer: '621' }, { id: 2, type: 'mcq', dok: 2, question: 'What is 712 - 345?', options: ['367', '467', '377', '433'], correctAnswer: '367' }, { id: 3, type: 'ebsr', dok: 2, partA: { question: 'The school library has 528 books. The librarian buys 175 new books. How many books does the library have now?', options: ['353', '693', '703', '603'], correctAnswer: '703' }, partB: { question: 'Which sentence best explains why you chose your answer for Part A?', options: ['I subtracted the number of new books from the old books.', 'I added the new books to the old books because the total increased.', 'I guessed the answer by looking at the numbers.', 'I only added the hundreds place.'], correctAnswer: 'I added the new books to the old books because the total increased.' } }, { id: 4, type: 'mcq', dok: 2, question: 'What is 813 - 475?', options: ['338', '348', '438', '462'], correctAnswer: '338' }, { id: 5, type: 'mcq', dok: 2, question: 'What is 482 + 239?', options: ['721', '611', '711', '621'], correctAnswer: '721' } ],
+                practice: [ { problem: '178 + 243', answer: 421 }, { problem: '359 + 462', answer: 821 }, { problem: '584 + 137', answer: 721 }, { problem: '821 - 345', answer: 476 }, { problem: '734 - 156', answer: 578 }, { problem: '610 - 288', answer: 322 } ]
+            },
+            'day-2': {
+                title: 'Multi-Step Word Problems',
+                lesson: [
+                    { type: 'ido', story: 'Ben had 120 stamps. He bought 50 more stamps. Then he gave 35 stamps to a friend. How many stamps does Ben have now?', steps: [ { title: '1. Understand the Story', text: 'This is a two-step story. First, an amount is added (he bought more). Then, an amount is taken away (he gave some away).' }, { title: '2. Write the Number Sentences', text: 'Step 1: 120 + 50 = 170. <br>Step 2: 170 - 35 = ?' }, { title: '3. Find the Answer', text: 'After the first step, Ben has 170 stamps. After the second step, he has 135 stamps left.' } ] },
+                    { type: 'ido', story: 'There are 350 seats in a theater. 180 seats are for adults and 120 seats are for children. The rest are for guests. How many seats are for guests?', steps: [ { title: '1. Understand the Story', text: 'First, we need to find the total number of adult and child seats. Then, we subtract that total from the grand total to find what\'s left.' }, { title: '2. Write the Number Sentences', text: 'Step 1: 180 + 120 = 300. <br>Step 2: 350 - 300 = ?' }, { title: '3. Find the Answer', text: 'There are 300 adult and child seats. This means there are 50 seats left for guests.' } ] },
+                    { type: 'wedo', story: 'A baker makes 100 muffins. She sells 45 in the morning and 30 in the afternoon. How many muffins are left?', story_check: { question: 'What is happening in this story?', options: ['Muffins are being added to the total', 'Two groups of muffins are being taken away from the total'], answer: 'Two groups of muffins are being taken away from the total' }, sentence_check: { prompt: 'Write the number sentence for the first step.', answer: '100 - 45 = ?' }, answer_check: { prompt: 'Now solve the final step. How many are left?', answer: '25' } },
+                    { type: 'wedo', story: 'Lisa has 215 stickers. Her mom gives her 75 more. Her brother gives her 50 more. How many stickers does she have now?', story_check: { question: 'What is happening in this story?', options: ['Two groups of stickers are being added to her starting amount', 'Stickers are being taken away from her total'], answer: 'Two groups of stickers are being added to her starting amount' }, sentence_check: { prompt: 'Write the number sentence for the first step.', answer: '215 + 75 = ?' }, answer_check: { prompt: 'Now solve the final step. How many stickers does she have?', answer: '340' } },
+                    { type: 'wedo', story: 'There were 500 birds in a park. 150 flew away. Later, 80 more birds came to the park. How many birds are there now?', story_check: { question: 'What is happening in this story?', options: ['Birds are only leaving the park', 'First birds leave, then more birds arrive'], answer: 'First birds leave, then more birds arrive' }, sentence_check: { prompt: 'Write the number sentence for the first step.', answer: '500 - 150 = ?' }, answer_check: { prompt: 'Now solve the final step. How many birds are there?', answer: '430' } },
+                ],
+                assessment: [ { id: 6, type: 'mcq', dok: 3, question: 'Maria had 150 beads. She used 65 beads to make a necklace and 40 beads for a bracelet. How many beads does she have left?', options: ['45', '85', '105', '255'], correctAnswer: '45' }, { id: 7, type: 'mcq', dok: 3, question: 'A farm has 245 apple trees and 180 pear trees. The farmer plants 75 more apple trees. How many trees are on the farm in total?', options: ['320', '425', '500', '400'], correctAnswer: '500' }, { id: 8, type: 'ebsr', dok: 3, partA: { question: 'Sam is reading a book with 400 pages. He read 120 pages on Monday and 95 pages on Tuesday. How many pages does he have left to read?', options: ['185', '215', '280', '195'], correctAnswer: '185' }, partB: { question: 'Which pair of steps correctly solves the problem?', options: ['First add 120 and 95, then add that total to 400.', 'First subtract 120 from 400, then add 95.', 'First add 120 and 95, then subtract that total from 400.', 'First subtract 95 from 120, then subtract the result from 400.'], correctAnswer: 'First add 120 and 95, then subtract that total from 400.' } }, { id: 9, type: 'msq', dok: 2, question: 'A store has 350 red shirts and 275 blue shirts. They sell 150 shirts in one day. Which of the following could be true?', options: ['There are 475 shirts left.', 'There are 200 red shirts left and 275 blue shirts left.', 'There are more than 500 shirts left.', 'There are 625 shirts in total before the sale.'], correctAnswers: ['There are 200 red shirts left and 275 blue shirts left.', 'There are 625 shirts in total before the sale.'] } ],
+                practice: [ { problem: '100 - 25 - 15', answer: 60 }, { problem: '50 + 30 + 75', answer: 155 }, { problem: '200 - (50+50)', answer: 100 }, { problem: '80 + 120 - 30', answer: 170 }, { problem: '300 - 90 - 110', answer: 100 }, { problem: '75 + 25 + 100', answer: 200 } ]
+            },
+            'day-3': {
+                title: 'Finding the Missing Number',
+                lesson: [
+                    { type: 'ido', story: 'Sarah had some cookies. After she baked 24 more, she had a total of 60 cookies. How many did she start with?', steps: [ { title: '1. Understand the Story', text: 'This is a "part-part-whole" story, but we are missing one of the parts. We know the total and one part, so we need to subtract to find the other part.' }, { title: '2. Write the Number Sentence', text: 'We can write this as ? + 24 = 60. To solve for the "?", we can rewrite it as a subtraction problem: 60 - 24 = ?' }, { title: '3. Find the Answer', text: 'By subtracting, we find the answer is 36. Sarah started with 36 cookies.' } ] },
+                    { type: 'ido', story: 'Tom had 85 stickers. He gave some to his friends and had 50 left. How many stickers did he give away?', steps: [ { title: '1. Understand the Story', text: 'We are starting with a total and ending with a smaller amount. We need to find out how much was taken away (the difference).' }, { title: '2. Write the Number Sentence', text: 'The story is 85 - ? = 50. We can solve this by subtracting the part we know from the total: 85 - 50 = ?' }, { title: '3. Find the Answer', text: 'By subtracting, we find the answer is 35. Tom gave away 35 stickers.' } ] },
+                    { type: 'wedo', story: 'There are 150 fish in a tank. Some are red and 70 are blue. How many are red?', story_check: { question: 'What are we trying to find in this story?', options: ['The total number of fish', 'One of the parts that makes up the total'], answer: 'One of the parts that makes up the total' }, sentence_check: { prompt: 'Write a number sentence to solve for the missing number.', answer: '150 - 70 = ?' }, answer_check: { prompt: 'How many fish are red?', answer: '80' } },
+                    { type: 'wedo', story: 'A class needs to raise 500 dollars. They have already raised 280 dollars. How much more do they need?', story_check: { question: 'What are we trying to find in this story?', options: ['The total amount they will have in the end', 'The difference between the goal and what they have now'], answer: 'The difference between the goal and what they have now' }, sentence_check: { prompt: 'Write a number sentence to solve for the missing number.', answer: '500 - 280 = ?' }, answer_check: { prompt: 'How much more money do they need?', answer: '220' } },
+                    { type: 'wedo', story: 'Tim had some money. He spent 125 dollars and now has 300 dollars left. How much did he start with?', story_check: { question: 'What are we trying to find in this story?', options: ['The original, larger amount before something was taken away', 'The amount he spent'], answer: 'The original, larger amount before something was taken away' }, sentence_check: { prompt: 'Write a number sentence to solve for the missing number. (Hint: think backwards)', answer: '300 + 125 = ?' }, answer_check: { prompt: 'How much money did Tim start with?', answer: '425' } },
+                ],
+                assessment: [ { id: 10, type: 'mcq', dok: 2, question: 'What number makes this equation true? 450 + ? = 800', options: ['300', '350', '400', '450'], correctAnswer: '350' }, { id: 11, type: 'mcq', dok: 2, question: 'What number makes this equation true? ? - 220 = 500', options: ['280', '620', '720', '380'], correctAnswer: '720' }, { id: 12, type: 'mcq', dok: 3, question: 'Find the missing number: 310 + 190 = 600 - ?', options: ['100', '150', '200', '500'], correctAnswer: '100' }, { id: 13, type: 'msq', dok: 3, question: 'Select all the equations where the missing number is 250.', options: ['150 + ? = 400', '900 - ? = 650', '? + 350 = 500', '750 - 500 = ?', '500 - ? = 250'], correctAnswers: ['150 + ? = 400', '900 - ? = 650', '750 - 500 = ?', '500 - ? = 250'] }, ],
+                practice: [ { problem: '100 + ? = 250', answer: 150 }, { problem: '? + 200 = 500', answer: 300 }, { problem: '600 - ? = 450', answer: 150 }, { problem: '? - 120 = 80', answer: 200 }, { problem: '330 + ? = 400', answer: 70 }, { problem: '800 - ? = 150', answer: 650 } ]
+            }
+        },
+
+        // STATE
+        currentView: 'home',
+        currentDay: 'day-1',
+        currentLessonSlideIndex: 0,
+        currentWeDoStep: 0,
+        currentQuestionIndex: 0,
+        currentPracticeIndex: 0,
+        studentAnswers: { 'day-1': {}, 'day-2': {}, 'day-3': {} },
+        testLocked: { 'day-1': false, 'day-2': false, 'day-3': false },
+        practiceStreak: 0,
+        views: {},
+        // SYNC STATE
+        db: null,
+        role: null,
+        room: null,
+        unsubscribeFirestore: null,
+        _isApplyingRemote: false,
+        allowFreeExplore: false,
+        
+        init() {
+            this.db = firebase.firestore();
+            this.views = {
+                app: document.getElementById('app'),
+                setupModal: document.getElementById('setup-modal'),
+                home: document.getElementById('home-view'),
+                lesson: document.getElementById('lesson-view'),
+                test: document.getElementById('test-view'),
+                practice: document.getElementById('practice-view'),
+                confirmation: document.getElementById('confirmation-view'),
+                score: document.getElementById('score-view'),
+                header: document.getElementById('app-header'),
+                homeBtn: document.getElementById('home-btn'),
+                roleRoomBadge: document.getElementById('role-room-badge'),
+                syncToggleContainer: document.getElementById('sync-toggle-container')
+            };
+
+            this.loadProgress();
+
+            const lockedDays = Object.keys(this.testLocked).filter(day => this.testLocked[day]);
+            if (lockedDays.length === 3) {
+                 this.selectDay('day-3');
+            } else {
+                this.selectDay('day-1');
+            }
+            
+            this.setupRoleAndRoomUI();
+
+            if (this.role === 'teacher') {
+                this.views.syncToggleContainer.classList.remove('hidden');
+                document.getElementById('sync-toggle').addEventListener('change', (e) => this.syncPush());
+                this.syncPush(); // Initial push
+            } else {
+                this.syncListen();
+            }
+        },
+        
+        setupRoleAndRoomUI() {
+            this.role = localStorage.getItem('lessonRole');
+            this.room = localStorage.getItem('lessonRoom');
+            if (this.role && this.room) {
+                const badge = this.views.roleRoomBadge.querySelector('span');
+                badge.textContent = `${this.role.charAt(0).toUpperCase() + this.role.slice(1)} • room: ${this.room}`;
+                this.views.roleRoomBadge.classList.remove('hidden');
+            }
+            document.getElementById('change-role-room-btn').addEventListener('click', () => this.changeRoleAndRoom());
+        },
+
+        changeRoleAndRoom() {
+            if (this.unsubscribeFirestore) {
+                this.unsubscribeFirestore();
+                this.unsubscribeFirestore = null;
+            }
+            localStorage.removeItem('lessonRole');
+            localStorage.removeItem('lessonRoom');
+            window.location.reload();
+        },
+
+        selectDay(dayId) {
+            if (this._isApplyingRemote) return;
+            this.currentDay = dayId;
+            document.querySelectorAll('.day-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(`${dayId}-tab`).classList.add('active');
+            
+            if (this.testLocked[dayId]) {
+                this.displayScore();
+                return;
+            }
+            
+            const dayData = this.lessonPlan[dayId];
+            const container = document.getElementById('day-content-container');
+            container.innerHTML = `
+                <div class="slide-content">
+                    <h3 class="text-2xl font-bold text-slate-800">${dayData.title}</h3>
+                    <p class="text-slate-500 my-4">Ready to test your skills? Choose an activity.</p>
+                    <div class="flex flex-col md:flex-row gap-4 justify-center">
+                        <button id="start-lesson-btn" class="btn w-full md:w-auto bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-lg text-lg">Start Lesson (I Do, We Do)</button>
+                        <button id="start-practice-btn" class="btn w-full md:w-auto bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-8 rounded-lg text-lg">Go to Practice Center</button>
+                        <button id="start-test-btn" class="btn w-full md:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg text-lg">Take the Test</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('start-lesson-btn').addEventListener('click', () => this.startLesson());
+            document.getElementById('start-test-btn').addEventListener('click', () => this.startTest());
+            document.getElementById('start-practice-btn').addEventListener('click', () => this.startPractice());
+            
+            this.syncPush();
+        },
+
+        navigateTo(viewName) {
+            if (this._isApplyingRemote && this.currentView === viewName) return;
+            this.currentView = viewName;
+            const allViews = ['home', 'lesson', 'test', 'practice', 'confirmation', 'score'];
+            allViews.forEach(v => this.views[v]?.classList.add('hidden'));
+
+            if (this.views[viewName]) {
+                 this.views[viewName].classList.remove('hidden');
+            }
+            
+            if (viewName === 'home') {
+                this.selectDay(this.currentDay);
+            }
+            
+            this.views.homeBtn.classList.toggle('hidden', viewName === 'home');
+            this.syncPush();
+        },
+        
+        // LESSON LOGIC
+        startLesson() {
+            this.currentLessonSlideIndex = 0;
+            this.currentWeDoStep = 0;
+            this.navigateTo('lesson');
+            this.renderLessonSlide();
+        },
+
+        renderLessonSlide() {
+            const dayData = this.lessonPlan[this.currentDay];
+            const slideData = dayData.lesson[this.currentLessonSlideIndex];
+            let content = `<div class="bg-white p-6 rounded-xl shadow-lg slide-content">`;
+            content += this.renderProgressBar(this.currentLessonSlideIndex + 1, dayData.lesson.length, `Day ${this.currentDay.slice(-1)} Lesson`);
+
+            if (slideData.type === 'ido') {
+                content += this.renderIDoSlide(slideData);
+            } else {
+                content += this.renderWeDoSlide(slideData);
+            }
+
+            const isFirst = this.currentLessonSlideIndex === 0;
+            const isLast = this.currentLessonSlideIndex === dayData.lesson.length - 1;
+            content += `<div class="mt-8 flex justify-between items-center"><button id="prev-lesson-btn" class="btn bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg ${isFirst ? 'invisible' : ''}">Previous</button><button id="${isLast ? 'finish-lesson-btn' : 'next-lesson-btn'}" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">${isLast ? 'Finish Lesson' : 'Next'}</button></div>`;
+            content += '</div>';
+
+            this.views.lesson.innerHTML = content;
+            
+            document.getElementById('next-lesson-btn')?.addEventListener('click', () => this.navigateLesson(1));
+            document.getElementById('prev-lesson-btn')?.addEventListener('click', () => this.navigateLesson(-1));
+            document.getElementById('finish-lesson-btn')?.addEventListener('click', () => this.navigateTo('home'));
+            document.getElementById('check-wedo-btn')?.addEventListener('click', () => this.checkWeDoAnswer());
+            document.querySelectorAll('.wedo-option-btn')?.forEach(btn => btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.wedo-option-btn').forEach(b => b.classList.remove('selected'));
+                e.currentTarget.classList.add('selected');
+            }));
+            this.updateNavControlsForSync();
+        },
+
+        renderIDoSlide(slideData) {
+            let html = `<h2 class="text-xl font-bold mb-4">I Do: Let's learn together!</h2>`;
+            html += `<div class="bg-blue-50 p-6 rounded-lg mb-6"><p class="text-lg text-slate-700">${slideData.story}</p></div>`;
+            slideData.steps.forEach(step => {
+                html += `<div class="lesson-step-box"><h3 class="font-bold text-blue-700">${step.title}</h3><p class="text-slate-600 mt-1">${step.text}</p></div>`;
+            });
+            return html;
+        },
+
+        renderWeDoSlide(slideData) {
+            let html = `<h2 class="text-xl font-bold mb-4">We Do: Let's try it!</h2>`;
+            html += `<div class="bg-yellow-50 p-6 rounded-lg mb-6"><p class="text-lg text-slate-700">${slideData.story}</p></div>`;
+            
+            if (this.currentWeDoStep >= 0) {
+                const check = slideData.story_check;
+                html += `<div class="lesson-step-box"><h3 class="font-bold text-blue-700">1. Understand the Story</h3>`;
+                if (this.currentWeDoStep === 0) {
+                    html += `<p class="mt-1 mb-3">${check.question}</p><div class="space-y-2">`;
+                    check.options.forEach(opt => {
+                        html += `<button class="wedo-option-btn option-btn text-left w-full p-3 rounded-lg bg-slate-100 hover:bg-slate-200">${opt}</button>`;
+                    });
+                    html += `</div>`;
+                } else {
+                     html += `<p class="mt-1 text-green-700">✓ Correctly identified the story action.</p>`;
+                }
+                html += `</div>`;
+            }
+
+             if (this.currentWeDoStep >= 1) {
+                const check = slideData.sentence_check;
+                html += `<div class="lesson-step-box"><h3 class="font-bold text-blue-700">2. Write the Number Sentence</h3>`;
+                if (this.currentWeDoStep === 1) {
+                    html += `<p class="mt-1 mb-3">${check.prompt}</p><input id="wedo-input" type="text" class="font-mono p-2 border rounded-lg w-full" placeholder="e.g., 100 + 50 = ?">`;
+                } else {
+                    html += `<p class="mt-1 text-green-700">✓ Number sentence: <strong class="font-mono">${slideData.sentence_check.answer.replace('?', slideData.answer_check.answer)}</strong></p>`;
+                }
+                html += `</div>`;
+            }
+
+            if (this.currentWeDoStep >= 2) {
+                const check = slideData.answer_check;
+                html += `<div class="lesson-step-box"><h3 class="font-bold text-blue-700">3. Find the Answer</h3>`;
+                 if (this.currentWeDoStep === 2) {
+                    html += `<p class="mt-1 mb-3">${check.prompt}</p><input id="wedo-input" type="number" class="font-mono p-2 border rounded-lg w-full">`;
+                } else {
+                    html += `<p class="mt-1 text-green-700">✓ Great job! You solved it.</p>`;
+                }
+                html += `</div>`;
+            }
+
+            html += `<div id="feedback-container" class="h-10 mt-4 text-lg font-semibold"></div>`;
+            if (this.currentWeDoStep < 3) {
+                 html += `<div class="text-center mt-4"><button id="check-wedo-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">Check Step</button></div>`;
+            }
+
+            return html;
+        },
+        
+        checkWeDoAnswer() {
+            const dayData = this.lessonPlan[this.currentDay];
+            const slideData = dayData.lesson[this.currentLessonSlideIndex];
+            const feedback = document.getElementById('feedback-container');
+            let isCorrect = false;
+
+            if (this.currentWeDoStep === 0) {
+                const selected = document.querySelector('.wedo-option-btn.selected');
+                if (selected && selected.textContent === slideData.story_check.answer) {
+                    isCorrect = true;
+                }
+            } else if (this.currentWeDoStep === 1) {
+                const input = document.getElementById('wedo-input').value.replace(/\s/g, ''); // remove spaces
+                const answer = slideData.sentence_check.answer.replace(/\s/g, '');
+                if (input === answer) {
+                    isCorrect = true;
+                }
+            } else if (this.currentWeDoStep === 2) {
+                 const input = document.getElementById('wedo-input').value;
+                 if (input == slideData.answer_check.answer) {
+                    isCorrect = true;
+                 }
+            }
+
+            if (isCorrect) {
+                this.currentWeDoStep++;
+                this.renderLessonSlide();
+            } else {
+                feedback.textContent = "Not quite, try that step again!";
+                feedback.className = "h-10 mt-4 text-lg font-semibold text-red-600 text-center";
+            }
+        },
+
+        navigateLesson(direction) {
+            this.currentLessonSlideIndex += direction;
+            this.currentWeDoStep = 0;
+            this.renderLessonSlide();
+            this.syncPush();
+        },
+
+        // TEST LOGIC
+        startTest() {
+            this.currentQuestionIndex = 0;
+            this.navigateTo('test');
+            this.renderTestQuestion();
+        },
+
+        renderTestQuestion() {
+            const dayData = this.lessonPlan[this.currentDay];
+            const question = dayData.assessment[this.currentQuestionIndex];
+            const savedAnswer = this.studentAnswers[this.currentDay][question.id];
+            let content = `<div class="bg-white p-6 rounded-xl shadow-lg slide-content">`;
+            content += this.renderProgressBar(this.currentQuestionIndex + 1, dayData.assessment.length, `Day ${this.currentDay.slice(-1)} Question`);
+            
+            content += `<div class="grid grid-cols-1 md:grid-cols-2 gap-8">`;
+            
+            let leftColumn = `<div class="bg-blue-50 p-6 rounded-lg"><h3 class="font-bold text-lg mb-2 text-blue-700">Problem Information</h3><p class="text-slate-600">Read the problem on the right carefully.</p></div>`;
+            if (question.type === 'ebsr') {
+                 leftColumn = `<div class="bg-blue-50 p-6 rounded-lg"><h3 class="font-bold text-lg mb-2 text-blue-700">Word Problem</h3><p class="text-slate-600 text-lg leading-relaxed">${question.partA.question}</p></div>`;
+            }
+            content += leftColumn;
+            
+            let rightColumn = '<div>';
+            switch (question.type) {
+                case 'mcq': rightColumn += this.renderMCQ(question, savedAnswer); break;
+                case 'ebsr': rightColumn += this.renderEBSR(question, savedAnswer); break;
+                case 'msq': rightColumn += this.renderMSQ(question, savedAnswer); break;
+            }
+            rightColumn += '</div>';
+            content += rightColumn;
+
+            content += '</div>';
+            content += this.renderNavigation(dayData.assessment.length);
+            content += '</div>';
+            this.views.test.innerHTML = content;
+            this.addQuestionEventListeners();
+            this.updateNavControlsForSync();
+        },
+
+        renderMCQ(q, saved) { let html = `<h3 class="font-semibold text-xl mb-4">${q.question}</h3><div class="space-y-3">`; q.options.forEach(opt => { const selectedClass = saved === opt ? 'selected' : ''; html += `<button data-question-id="${q.id}" data-answer="${opt}" class="option-btn text-left w-full p-4 rounded-lg bg-slate-100 hover:bg-slate-200 ${selectedClass}">${opt}</button>`; }); return html + '</div>'; },
+        renderEBSR(q, saved) { let html = `<div class="space-y-6"><div><h3 class="font-semibold text-lg mb-3">Part A</h3><div class="space-y-2">`; q.partA.options.forEach(opt => { const selectedClass = saved && saved.partA === opt ? 'selected' : ''; html += `<button data-question-id="${q.id}" data-part="partA" data-answer="${opt}" class="option-btn text-left w-full p-3 rounded-lg bg-slate-100 hover:bg-slate-200 ${selectedClass}">${opt}</button>`; }); html += `</div></div><div><h3 class="font-semibold text-lg mb-3">Part B</h3><div class="space-y-2">`; q.partB.options.forEach(opt => { const selectedClass = saved && saved.partB === opt ? 'selected' : ''; html += `<button data-question-id="${q.id}" data-part="partB" data-answer="${opt}" class="option-btn text-left w-full p-3 rounded-lg bg-slate-100 hover:bg-slate-200 ${selectedClass}">${opt}</button>`; }); html += `</div></div></div>`; return html; },
+        renderMSQ(q, saved) { saved = saved || []; let html = `<h3 class="font-semibold text-xl mb-4">${q.question}</h3><div class="space-y-3">`; q.options.forEach(opt => { const selectedClass = saved.includes(opt) ? 'selected' : ''; html += `<button data-question-id="${q.id}" data-answer="${opt}" class="option-btn text-left w-full p-4 rounded-lg bg-slate-100 hover:bg-slate-200 ${selectedClass}">${opt}</button>`; }); return html + '</div>'; },
+        renderNavigation(totalQuestions) { const isFirst = this.currentQuestionIndex === 0; const isLast = this.currentQuestionIndex === totalQuestions - 1; return `<div class="mt-8 flex justify-between items-center"><button id="prev-btn" class="btn bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg ${isFirst ? 'invisible' : ''}">Previous</button><button id="${isLast ? 'finish-btn' : 'next-btn'}" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">${isLast ? 'Finish' : 'Next'}</button></div>`; },
+        
+        addQuestionEventListeners() {
+            document.querySelectorAll('#test-view button[data-question-id]').forEach(btn => btn.addEventListener('click', e => this.handleAnswer(e.currentTarget)));
+            document.getElementById('next-btn')?.addEventListener('click', () => this.navigateQuestion(1));
+            document.getElementById('prev-btn')?.addEventListener('click', () => this.navigateQuestion(-1));
+            document.getElementById('finish-btn')?.addEventListener('click', () => this.renderConfirmation());
+        },
+
+        handleAnswer(element) {
+            const qId = element.dataset.questionId;
+            const question = this.lessonPlan[this.currentDay].assessment.find(q => q.id == qId);
+            switch(question.type) {
+                case 'mcq': this.studentAnswers[this.currentDay][qId] = element.dataset.answer; document.querySelectorAll(`#test-view button[data-question-id="${qId}"]`).forEach(b => b.classList.remove('selected')); element.classList.add('selected'); break;
+                case 'ebsr': if (!this.studentAnswers[this.currentDay][qId]) this.studentAnswers[this.currentDay][qId] = {}; this.studentAnswers[this.currentDay][qId][element.dataset.part] = element.dataset.answer; document.querySelectorAll(`#test-view button[data-question-id="${qId}"][data-part="${element.dataset.part}"]`).forEach(b => b.classList.remove('selected')); element.classList.add('selected'); break;
+                case 'msq': if (!this.studentAnswers[this.currentDay][qId]) this.studentAnswers[this.currentDay][qId] = []; const answer = element.dataset.answer; if (this.studentAnswers[this.currentDay][qId].includes(answer)) { this.studentAnswers[this.currentDay][qId] = this.studentAnswers[this.currentDay][qId].filter(a => a !== answer); element.classList.remove('selected'); } else { this.studentAnswers[this.currentDay][qId].push(answer); element.classList.add('selected'); } break;
+            }
+            this.saveProgress();
+        },
+
+        navigateQuestion(direction) { this.currentQuestionIndex += direction; this.renderTestQuestion(); this.syncPush(); },
+        renderConfirmation() { this.navigateTo('confirmation'); this.views.confirmation.innerHTML = `<div class="text-center bg-white p-8 rounded-xl shadow-lg"><h2 class="text-3xl font-bold mb-2">You've finished Day ${this.currentDay.slice(-1)}!</h2><p class="text-slate-600 mb-8">Ready to submit your findings for this day?</p><div class="flex flex-col md:flex-row gap-4 justify-center"><button id="review-answers-btn" class="btn bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg">Review Answers</button><button id="submit-for-grading-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg">Submit for Grading</button></div></div>`; document.getElementById('review-answers-btn').addEventListener('click', () => this.reviewAnswers()); document.getElementById('submit-for-grading-btn').addEventListener('click', () => this.submitForGrading()); this.updateNavControlsForSync(); },
+        reviewAnswers() { this.currentQuestionIndex = 0; this.navigateTo('test'); this.renderTestQuestion(); },
+        submitForGrading() { this.testLocked[this.currentDay] = true; this.saveProgress(); this.displayScore(); },
+
+        displayScore() {
+            const score = this.calculateScore();
+            const dayData = this.lessonPlan[this.currentDay];
+            this.navigateTo('score');
+            this.views.score.innerHTML = `<div class="text-center bg-white p-8 rounded-xl shadow-lg"><h2 class="text-3xl font-bold mb-2">Day ${this.currentDay.slice(-1)} Results</h2><p id="score-text" class="text-5xl font-bold text-blue-600 my-8">${score} / ${dayData.assessment.length}</p><p class="text-slate-600 mb-8">Great work, adventurer! You have completed this day's test.</p><div class="flex flex-col md:flex-row gap-4 justify-center"><button id="download-work-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg">Download All Work (HTML)</button><button id="download-pdf-btn" class="btn bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg">Download Day ${this.currentDay.slice(-1)} Report (PDF)</button></div><div class="mt-12"><a href="#" id="admin-reset-link" class="text-xs text-slate-400 hover:underline">Admin Reset</a></div></div>`;
+            document.getElementById('download-work-btn').addEventListener('click', () => this.downloadWork());
+            document.getElementById('download-pdf-btn').addEventListener('click', () => this.downloadPDF());
+            document.getElementById('admin-reset-link').addEventListener('click', (e) => { e.preventDefault(); this.adminReset(); });
+        },
+
+        calculateScore() { let score = 0; const dayData = this.lessonPlan[this.currentDay]; const dayAnswers = this.studentAnswers[this.currentDay]; dayData.assessment.forEach(q => { const saved = dayAnswers[q.id]; if (!saved) return; let isCorrect = false; switch(q.type) { case 'mcq': isCorrect = saved === q.correctAnswer; break; case 'ebsr': isCorrect = saved.partA === q.partA.correctAnswer && saved.partB === q.partB.correctAnswer; break; case 'msq': isCorrect = saved.length === q.correctAnswers.length && saved.every(a => q.correctAnswers.includes(a)); break; } if (isCorrect) score++; }); return score; },
+        adminReset() { const password = prompt("Enter admin password:"); if (password === "2026") { localStorage.clear(); this.studentAnswers = { 'day-1': {}, 'day-2': {}, 'day-3': {} }; this.testLocked = { 'day-1': false, 'day-2': false, 'day-3': false }; window.location.reload(); } else if (password) { alert("Incorrect password."); } },
+        
+        // PRACTICE LOGIC
+        startPractice() { this.currentPracticeIndex = 0; this.practiceStreak = 0; this.navigateTo('practice'); this.renderPracticeActivity(); },
+        renderPracticeActivity() { const dayData = this.lessonPlan[this.currentDay]; const activity = dayData.practice[this.currentPracticeIndex]; const content = `<div class="bg-white p-6 rounded-xl shadow-lg slide-content max-w-2xl mx-auto">${this.renderProgressBar(this.currentPracticeIndex + 1, dayData.practice.length, `Day ${this.currentDay.slice(-1)} Problem`)}<div class="text-center"><p class="text-4xl font-mono mb-4">${activity.problem}</p><input id="practice-input" type="number" class="text-center text-2xl p-2 border-2 rounded-lg w-48 mx-auto" placeholder="Answer"><div id="feedback-container" class="h-10 mt-4 text-lg font-semibold"></div><div class="mt-4 flex gap-4 justify-center"><button id="check-answer-btn" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">Check Answer</button><button id="try-again-btn" class="btn hidden bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded-lg">Try Again</button><button id="next-practice-btn" class="btn hidden bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg">Next</button></div><div id="streak-counter" class="mt-6 font-bold text-orange-500 text-lg ${this.practiceStreak > 0 ? '' : 'invisible'}">Correct Streak: 🔥 ${this.practiceStreak}</div></div></div>`; this.views.practice.innerHTML = content; this.addPracticeEventListeners(); this.updateNavControlsForSync(); },
+        addPracticeEventListeners() { document.getElementById('check-answer-btn').addEventListener('click', () => this.checkPracticeAnswer()); document.getElementById('try-again-btn').addEventListener('click', () => this.tryAgainPractice()); document.getElementById('next-practice-btn').addEventListener('click', () => this.nextPractice()); },
+        checkPracticeAnswer() { const input = document.getElementById('practice-input'); const feedback = document.getElementById('feedback-container'); const userAnswer = input.value; const correctAnswer = this.lessonPlan[this.currentDay].practice[this.currentPracticeIndex].answer; const checkBtn = document.getElementById('check-answer-btn'); const tryAgainBtn = document.getElementById('try-again-btn'); const nextBtn = document.getElementById('next-practice-btn'); if (userAnswer == correctAnswer) { feedback.textContent = "Correct!"; feedback.className = "h-10 mt-4 text-lg font-semibold text-green-600"; input.disabled = true; checkBtn.classList.add('hidden'); nextBtn.classList.remove('hidden'); tryAgainBtn.classList.add('hidden'); this.practiceStreak++; } else { feedback.textContent = "Not quite, please try again."; feedback.className = "h-10 mt-4 text-lg font-semibold text-red-600"; checkBtn.classList.add('hidden'); tryAgainBtn.classList.remove('hidden'); nextBtn.classList.add('hidden'); this.practiceStreak = 0; } document.getElementById('streak-counter').innerHTML = `Correct Streak: 🔥 ${this.practiceStreak}`; document.getElementById('streak-counter').classList.toggle('invisible', this.practiceStreak === 0); this.updateNavControlsForSync(); },
+        tryAgainPractice() { const input = document.getElementById('practice-input'); const feedback = document.getElementById('feedback-container'); const checkBtn = document.getElementById('check-answer-btn'); const tryAgainBtn = document.getElementById('try-again-btn'); feedback.textContent = ""; input.disabled = false; input.value = ""; input.focus(); checkBtn.classList.remove('hidden'); tryAgainBtn.classList.add('hidden'); },
+        nextPractice() { const dayData = this.lessonPlan[this.currentDay]; if (this.currentPracticeIndex < dayData.practice.length - 1) { this.currentPracticeIndex++; this.renderPracticeActivity(); } else { alert(`You've completed Day ${this.currentDay.slice(-1)}'s practice!`); this.navigateTo('home'); this.selectDay(this.currentDay); } this.syncPush(); },
+        
+        // SYNC LOGIC
+        syncPush() {
+            if (this.role !== 'teacher' || !this.db || !this.room) return;
+            const syncToggle = document.getElementById('sync-toggle');
+
+            const state = {
+                day: this.currentDay,
+                view: this.currentView,
+                slide: 0,
+                allowFreeExplore: !syncToggle.checked,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            if (this.currentView === 'lesson') state.slide = this.currentLessonSlideIndex;
+            if (this.currentView === 'test') state.slide = this.currentQuestionIndex;
+            if (this.currentView === 'practice') state.slide = this.currentPracticeIndex;
+            
+            this.db.collection('rooms').doc(this.room).set(state, { merge: true })
+              .catch(error => console.error("Error writing to Firestore: ", error));
+        },
+
+        syncListen() {
+            if (this.role !== 'student' || !this.db || !this.room) return;
+            if (this.unsubscribeFirestore) this.unsubscribeFirestore(); // Ensure no multiple listeners
+
+            this.unsubscribeFirestore = this.db.collection('rooms').doc(this.room)
+              .onSnapshot(doc => {
+                  if (!doc.exists) {
+                      console.log("Room not yet created by teacher.");
+                      return;
+                  }
+                  
+                  this._isApplyingRemote = true;
+                  
+                  const data = doc.data();
+                  this.allowFreeExplore = data.allowFreeExplore;
+                  this.updateNavControlsForSync();
+
+                  if (!this.allowFreeExplore) {
+                      // Apply day
+                      if (this.currentDay !== data.day) {
+                          this.currentDay = data.day;
+                      }
+
+                      // Apply slide index based on view
+                      if (data.view === 'lesson' && this.currentLessonSlideIndex !== data.slide) {
+                          this.currentLessonSlideIndex = data.slide;
+                      } else if (data.view === 'test' && this.currentQuestionIndex !== data.slide) {
+                          this.currentQuestionIndex = data.slide;
+                      } else if (data.view === 'practice' && this.currentPracticeIndex !== data.slide) {
+                          this.currentPracticeIndex = data.slide;
+                      }
+
+                      // Apply view
+                      if (this.currentView !== data.view) {
+                          this.currentView = data.view;
+                          this.refreshViewBasedOnState();
+                      } else {
+                           this.refreshViewBasedOnState(true); // Re-render current view with new slide index
+                      }
+                  }
+                  
+                  this._isApplyingRemote = false;
+              }, error => console.error("Error listening to Firestore: ", error));
+        },
+        
+        refreshViewBasedOnState(forceRender = false) {
+             // Hide all views first
+             ['home', 'lesson', 'test', 'practice', 'confirmation', 'score'].forEach(v => this.views[v]?.classList.add('hidden'));
+             this.views[this.currentView].classList.remove('hidden');
+
+            switch(this.currentView) {
+                case 'home': this.selectDay(this.currentDay); break;
+                case 'lesson': if (forceRender) this.renderLessonSlide(); break;
+                case 'test': if (forceRender) this.renderTestQuestion(); break;
+                case 'practice': if(forceRender) this.renderPracticeActivity(); break;
+                case 'confirmation': if(forceRender) this.renderConfirmation(); break;
+                case 'score': if(forceRender) this.displayScore(); break;
+            }
+             this.views.homeBtn.classList.toggle('hidden', this.currentView === 'home');
+        },
+
+        updateNavControlsForSync() {
+            if (this.role !== 'student') return;
+
+            const shouldDisable = !this.allowFreeExplore;
+            const allNavButtons = document.querySelectorAll('.day-tab, #home-btn, #start-lesson-btn, #start-practice-btn, #start-test-btn, #prev-lesson-btn, #next-lesson-btn, #finish-lesson-btn, #prev-btn, #next-btn, #finish-btn, #review-answers-btn, #next-practice-btn');
+            
+            allNavButtons.forEach(btn => {
+                btn.disabled = shouldDisable;
+                if(shouldDisable) {
+                    btn.style.pointerEvents = 'none';
+                    btn.style.opacity = '0.6';
+                } else {
+                    btn.style.pointerEvents = 'auto';
+                    btn.style.opacity = '1';
+                }
+            });
+        },
+
+        // UTILITIES
+        renderProgressBar(current, total, label) { const percentage = (current / total) * 100; return `<div class="mb-6"><div class="flex justify-between items-center mb-1"><span class="text-sm font-semibold text-slate-600">${label} ${current} of ${total}</span><span class="text-sm font-semibold text-blue-600">${Math.round(percentage)}%</span></div><div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${percentage}%"></div></div></div>`; },
+        saveProgress() { const progress = { studentAnswers: this.studentAnswers, testLocked: this.testLocked }; localStorage.setItem('mathAdventureProgress', JSON.stringify(progress)); },
+        loadProgress() { const progressDataScript = document.getElementById('progress-data'); let dataToLoad = null; if (progressDataScript && progressDataScript.textContent.trim()) { try { dataToLoad = JSON.parse(progressDataScript.textContent); this.saveProgress(); } catch (e) { console.error("Error parsing progress data from script tag:", e); } } else { const savedProgress = localStorage.getItem('mathAdventureProgress'); if (savedProgress) { dataToLoad = JSON.parse(savedProgress); } } if(dataToLoad) { this.studentAnswers = dataToLoad.studentAnswers || { 'day-1': {}, 'day-2': {}, 'day-3': {} }; this.testLocked = dataToLoad.testLocked || { 'day-1': false, 'day-2': false, 'day-3': false }; } },
+        downloadWork() { const currentHtml = document.documentElement.outerHTML; const progressJson = JSON.stringify({ studentAnswers: this.studentAnswers, testLocked: this.testLocked }); const updatedHtml = currentHtml.replace(/<script id="progress-data" type="application\/json">.*?<\/script>/,`<script id="progress-data" type="application/json">${progressJson}<\/script>`); const blob = new Blob([updatedHtml], { type: 'text/html' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'my-3-day-math-adventure.html'; document.body.appendChild(a); a.click(); document.body.removeChild(a); },
+        async downloadPDF() { const loadingSpinner = document.getElementById('loading-spinner'); loadingSpinner.classList.remove('hidden'); const { jsPDF } = window.jspdf; const pdf = new jsPDF({ orientation: 'p', unit: 'px', format: 'a4' }); const pdfWidth = pdf.internal.pageSize.getWidth(); const dayData = this.lessonPlan[this.currentDay]; for (let i = 0; i < dayData.assessment.length; i++) { const question = dayData.assessment[i]; const clone = this.createPrintableClone(question); document.body.appendChild(clone); const canvas = await html2canvas(clone, { scale: 2 }); const imgData = canvas.toDataURL('image/png'); const imgProps = pdf.getImageProperties(imgData); const imgHeight = (imgProps.height * pdfWidth) / imgProps.width; if (i > 0) pdf.addPage(); pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight); document.body.removeChild(clone); } pdf.save(`math-adventure-day-${this.currentDay.slice(-1)}-report.pdf`); loadingSpinner.classList.add('hidden'); },
+        createPrintableClone(question) { const container = document.createElement('div'); container.className = 'pdf-clone-container'; container.style.width = '450px'; const savedAnswer = this.studentAnswers[this.currentDay][question.id]; let content = `<h2 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; color: #2563eb;">Day ${this.currentDay.slice(-1)} Report</h2><h3 style="font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem;">Question ${question.id}:</h3>`; switch(question.type) { case 'mcq': content += `<p style="margin-bottom: 1rem;">${question.question}</p>`; question.options.forEach(opt => { const style = (savedAnswer === opt) ? 'background-color: #dcfce7; font-weight: bold; border: 1px solid #22c55e;' : 'background-color: #f1f5f9;'; content += `<div style="${style} padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem;">${opt} ${savedAnswer === opt ? '<strong>(Selected)</strong>': ''}</div>`; }); break; case 'ebsr': content += `<p style="margin-bottom: 1rem;"><strong>Part A:</strong> ${question.partA.question}</p>`; question.partA.options.forEach(opt => { const style = (savedAnswer && savedAnswer.partA === opt) ? 'background-color: #dcfce7; font-weight: bold; border: 1px solid #22c55e;' : 'background-color: #f1f5f9;'; content += `<div style="${style} padding: 0.5rem; border-radius: 0.5rem; margin-bottom: 0.25rem;">${opt} ${savedAnswer && savedAnswer.partA === opt ? '<strong>(Selected)</strong>': ''}</div>`; }); content += `<p style="margin-top: 1.5rem; margin-bottom: 1rem;"><strong>Part B:</strong> ${question.partB.question}</p>`; question.partB.options.forEach(opt => { const style = (savedAnswer && savedAnswer.partB === opt) ? 'background-color: #dcfce7; font-weight: bold; border: 1px solid #22c55e;' : 'background-color: #f1f5f9;'; content += `<div style="${style} padding: 0.5rem; border-radius: 0.5rem; margin-bottom: 0.25rem;">${opt} ${savedAnswer && savedAnswer.partB === opt ? '<strong>(Selected)</strong>': ''}</div>`; }); break; case 'msq': content += `<p style="margin-bottom: 1rem;">${question.question}</p>`; question.options.forEach(opt => { const isSelected = savedAnswer && savedAnswer.includes(opt); const style = isSelected ? 'background-color: #dcfce7; font-weight: bold; border: 1px solid #22c55e;' : 'background-color: #f1f5f9;'; content += `<div style="${style} padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem;">${opt} ${isSelected ? '<strong>(Selected)</strong>': ''}</div>`; }); break; } container.innerHTML = content; return container; },
+    };
+
+    // SETUP MODAL LOGIC
+    document.addEventListener('DOMContentLoaded', () => {
+        const roleRadios = document.querySelectorAll('input[name="role"]');
+        const passwordContainer = document.getElementById('teacher-password-container');
+        const startBtn = document.getElementById('start-lesson-session-btn');
+        const setupModal = document.getElementById('setup-modal');
+        const appContainer = document.getElementById('app');
+        const errorDiv = document.getElementById('setup-error');
+        
+        const sessionRole = localStorage.getItem('lessonRole');
+        const sessionRoom = localStorage.getItem('lessonRoom');
+        
+        if(sessionRole && sessionRoom) {
+            setupModal.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            firebase.auth().signInAnonymously().then(() => app.init()).catch(err => console.error(err));
+            return;
+        }
+
+        roleRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                passwordContainer.classList.toggle('hidden', e.target.value !== 'teacher');
+            });
+        });
+
+        startBtn.addEventListener('click', () => {
+            const role = document.querySelector('input[name="role"]:checked').value;
+            const roomName = document.getElementById('room-name').value.trim();
+            const password = document.getElementById('teacher-password').value;
+            errorDiv.textContent = '';
+
+            if (!roomName) {
+                errorDiv.textContent = 'Please enter a room name.';
+                return;
+            }
+
+            if (role === 'teacher' && password !== '2026') {
+                errorDiv.textContent = 'Incorrect teacher password.';
+                return;
+            }
+
+            localStorage.setItem('lessonRole', role);
+            localStorage.setItem('lessonRoom', roomName);
+
+            setupModal.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+
+            firebase.auth().signInAnonymously()
+                .then(() => {
+                    console.log('Signed in anonymously');
+                    app.init();
+                })
+                .catch((error) => {
+                    console.error("Anonymous sign-in failed: ", error);
+                    alert('Could not connect. Please check your connection and try again.');
+                });
+        });
+    });
+</script>
+
+</body>
+</html>
+
