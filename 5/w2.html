@@ -1,0 +1,1443 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4th Grade: Long Multiplication</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .slide-content {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .btn-primary {
+            @apply bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-transform transform hover:scale-105;
+        }
+        .btn-secondary {
+            @apply bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-600 transition-transform transform hover:scale-105;
+        }
+        .btn-disabled {
+            @apply bg-gray-300 text-gray-500 cursor-not-allowed;
+        }
+        .feedback-correct {
+            @apply text-green-600 font-bold;
+        }
+        .feedback-incorrect {
+            @apply text-red-600 font-bold;
+        }
+        #drawing-canvas {
+            touch-action: none;
+        }
+        /* Styles for PDF generation */
+        .print-container {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            width: 800px;
+            padding: 20px;
+            background-color: white;
+            color: black;
+        }
+        .print-question {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+        .print-selected {
+            background-color: #d3e3fd; /* Light blue highlight */
+            font-weight: bold;
+        }
+        .print-stimulus {
+            border: 1px solid #eee;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        /* Setup Modal Styles */
+        #setup-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        /* Sync Toggle Styles */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.mx-auto{margin-left:auto;margin-right:auto}.mb-4{margin-bottom:1rem}.mb-2{margin-bottom:0.5rem}.mb-8{margin-bottom:2rem}.mt-8{margin-top:2rem}.flex{display:flex}.grid{display:grid}.hidden{display:none}.min-h-screen{min-height:100vh}.max-w-7xl{max-width:80rem}.transform{transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.rounded-lg{border-radius:0.5rem}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-orange-400{--tw-bg-opacity:1;background-color:rgb(251 146 60 / var(--tw-bg-opacity, 1))}.bg-red-400{--tw-bg-opacity:1;background-color:rgb(248 113 113 / var(--tw-bg-opacity, 1))}.bg-yellow-400{--tw-bg-opacity:1;background-color:rgb(250 204 21 / var(--tw-bg-opacity, 1))}.p-4{padding:1rem}.p-6{padding:1.5rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.py-8{padding-top:2rem;padding-bottom:2rem}.text-center{text-align:center}.text-2xl{font-size:1.5rem;line-height:2rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-bold{font-weight:700}.text-blue-700{--tw-text-opacity:1;color:rgb(29 78 216 / var(--tw-text-opacity, 1))}.text-gray-800{--tw-text-opacity:1;color:rgb(31 41 55 / var(--tw-text-opacity, 1))}.text-blue-800{--tw-text-opacity:1;color:rgb(30 64 175 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-md{--tw-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.hover\:scale-105:hover{--tw-scale-x:1.05;--tw-scale-y:1.05;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.hover\:bg-orange-500:hover{--tw-bg-opacity:1;background-color:rgb(249 115 22 / var(--tw-bg-opacity, 1))}.hover\:bg-red-500:hover{--tw-bg-opacity:1;background-color:rgb(239 68 68 / var(--tw-bg-opacity, 1))}.hover\:bg-yellow-500:hover{--tw-bg-opacity:1;background-color:rgb(234 179 8 / var(--tw-bg-opacity, 1))}@media (min-width: 768px){.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}}</style></head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Setup Modal -->
+    <div id="setup-modal">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md text-center">
+            <h2 class="text-2xl font-bold mb-6">Join a Classroom</h2>
+            <div class="mb-4">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Select your role:</label>
+                <div class="flex justify-center gap-4">
+                    <label><input type="radio" name="role" value="student" checked> Student</label>
+                    <label><input type="radio" name="role" value="teacher"> Teacher</label>
+                </div>
+            </div>
+            <div id="teacher-password-container" class="mb-4 hidden">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="teacher-password">Teacher Password</label>
+                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="teacher-password" type="password" placeholder="******************">
+            </div>
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="room-name">Room Name</label>
+                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="room-name" type="text" placeholder="e.g., class-a">
+            </div>
+            <p id="setup-error" class="text-red-500 text-xs italic mb-4 h-4"></p>
+            <button id="start-lesson-btn" class="btn-primary w-full">Start Lesson</button>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div id="app" class="max-w-7xl mx-auto p-4 hidden">
+        
+        <!-- Header -->
+        <header id="header" class="hidden bg-white shadow-md rounded-lg p-4 mb-4 flex justify-between items-center flex-wrap gap-4">
+            <h1 class="text-2xl font-bold text-blue-700">Calculation Construction Crew</h1>
+            <div class="flex items-center gap-4">
+                <div id="teacher-sync-container" class="hidden items-center gap-2">
+                    <span class="font-semibold">Sync:</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sync-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="role-room-badge" class="bg-gray-200 text-gray-700 text-sm font-semibold px-3 py-1 rounded-full"></div>
+                <button id="change-role-room-btn" class="text-sm text-blue-600 hover:underline">Change</button>
+                <button id="home-btn" class="btn-secondary">Home</button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="bg-white shadow-lg rounded-lg p-6 min-h-screen">
+             <!-- Initial content is loaded by JS -->
+        </main>
+
+    </div>
+
+    <!-- Hidden PDF Generation Container -->
+    <div id="pdf-container" class="print-container"></div>
+
+
+    <!-- INSTRUCTIONAL BLUEPRINT & APP LOGIC -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- FIREBASE & SYNC STATE --- //
+            let db, auth, unsubscribe;
+            let userRole, roomName;
+            let _isApplyingRemote = false; // Flag to prevent sync loops
+            const firebaseConfig = {
+                apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+                authDomain: "lesson-sync-a223a.firebaseapp.com",
+                projectId: "lesson-sync-a223a",
+                storageBucket: "lesson-sync-a223a.firebasestorage.app",
+                messagingSenderId: "906128715071",
+                appId: "1:906128715071:web:347ea08f4d864fde02778a"
+            };
+
+            // --- STATE MANAGEMENT --- //
+            const appState = {
+                currentView: 'home',
+                currentDay: null,
+                currentMode: null, // 'i-do', 'we-do', 'practice', 'test'
+                currentSlideIndex: 0,
+                studentAnswers: {},
+                testLocked: false,
+                finalScore: null,
+                contentData: null,
+                weDoHistory: {},
+                allowFreeExplore: false,
+            };
+
+            // --- DOM ELEMENTS --- //
+            const mainContent = document.getElementById('main-content');
+            const header = document.getElementById('header');
+            const homeBtn = document.getElementById('home-btn');
+            const appContainer = document.getElementById('app');
+            const setupModal = document.getElementById('setup-modal');
+            const startLessonBtn = document.getElementById('start-lesson-btn');
+            const roleRadios = document.querySelectorAll('input[name="role"]');
+            const teacherPasswordContainer = document.getElementById('teacher-password-container');
+            const changeRoleRoomBtn = document.getElementById('change-role-room-btn');
+            const roleRoomBadge = document.getElementById('role-room-badge');
+            const teacherSyncContainer = document.getElementById('teacher-sync-container');
+            const syncToggle = document.getElementById('sync-toggle');
+
+
+            // --- INSTRUCTIONAL CONTENT (BLUEPRINT) --- //
+            
+            const instructionalBlueprint = {
+                day1: {
+                    title: "Day 1: Multiplying 2-Digit by 1-Digit Numbers",
+                    i_do: [
+                        { type: 'instruction', title: 'I Do: The Long Multiplication Algorithm', content: `
+                            <p class="mb-4">Welcome, Crew! Today, we're learning a powerful tool called the <strong>long multiplication algorithm</strong>. An <strong>algorithm</strong> is just a set of steps to solve a problem. Let's build our first problem: <strong>34 x 2</strong>.</p>
+                            <div class="bg-gray-100 p-4 rounded-lg text-center text-3xl font-mono">
+                                <p class="text-right">34</p>
+                                <p class="text-right border-b-2 border-gray-500">x  2</p>
+                            </div>
+                            <p class="mt-4"><strong>Step 1: Multiply the ones.</strong> We multiply the bottom ones digit (2) by the top ones digit (4).  2 x 4 = 8. We write the 8 in the ones place.</p>
+                             <div class="bg-blue-100 p-4 rounded-lg text-center text-3xl font-mono">
+                                <p class="text-right">3<span class="text-blue-500">4</span></p>
+                                <p class="text-right border-b-2 border-gray-500">x  <span class="text-blue-500">2</span></p>
+                                <p class="text-right">  <span class="text-blue-500 font-bold">8</span></p>
+                            </div>` },
+                        { type: 'instruction', title: 'I Do: Finishing the Problem', content: `
+                            <p class="mb-4">Now we handle the tens place. This is where we see <strong>decomposition</strong> in action. We are breaking the number 34 into 30 and 4.</p>
+                            <p class="mt-4"><strong>Step 2: Multiply the tens.</strong> We multiply the bottom ones digit (2) by the top tens digit (3).  2 x 3 = 6. This '3' really means 30, so 2 x 30 = 60. We write the 6 in the tens place.</p>
+                            <div class="bg-green-100 p-4 rounded-lg text-center text-3xl font-mono">
+                                <p class="text-right"><span class="text-green-500">3</span>4</p>
+                                <p class="text-right border-b-2 border-gray-500">x  <span class="text-green-500">2</span></p>
+                                <p class="text-right"><span class="text-green-500 font-bold">6</span>8</p>
+                            </div>
+                            <p class="mt-4">So, <strong>34 x 2 = 68</strong>. Great work, crew!</p>` },
+                    ],
+                    we_do: [
+                        { type: 'interactive-step', problem: '42 x 3', question: 'First, what is 3 x 2?', answer: '6', stepType: 'digit' },
+                        { type: 'interactive-step', problem: '42 x 3', question: 'Great! Now, what is 3 x 4?', answer: '12', stepType: 'digit' },
+                        { type: 'interactive-step', problem: '42 x 3', question: 'So, 42 x 3 = 126. You got it!', final: true },
+
+                        { type: 'interactive-step', problem: '56 x 4', question: 'Okay, new problem! 4 x 6 = 24. What digit goes in the ones place?', answer: '4', stepType: 'digit', carryValue: '2' },
+                        { type: 'interactive-step', problem: '56 x 4', question: 'Perfect. Now, what is (4 x 5) + 2?', answer: '22', stepType: 'digit' },
+                        { type: 'interactive-step', problem: '56 x 4', question: 'So, 56 x 4 = 224. Awesome!', final: true },
+
+                        { type: 'interactive-step', problem: '78 x 5', question: 'Last one! 5 x 8 = 40. What digit goes in the ones place?', answer: '0', stepType: 'digit', carryValue: '4' },
+                        { type: 'interactive-step', problem: '78 x 5', question: 'Great! Now, what is (5 x 7) + 4?', answer: '39', stepType: 'digit' },
+                        { type: 'interactive-step', problem: '78 x 5', question: 'So, 78 x 5 = 390. You are a pro!', final: true },
+                    ],
+                    practice: Array.from({ length: 10 }, (_, i) => {
+                        const num1 = Math.floor(Math.random() * 89) + 10;
+                        const num2 = Math.floor(Math.random() * 8) + 2;
+                        return { type: 'drill', problem: `${num1} x ${num2}`, answer: (num1 * num2).toString() };
+                    }),
+                    test: [
+                        {
+                            id: 'd1q1',
+                            type: 'multiple-choice',
+                            dok: 1,
+                            question: 'Solve: 53 x 3',
+                            options: ['150', '153', '159', '169'],
+                            answer: '159'
+                        },
+                        {
+                            id: 'd1q2',
+                            type: 'fill-in-the-blank',
+                            dok: 2,
+                            question: 'A baker makes 24 cupcakes. If he needs to make 4 times that amount for a party, how many cupcakes does he need in total?',
+                            answer: '96'
+                        },
+                        {
+                            id: 'd1q3',
+                            type: 'multi-select',
+                            dok: 2,
+                            question: 'Which of the following expressions are equal to 120? Select all that apply.',
+                            options: ['60 x 2', '30 x 3', '40 x 3', '24 x 5'],
+                            answer: ['60 x 2', '40 x 3', '24 x 5']
+                        },
+                        {
+                            id: 'd1q4',
+                            type: 'ebsr',
+                            dok: 3,
+                            question: `
+                                <strong>Part A:</strong> Which number sentence is true?<br>
+                                <div class="space-y-2 mt-2">
+                                    <label><input type="radio" name="d1q4_a" value="A"> 35 x 4 > 150</label><br>
+                                    <label><input type="radio" name="d1q4_a" value="B"> 28 x 5 = 140</label><br>
+                                    <label><input type="radio" name="d1q4_a" value="C"> 72 x 2 < 140</label>
+                                </div>
+                                <br>
+                                <strong>Part B:</strong> Which statement explains the correct answer for Part A?
+                                <div class="space-y-2 mt-2">
+                                    <label><input type="radio" name="d1q4_b" value="A"> 28 x 5 is 140 because (20 x 5) + (8 x 5) = 100 + 40.</label><br>
+                                    <label><input type="radio" name="d1q4_b" value="B"> 35 x 4 is 140, which is less than 150.</label><br>
+                                    <label><input type="radio" name="d1q4_b" value="C"> 72 x 2 is 144, which is greater than 140.</label>
+                                </div>`,
+                            answer: { partA: 'B', partB: 'A' }
+                        },
+                        {
+                            id: 'd1q5',
+                            type: 'multiple-choice',
+                            dok: 2,
+                            question: 'A farmer has 7 rows of corn. Each row has 45 stalks. How many corn stalks are there in total?',
+                            options: ['285', '305', '315', '350'],
+                            answer: '315'
+                        },
+                    ]
+                },
+                day2: {
+                    title: "Day 2: Multiplying 3-Digit by 1-Digit Numbers",
+                    i_do: [
+                        { type: 'instruction', title: 'I Do: Scaling Up the Algorithm', content: `
+                            <p class="mb-4">Great job yesterday! Today we're using the same <strong>algorithm</strong> for bigger numbers. Our real-world scenario: A school bought 4 boxes of pencils. Each box has 123 pencils. How many pencils in total? Let's solve <strong>123 x 4</strong>.</p>
+                            <div class="bg-gray-100 p-4 rounded-lg text-center text-3xl font-mono">
+                                <p class="text-right">123</p>
+                                <p class="text-right border-b-2 border-gray-500">x   4</p>
+                            </div>
+                            <p class="mt-4"><strong>Step 1: Multiply the ones.</strong> 4 x 3 = 12. Uh oh, that's a two-digit number! We write the 2 in the ones place and 'carry' the 1 to the tens place.</p>
+                             <div class="bg-blue-100 p-4 rounded-lg text-center text-3xl font-mono">
+                                <p class="text-right text-blue-500 font-bold text-xl"> 1</p>
+                                <p class="text-right">123</p>
+                                <p class="text-right border-b-2 border-gray-500">x   4</p>
+                                <p class="text-right">   <span class="font-bold">2</span></p>
+                            </div>` },
+                        { type: 'instruction', title: 'I Do: Carrying and Completing', content: `
+                            <p class="mb-4">We've handled the ones. Now for the rest, remembering our carried number.</p>
+                            <p class="mt-4"><strong>Step 2: Multiply the tens and add the carry.</strong> We multiply 4 x 2 = 8. Then, we add the 1 we carried over. 8 + 1 = 9. We write the 9 in the tens place.</p>
+                            <div class="bg-green-100 p-4 rounded-lg text-center text-3xl font-mono">
+                                <p class="text-right text-gray-400 font-bold text-xl"> <s>1</s></p>
+                                <p class="text-right">123</p>
+                                <p class="text-right border-b-2 border-gray-500">x   4</p>
+                                <p class="text-right">  <span class="text-green-500 font-bold">9</span>2</p>
+                            </div>
+                            <p class="mt-4"><strong>Step 3: Multiply the hundreds.</strong> Finally, we multiply 4 x 1 = 4. We write the 4 in the hundreds place.</p>
+                            <div class="bg-yellow-100 p-4 rounded-lg text-center text-3xl font-mono">
+                                <p class="text-right">123</p>
+                                <p class="text-right border-b-2 border-gray-500">x   4</p>
+                                <p class="text-right"><span class="text-yellow-700 font-bold">4</span>92</p>
+                            </div>
+                            <p class="mt-4">So, <strong>123 x 4 = 492</strong>. The school has 492 pencils!</p>` },
+                    ],
+                     we_do: [
+                        { type: 'interactive-step', problem: '215 x 3', question: 'First, 3 x 5 = 15. What digit goes in the ones place?', answer: '5', stepType: 'digit', carryValue: '1' },
+                        { type: 'interactive-step', problem: '215 x 3', question: 'Now, (3 x 1) + 1 = 4. What goes in the tens place?', answer: '4', stepType: 'digit' },
+                        { type: 'interactive-step', problem: '215 x 3', question: 'Perfect! Lastly, what is 3 x 2?', answer: '6', stepType: 'digit' },
+                        { type: 'interactive-step', problem: '215 x 3', question: 'The final answer is 645. Excellent work!', final: true },
+
+                        { type: 'interactive-step', problem: '342 x 6', question: 'Next up! 6 x 2 = 12. What digit for the ones place?', answer: '2', stepType: 'digit', carryValue: '1' },
+                        { type: 'interactive-step', problem: '342 x 6', question: '(6 x 4) + 1 = 25. What digit for the tens place?', answer: '5', stepType: 'digit', carryValue: '2' },
+                        { type: 'interactive-step', problem: '342 x 6', question: 'Finally, what is (6 x 3) + 2?', answer: '20', stepType: 'digit' },
+                        { type: 'interactive-step', problem: '342 x 6', question: 'The final answer is 2052. Fantastic!', final: true },
+
+                        { type: 'interactive-step', problem: '508 x 4', question: 'Here is a tricky one! 4 x 8 = 32. What goes in the ones place?', answer: '2', stepType: 'digit', carryValue: '3' },
+                        { type: 'interactive-step', problem: '508 x 4', question: 'Perfect. What is (4 x 0) + 3?', answer: '3', stepType: 'digit' },
+                        { type: 'interactive-step', problem: '508 x 4', question: 'Lastly, what is 4 x 5?', answer: '20', stepType: 'digit' },
+                        { type: 'interactive-step', problem: '508 x 4', question: 'The final answer is 2032. You mastered it!', final: true },
+                    ],
+                    practice: Array.from({ length: 10 }, (_, i) => {
+                        const num1 = Math.floor(Math.random() * 899) + 100;
+                        const num2 = Math.floor(Math.random() * 8) + 2;
+                        return { type: 'drill', problem: `${num1} x ${num2}`, answer: (num1 * num2).toString() };
+                    }),
+                    test: [
+                        { id: 'd2q1', type: 'multiple-choice', dok: 1, question: 'Solve: 345 x 5', options: ['1525', '1725', '1625', '1750'], answer: '1725' },
+                        { id: 'd2q2', type: 'fill-in-the-blank', dok: 2, question: 'A library has 115 books on each of its 6 shelves. How many books are there in total?', answer: '690' },
+                        { id: 'd2q3', type: 'multiple-choice', dok: 2, question: 'A concert hall has 258 seats in a section. If 3 sections are full, how many people are seated?', options: ['774', '674', '754', '768'], answer: '774' },
+                        { id: 'd2q4', type: 'ebsr', dok: 3, question: `
+                                <strong>Part A:</strong> An artist is making a mosaic with tiles. He uses 4 packets of tiles, and each packet contains 280 tiles. How many tiles does he use in total?<br>
+                                <div class="space-y-2 mt-2">
+                                    <label><input type="radio" name="d2q4_a" value="A"> 820</label><br>
+                                    <label><input type="radio" name="d2q4_a" value="B"> 1120</label><br>
+                                    <label><input type="radio" name="d2q4_a" value="C"> 1020</label>
+                                </div>
+                                <br>
+                                <strong>Part B:</strong> The artist realizes he needs more tiles. If he buys one more packet, which expression shows the total number of tiles he will have?<br>
+                                <div class="space-y-2 mt-2">
+                                    <label><input type="radio" name="d2q4_b" value="A"> 280 x 4</label><br>
+                                    <label><input type="radio" name="d2q4_b" value="B"> 280 x 5</label><br>
+                                    <label><input type="radio" name="d2q4_b" value="C"> 1120 - 280</label>
+                                </div>`,
+                            answer: { partA: 'B', partB: 'B' }
+                        },
+                        { id: 'd2q5', type: 'multi-select', dok: 2, question: 'Which expressions have a product greater than 1,000? Select all that apply.', options: ['500 x 2', '250 x 4', '330 x 3', '450 x 3'], answer: ['450 x 3'] }
+                    ]
+                },
+                day3: {
+                    title: "Day 3: Multiplying 2-Digit by 2-Digit Numbers",
+                    i_do: [
+                        { type: 'instruction', title: 'I Do: The Final Challenge', content: `
+                            <p class="mb-4">Crew, you're ready for the final level! We'll use everything we've learned to solve <strong>2-digit by 2-digit</strong> problems. The process is a combination of our skills. Let's solve <strong>24 x 13</strong>.</p>
+                            <p>This time, we use <strong>decomposition</strong> on the bottom number (13 becomes 10 and 3). We'll multiply 24 by 3, then multiply 24 by 10, and add the results.</p>
+                            <p class="mt-4"><strong>Step 1: Multiply by the ones digit (3).</strong> 3 x 24 = 72. This is just like our Day 1 problems!</p>
+                             <div class="bg-blue-100 p-4 rounded-lg text-center text-3xl font-mono">
+                                <p class="text-right">24</p>
+                                <p class="text-right border-b-2 border-gray-500">x 1<span class="text-blue-500">3</span></p>
+                                <p class="text-right"><span class="font-bold text-blue-500">72</span></p>
+                            </div>` },
+                        { type: 'instruction', title: 'I Do: The Tens Place and Summing Up', content: `
+                            <p class="mb-4">Now for the second part of our <strong>algorithm</strong>.</p>
+                            <p class="mt-4"><strong>Step 2: Multiply by the tens digit (1).</strong> The '1' is in the tens place, so it represents 10. Before we multiply, we put a <strong>zero placeholder</strong> in the ones place of our second line. Now we multiply 1 x 24 = 24.</p>
+                            <div class="bg-green-100 p-4 rounded-lg text-center text-3xl font-mono">
+                                <p class="text-right">24</p>
+                                <p class="text-right border-b-2 border-gray-500">x <span class="text-green-500">1</span>3</p>
+                                <p class="text-right">72</p>
+                                <p class="text-right"><span class="font-bold text-green-500">240</span></p>
+                            </div>
+                            <p class="mt-4"><strong>Step 3: Add the two products.</strong> We add our two results together: 72 + 240.</p>
+                            <div class="bg-yellow-100 p-4 rounded-lg text-center text-3xl font-mono">
+                                <p class="text-right">24</p>
+                                <p class="text-right">x 13</p>
+                                <p class="text-right border-t-2 border-gray-500"> 72</p>
+                                <p class="text-right">+ 240</p>
+                                <p class="text-right border-t-2 border-gray-500 font-bold text-yellow-700">312</p>
+                            </div>
+                            <p class="mt-4">Our final answer is <strong>24 x 13 = 312</strong>. You've mastered long multiplication!</p>` },
+                    ],
+                     we_do: [
+                        { type: 'canvas', problem: '32 x 21', question: 'Use the canvas below to solve the problem. Show your work!' },
+                        { type: 'canvas', problem: '45 x 12', question: 'Great job! Now try this one on the canvas.' },
+                        { type: 'canvas', problem: '63 x 33', question: 'Last one! Show all your steps on the canvas.' },
+                    ],
+                    practice: Array.from({ length: 10 }, (_, i) => {
+                        const num1 = Math.floor(Math.random() * 89) + 10;
+                        const num2 = Math.floor(Math.random() * 89) + 10;
+                        return { type: 'drill', problem: `${num1} x ${num2}`, answer: (num1 * num2).toString() };
+                    }),
+                    test: [
+                        { id: 'd3q1', type: 'multiple-choice', dok: 1, question: 'Solve: 45 x 23', options: ['935', '1005', '1035', '1135'], answer: '1035' },
+                        { id: 'd3q2', type: 'fill-in-the-blank', dok: 2, question: 'A movie theater sold 68 tickets for an afternoon show. If each ticket cost $12, how much money did the theater make?', answer: '816' },
+                        { id: 'd3q3', type: 'multiple-choice', dok: 2, question: 'A company packs 35 apples in each box. How many apples are in 25 boxes?', options: ['775', '825', '850', '875'], answer: '875' },
+                        { id: 'd3q4', type: 'ebsr', dok: 3, question: `
+                                <strong>Part A:</strong> To solve 56 x 34, a student first calculates 56 x 4 = 224. What is the next step in the standard algorithm?<br>
+                                <div class="space-y-2 mt-2">
+                                    <label><input type="radio" name="d3q4_a" value="A"> Calculate 56 x 3</label><br>
+                                    <label><input type="radio" name="d3q4_a" value="B"> Calculate 56 x 30</label><br>
+                                    <label><input type="radio" name="d3q4_a" value="C"> Add 224 + 56</label>
+                                </div>
+                                <br>
+                                <strong>Part B:</strong> What is the final product of 56 x 34?<br>
+                                <div class="space-y-2 mt-2">
+                                    <label><input type="radio" name="d3q4_b" value="A"> 1,904</label><br>
+                                    <label><input type="radio" name="d3q4_b" value="B"> 1,804</label><br>
+                                    <label><input type="radio" name="d3q4_b" value="C"> 392</label>
+                                </div>`,
+                            answer: { partA: 'B', partB: 'A' }
+                        },
+                        { id: 'd3q5', type: 'multi-select', dok: 2, question: 'Which products are less than 2,000? Select all that apply.', options: ['40 x 40', '50 x 45', '30 x 60', '80 x 25'], answer: ['40 x 40', '30 x 60'] }
+                    ]
+                }
+            };
+            appState.contentData = instructionalBlueprint;
+
+
+            // --- HYDRATION & INITIALIZATION --- //
+            function init() {
+                // Add event listeners for the setup modal
+                roleRadios.forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        teacherPasswordContainer.classList.toggle('hidden', e.target.value !== 'teacher');
+                    });
+                });
+                startLessonBtn.addEventListener('click', handleStartLesson);
+                changeRoleRoomBtn.addEventListener('click', handleRoleChange);
+                syncToggle.addEventListener('change', handleSyncToggle);
+
+                // Check for session info in localStorage
+                userRole = localStorage.getItem('userRole');
+                roomName = localStorage.getItem('roomName');
+
+                if (userRole && roomName) {
+                    startFirebaseSession();
+                } else {
+                    setupModal.style.display = 'flex';
+                    appContainer.classList.add('hidden');
+                }
+            }
+            
+            function handleStartLesson() {
+                const role = document.querySelector('input[name="role"]:checked').value;
+                const room = document.getElementById('room-name').value.trim();
+                const password = document.getElementById('teacher-password').value;
+                const errorEl = document.getElementById('setup-error');
+                
+                errorEl.textContent = '';
+
+                if (!room) {
+                    errorEl.textContent = 'Please enter a room name.';
+                    return;
+                }
+
+                if (role === 'teacher' && password !== '2026') {
+                    errorEl.textContent = 'Incorrect teacher password.';
+                    return;
+                }
+
+                userRole = role;
+                roomName = room;
+                localStorage.setItem('userRole', userRole);
+                localStorage.setItem('roomName', roomName);
+
+                setupModal.style.display = 'none';
+                appContainer.classList.remove('hidden');
+                startFirebaseSession();
+            }
+
+            function handleRoleChange() {
+                if (unsubscribe) {
+                    unsubscribe();
+                    unsubscribe = null;
+                }
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('roomName');
+                userRole = null;
+                roomName = null;
+                
+                // Reset UI to initial state
+                appContainer.classList.add('hidden');
+                header.classList.add('hidden');
+                setupModal.style.display = 'flex';
+                document.getElementById('room-name').value = '';
+                document.getElementById('teacher-password').value = '';
+                document.getElementById('setup-error').textContent = '';
+
+            }
+
+            function startFirebaseSession() {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                db = firebase.firestore();
+                auth = firebase.auth();
+
+                auth.signInAnonymously().then(() => {
+                    console.log('Firebase anonymous sign-in successful.');
+                    
+                    // Restore local progress first
+                    loadFromLocalStorage(); 
+                    
+                    // Update header and setup roles
+                    updateHeaderUI();
+                    
+                    if (userRole === 'teacher') {
+                        appState.allowFreeExplore = !syncToggle.checked;
+                        syncPushState(); // Initial push to create/update room
+                    } else { // Student
+                        syncListenState();
+                    }
+
+                    // Then render the UI based on restored/initial state
+                    if (appState.testLocked) {
+                        renderScoreScreen();
+                    } else {
+                        renderHome();
+                    }
+                     // Add universal event listeners that might have been blown away
+                    homeBtn.addEventListener('click', renderHome);
+                    document.getElementById('app').addEventListener('click', handleAppClick);
+
+
+                }).catch(error => {
+                    console.error("Firebase sign-in failed:", error);
+                    document.getElementById('main-content').innerHTML = `<p class="text-red-500">Error: Could not connect to the classroom sync service.</p>`;
+                });
+            }
+
+            function updateHeaderUI() {
+                roleRoomBadge.textContent = `${userRole.charAt(0).toUpperCase() + userRole.slice(1)} • Room: ${roomName}`;
+                teacherSyncContainer.classList.toggle('hidden', userRole !== 'teacher');
+                teacherSyncContainer.classList.toggle('flex', userRole === 'teacher');
+            }
+
+            // --- SYNC LOGIC --- //
+            
+            function handleSyncToggle() {
+                appState.allowFreeExplore = !syncToggle.checked;
+                syncPushState();
+            }
+
+            function syncPushState() {
+                if (userRole !== 'teacher' || !roomName) return;
+
+                const stateToSync = {
+                    view: appState.currentView,
+                    day: appState.currentDay,
+                    slide: appState.currentSlideIndex,
+                    mode: appState.currentMode,
+                    allowFreeExplore: appState.allowFreeExplore,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                db.collection('rooms').doc(roomName).set(stateToSync, { merge: true })
+                    .catch(console.error);
+            }
+
+            function syncListenState() {
+                if (unsubscribe) unsubscribe(); // remove old listener
+
+                unsubscribe = db.collection('rooms').doc(roomName).onSnapshot(doc => {
+                    if (!doc.exists) {
+                        console.log('Room does not exist yet.');
+                        return;
+                    }
+
+                    _isApplyingRemote = true;
+
+                    const data = doc.data();
+                    const isSyncOn = !data.allowFreeExplore;
+                    toggleNavControls(isSyncOn);
+
+                    if(isSyncOn) {
+                         // Apply teacher's state only if it has changed
+                        const hasChanged = appState.currentView !== data.view || 
+                                           appState.currentDay !== data.day ||
+                                           appState.currentMode !== data.mode ||
+                                           appState.currentSlideIndex !== data.slide;
+                        
+                        if(hasChanged) {
+                            appState.currentView = data.view;
+                            appState.currentDay = data.day;
+                            appState.currentMode = data.mode;
+                            appState.currentSlideIndex = data.slide || 0;
+                            
+                            // Navigate to the correct view
+                            if (appState.currentView === 'home') renderHome();
+                            else if (appState.currentView === 'day-menu') renderDayMenu();
+                            else if (appState.currentView === 'slide') renderSlide();
+                        }
+                    }
+
+                    setTimeout(() => { _isApplyingRemote = false; }, 50); // small delay to prevent loops
+                });
+            }
+            
+            function toggleNavControls(disabled) {
+                const navSelectors = [
+                    '#prev-btn',
+                    '#next-btn',
+                    '#finish-btn',
+                    '.day-btn',
+                    '.mode-btn',
+                    '#home-btn'
+                ].join(',');
+
+                document.querySelectorAll(navSelectors).forEach(el => {
+                    // When disabling, just disable everything in the nav list.
+                    if (disabled) {
+                        el.disabled = true;
+                        if (el.tagName === 'BUTTON') el.classList.add('btn-disabled');
+                        return; // Done with this element
+                    }
+
+                    // When enabling, we have a special case for the practice mode 'next' button.
+                    const isPracticeNextButton = el.id === 'next-btn' && appState.currentMode === 'practice';
+                    
+                    if (isPracticeNextButton) {
+                        // The 'check-answer-btn' is only present on practice slides.
+                        const checkAnswerBtn = document.getElementById('check-answer-btn');
+                        // If the check button exists and is NOT disabled, it means the user hasn't answered correctly yet.
+                        // In this case, we should NOT enable the 'next' button.
+                        if (checkAnswerBtn && !checkAnswerBtn.disabled) {
+                            return; // Skip re-enabling this specific button.
+                        }
+                    } 
+                    
+                    // For all other navigation buttons, or if the practice condition is met, enable them.
+                    el.disabled = false;
+                    if(el.tagName === 'BUTTON') el.classList.remove('btn-disabled');
+                });
+            }
+
+
+            function loadFromLocalStorage() {
+                const savedState = localStorage.getItem('mathAppProgress');
+                if (savedState) {
+                    try {
+                        const parsedState = JSON.parse(savedState);
+                        // Don't overwrite sync state with local state
+                        delete parsedState.allowFreeExplore; 
+                        Object.assign(appState, parsedState);
+                    } catch (e) {
+                        console.error("Failed to parse localStorage data:", e);
+                        resetState();
+                    }
+                }
+            }
+
+            function saveState() {
+                // Don't save firebase-controlled state locally for students
+                const stateToSave = { ...appState };
+                if (userRole === 'student') {
+                    delete stateToSave.allowFreeExplore;
+                }
+                try {
+                    localStorage.setItem('mathAppProgress', JSON.stringify(stateToSave));
+                } catch(e) {
+                    console.error("Could not save to localStorage:", e);
+                }
+            }
+
+            function resetState() {
+                appState.currentView = 'home';
+                appState.currentDay = null;
+                appState.currentMode = null;
+                appState.currentSlideIndex = 0;
+                appState.studentAnswers = {};
+                appState.testLocked = false;
+                appState.finalScore = null;
+                localStorage.removeItem('mathAppProgress');
+            }
+
+
+            // --- RENDERING LOGIC (with sync hooks) --- //
+            function renderHome() {
+                appState.currentView = 'home';
+                appState.currentDay = null;
+                appState.currentMode = null;
+                appState.currentSlideIndex = 0;
+                if(!_isApplyingRemote) syncPushState();
+                
+                header.classList.add('hidden');
+                mainContent.innerHTML = `
+                    <div class="text-center">
+                        <h1 class="text-4xl font-bold text-blue-800 mb-2">Calculation Construction Crew</h1>
+                        <p class="text-xl text-gray-600 mb-8">Building Strong Math Skills!</p>
+                        <div class="grid md:grid-cols-3 gap-6">
+                            <button data-day="day1" class="day-btn bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold py-8 px-6 rounded-lg shadow-lg text-2xl transition-transform transform hover:scale-105">Day 1: 2-Digit x 1-Digit</button>
+                            <button data-day="day2" class="day-btn bg-orange-400 hover:bg-orange-500 text-gray-800 font-bold py-8 px-6 rounded-lg shadow-lg text-2xl transition-transform transform hover:scale-105">Day 2: 3-Digit x 1-Digit</button>
+                            <button data-day="day3" class="day-btn bg-red-400 hover:bg-red-500 text-gray-800 font-bold py-8 px-6 rounded-lg shadow-lg text-2xl transition-transform transform hover:scale-105">Day 3: 2-Digit x 2-Digit</button>
+                        </div>
+                        <div class="mt-8 flex justify-center gap-4">
+                            <button id="download-work-btn" class="btn-primary">Download Work</button>
+                            <button id="download-pdf-btn" class="btn-secondary">Download Test Report as PDF</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function renderDayMenu() {
+                appState.currentView = 'day-menu';
+                if(!_isApplyingRemote) syncPushState();
+                
+                const dayData = appState.contentData[appState.currentDay];
+                header.classList.remove('hidden');
+                mainContent.innerHTML = `
+                    <div class="text-center">
+                        <h2 class="text-3xl font-bold mb-6">${dayData.title}</h2>
+                        <div class="flex flex-col items-center gap-4">
+                            <button data-mode="i_do" class="mode-btn btn-primary w-64">I Do (Instruction)</button>
+                            <button data-mode="we_do" class="mode-btn btn-primary w-64">We Do (Guided)</button>
+                            <button data-mode="practice" class="mode-btn btn-primary w-64">Practice Center</button>
+                            <button data-mode="test" class="mode-btn btn-primary w-64">Daily Test</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function renderSlide() {
+                saveState();
+                appState.currentView = 'slide';
+                 if(!_isApplyingRemote) syncPushState();
+
+                const dayData = appState.contentData[appState.currentDay];
+                const modeData = dayData[appState.currentMode];
+                const slide = modeData[appState.currentSlideIndex];
+                const totalSlides = modeData.length;
+                let contentHTML = '';
+
+                // Progress Bar
+                const progress = ((appState.currentSlideIndex + 1) / totalSlides) * 100;
+                let progressDisplayHTML = `
+                     <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                        <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${progress}%"></div>
+                    </div>`;
+
+                if (appState.currentMode === 'we_do' && slide.type === 'interactive-step') {
+                    const uniqueProblems = [...new Set(modeData.filter(s => s.problem).map(s => s.problem))];
+                    const totalQuestions = uniqueProblems.length;
+                    const currentProblem = slide.problem;
+                    const currentQuestionNum = uniqueProblems.indexOf(currentProblem) + 1;
+                    progressDisplayHTML += `<p class="text-right text-gray-500 mb-4">Question ${currentQuestionNum} of ${totalQuestions}</p>`;
+                } else if (appState.currentMode === 'practice' || appState.currentMode === 'test') {
+                     progressDisplayHTML += `<p class="text-right text-gray-500 mb-4">Question ${appState.currentSlideIndex + 1} of ${totalSlides}</p>`;
+                }
+
+                contentHTML += progressDisplayHTML;
+                
+                contentHTML += `<div class="slide-content">`;
+                switch(slide.type) {
+                    case 'instruction':
+                        contentHTML += `
+                            <h3 class="text-2xl font-bold mb-4">${slide.title}</h3>
+                            <div>${slide.content}</div>
+                        `;
+                        break;
+                    case 'interactive-step':
+                        contentHTML += renderInteractiveStep(slide);
+                        break;
+                    case 'canvas':
+                        contentHTML += renderCanvas(slide);
+                        break;
+                    case 'drill':
+                        contentHTML += renderDrill(slide);
+                        break;
+                    case 'multiple-choice':
+                    case 'fill-in-the-blank':
+                    case 'multi-select':
+                    case 'ebsr':
+                        contentHTML += renderTestQuestion(slide);
+                        break;
+                }
+                contentHTML += `</div>`; // close slide-content
+
+                // Navigation
+                contentHTML += `<div class="mt-8 flex justify-between items-center">`;
+                if (appState.currentSlideIndex > 0) {
+                    contentHTML += `<button id="prev-btn" class="btn-secondary">Previous</button>`;
+                } else {
+                    contentHTML += `<div></div>`; // for spacing
+                }
+                
+                // Navigation buttons for non-interactive slides
+                if (['instruction', 'canvas'].includes(slide.type) || (appState.currentMode === 'we_do' && slide.type === 'canvas')) {
+                     if (appState.currentSlideIndex < totalSlides - 1) {
+                        contentHTML += `<button id="next-btn" class="btn-primary">Next</button>`;
+                    } else {
+                        contentHTML += `<button id="finish-btn" class="btn-primary">Finish Lesson</button>`;
+                    }
+                }
+                // Navigation for Test slides
+                else if (appState.currentMode === 'test') {
+                     if (appState.currentSlideIndex < totalSlides - 1) {
+                        contentHTML += `<button id="next-btn" class="btn-primary">Next</button>`;
+                    } else {
+                        contentHTML += `<button id="finish-btn" class="btn-primary">Finish Test</button>`;
+                    }
+                }
+                contentHTML += `</div>`;
+                mainContent.innerHTML = contentHTML;
+
+                if (slide.type === 'canvas') {
+                    initCanvas();
+                }
+
+                // Restore answers for test questions
+                if (appState.currentMode === 'test') {
+                    restoreTestAnswer(slide.id);
+                }
+            }
+
+            // --- EVENT HANDLING --- //
+            function handleAppClick(e) {
+                // Home Screen
+                if (e.target.matches('.day-btn')) {
+                    appState.currentDay = e.target.dataset.day;
+                    renderDayMenu();
+                }
+                
+                // Day Menu
+                if (e.target.matches('.mode-btn')) {
+                    appState.currentMode = e.target.dataset.mode;
+                    if (appState.currentMode === 'we_do') {
+                        const problems = appState.contentData[appState.currentDay].we_do.map(s => s.problem);
+                        const uniqueProblems = [...new Set(problems)];
+                        uniqueProblems.forEach(p => appState.weDoHistory[p] = { digits: [], carry: [] });
+                    }
+                    appState.currentSlideIndex = 0;
+                    renderSlide();
+                }
+
+                // Slide Navigation
+                if (e.target.id === 'next-btn') {
+                    if (appState.currentMode === 'test') saveTestAnswer();
+                    appState.currentSlideIndex++;
+                    renderSlide();
+                }
+
+                if (e.target.id === 'prev-btn') {
+                    if (appState.currentMode === 'test') saveTestAnswer();
+                    appState.currentSlideIndex--;
+                    renderSlide();
+                }
+                
+                if (e.target.id === 'finish-btn') {
+                    if (appState.currentMode === 'test') {
+                        saveTestAnswer();
+                        renderConfirmationScreen();
+                    } else {
+                        renderDayMenu();
+                    }
+                }
+                
+                // Interactive We Do
+                if (e.target.id === 'check-step-btn') {
+                    const input = document.getElementById('interactive-input');
+                    const feedback = document.getElementById('feedback');
+                    if(input.value.trim() === e.target.dataset.answer) {
+                        feedback.textContent = 'Correct!';
+                        feedback.className = 'feedback-correct';
+
+                        const slide = appState.contentData[appState.currentDay].we_do[appState.currentSlideIndex];
+                        if (!appState.weDoHistory[slide.problem]) {
+                            appState.weDoHistory[slide.problem] = { digits: [], carry: [] };
+                        }
+                        
+                        appState.weDoHistory[slide.problem].digits.push(input.value.trim());
+
+                        if (slide.carryValue) {
+                            appState.weDoHistory[slide.problem].carry.push(slide.carryValue);
+                        }
+                        
+                        setTimeout(() => {
+                            appState.currentSlideIndex++;
+                            renderSlide();
+                        }, 1000);
+                    } else {
+                        feedback.textContent = 'Not quite, try again!';
+                        feedback.className = 'feedback-incorrect';
+                        input.value = '';
+                    }
+                }
+                
+                if (e.target.id === 'next-we-do-question-btn') {
+                    appState.currentSlideIndex++;
+                    renderSlide();
+                }
+
+                // Canvas Tools
+                 if (e.target.matches('.color-btn')) {
+                    const canvas = document.getElementById('drawing-canvas');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    ctx.strokeStyle = e.target.dataset.color;
+                    ctx.lineWidth = 3;
+                    ctx.globalCompositeOperation = 'source-over';
+                    document.querySelectorAll('.color-btn').forEach(b => b.classList.replace('border-blue-500', 'border-transparent'));
+                    e.target.classList.replace('border-transparent', 'border-blue-500');
+                }
+                if (e.target.id === 'eraser-btn') {
+                    const canvas = document.getElementById('drawing-canvas');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.lineWidth = 20;
+                }
+                if (e.target.id === 'clear-canvas-btn') {
+                    const canvas = document.getElementById('drawing-canvas');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    // Re-draw the problem after clearing
+                    initCanvas();
+                }
+
+                // Practice Center
+                if(e.target.id === 'check-answer-btn') {
+                    const input = document.getElementById('drill-input');
+                    const feedback = document.getElementById('feedback');
+                    const nextBtn = document.getElementById('next-btn');
+
+                    if(input.value.trim() === e.target.dataset.answer) {
+                        feedback.innerHTML = `<span class="feedback-correct">Correct!</span>`;
+                        input.disabled = true;
+                        e.target.disabled = true;
+                        e.target.classList.add('btn-disabled');
+                        if (nextBtn) {
+                           nextBtn.disabled = false;
+                           nextBtn.classList.remove('btn-disabled');
+                        }
+                    } else {
+                        feedback.innerHTML = `<span class="feedback-incorrect">Not quite...</span> <button id="try-again-btn" class="text-blue-600 underline">Try Again</button>`;
+                    }
+                }
+
+                if(e.target.id === 'try-again-btn') {
+                    document.getElementById('drill-input').value = '';
+                    document.getElementById('feedback').innerHTML = '';
+                }
+
+                // Test Confirmation
+                if (e.target.id === 'review-answers-btn') {
+                    appState.currentSlideIndex = 0;
+                    renderSlide();
+                }
+
+                if (e.target.id === 'submit-grading-btn') {
+                    appState.testLocked = true;
+                    saveState();
+                    renderScoreScreen();
+                }
+
+                // Score Screen
+                if (e.target.id === 'admin-reset-btn') {
+                    const password = prompt("Enter admin password to reset:");
+                    if (password === "2026") {
+                        resetState();
+                        alert("Progress reset!");
+                        renderHome();
+                    } else if (password) {
+                        alert("Incorrect password.");
+                    }
+                }
+                
+                // Global Downloads
+                if(e.target.id === 'download-work-btn') {
+                    downloadWorkAsHTML();
+                }
+                 if(e.target.id === 'download-pdf-btn') {
+                    downloadTestReportAsPDF();
+                }
+            }
+            
+             // --- Remaining functions (renderInteractiveStep, etc.) are unchanged from original --- //
+            function renderInteractiveStep(slide) {
+                if (slide.final) {
+                    const isLastProblemInSet = appState.currentSlideIndex === appState.contentData[appState.currentDay].we_do.length - 1;
+                    const buttonHTML = isLastProblemInSet
+                        ? `<button id="finish-btn" class="btn-primary">Back to Menu</button>`
+                        : `<button id="next-we-do-question-btn" class="btn-primary">Next Question</button>`;
+
+                    return `
+                        <div class="text-center">
+                            <h3 class="text-2xl font-bold mb-4">Problem: ${slide.problem}</h3>
+                            <p class="text-3xl text-green-600 font-bold mb-6">${slide.question}</p>
+                            ${buttonHTML}
+                        </div>
+                    `;
+                }
+
+                const history = appState.weDoHistory[slide.problem] || { digits: [], carry: [] };
+                const inputLength = slide.answer.length;
+                let problemHTML;
+                
+                const topNumber = slide.problem.split('x')[0].trim();
+                const builtAnswer = history.digits.slice().reverse().join('');
+                const topDigits = topNumber.split('');
+                const carryNumbers = history.carry; 
+
+                let topSectionHTML = '<div class="inline-block text-right">';
+
+                // Carry Row
+                topSectionHTML += '<div class="flex justify-end h-10">';
+                const numCarrySlots = topDigits.length - 1;
+                const paddedCarries = Array(numCarrySlots - carryNumbers.length).fill('').concat(carryNumbers);
+                
+                paddedCarries.forEach(carry => {
+                    topSectionHTML += `<div class="w-12 flex items-center justify-center text-2xl text-blue-600 font-bold">${carry}</div>`;
+                });
+                topSectionHTML += '<div class="w-12"></div>'; // Empty slot above ones place
+                topSectionHTML += '</div>';
+
+                // Number Row
+                topSectionHTML += '<div class="flex justify-end">';
+                topDigits.forEach(digit => {
+                    topSectionHTML += `<div class="w-12">${digit}</div>`;
+                });
+                topSectionHTML += '</div>';
+                topSectionHTML += '</div>';
+
+                problemHTML = `
+                    ${topSectionHTML}
+                    <div class="text-right">
+                        <div class="flex justify-end items-center">
+                            <div class="w-12">x</div>
+                            <div class="w-12 flex justify-center">${slide.problem.split('x')[1].trim()}</div>
+                        </div>
+                        <hr class="border-black my-2 ml-auto" style="width: ${topDigits.length * 3}rem;">
+                        <div class="flex justify-end items-center mt-2 h-14">
+                            <input type="text" id="interactive-input" class="w-24 h-full text-center bg-yellow-100 border-2 border-blue-400 rounded" maxlength="${inputLength}">
+                            <span class="text-black font-semibold text-right" style="min-width: ${builtAnswer.length * 3}rem;">${builtAnswer}</span>
+                        </div>
+                    </div>
+                `;
+
+                return `
+                    <div class="text-center">
+                        <h3 class="text-2xl font-bold mb-2">We Do: ${slide.problem}</h3>
+                        <div class="bg-gray-100 p-6 rounded-lg text-4xl font-mono my-4 inline-block mx-auto">
+                            ${problemHTML}
+                        </div>
+                        <p class="text-lg mb-3">${slide.question}</p>
+                        <button id="check-step-btn" data-answer="${slide.answer}" class="btn-primary">Check</button>
+                        <div id="feedback" class="mt-4 h-6"></div>
+                    </div>
+                `;
+            }
+
+            function renderCanvas(slide) {
+                return `
+                    <div class="text-center">
+                        <h3 class="text-2xl font-bold mb-2">We Do: ${slide.problem}</h3>
+                        <p class="text-lg mb-4">${slide.question}</p>
+                        <div class="flex justify-center items-center flex-wrap gap-4 mb-4">
+                            <span>Color:</span>
+                            <button class="color-btn w-8 h-8 bg-black rounded-full border-4 border-blue-500" data-color="black"></button>
+                            <button class="color-btn w-8 h-8 bg-red-500 rounded-full border-4 border-transparent" data-color="red"></button>
+                            <button class="color-btn w-8 h-8 bg-blue-500 rounded-full border-4 border-transparent" data-color="blue"></button>
+                            <button id="eraser-btn" class="p-2 border rounded-lg hover:bg-gray-100">Eraser</button>
+                            <button id="clear-canvas-btn" class="p-2 border rounded-lg hover:bg-gray-100">Clear</button>
+                        </div>
+                        <canvas id="drawing-canvas" class="bg-white border-2 border-gray-300 rounded-lg w-full cursor-crosshair" style="height: 400px;"></canvas>
+                    </div>
+                `;
+            }
+
+            function renderDrill(slide) {
+                 return `
+                    <div class="text-center">
+                        <h3 class="text-2xl font-bold mb-4">Practice Center</h3>
+                        <p class="text-5xl font-mono mb-6">${slide.problem}</p>
+                        <input type="text" id="drill-input" class="text-center text-2xl p-2 border-2 border-gray-300 rounded-lg w-48 mb-4" placeholder="Your Answer">
+                        <div class="flex justify-center gap-4">
+                           <button id="check-answer-btn" data-answer="${slide.answer}" class="btn-primary">Check Answer</button>
+                           <button id="next-btn" class="btn-secondary btn-disabled" disabled>Next</button>
+                        </div>
+                        <div id="feedback" class="mt-4 h-10"></div>
+                    </div>
+                `;
+            }
+            
+            function renderTestQuestion(slide) {
+                let questionHTML = `<h3 class="text-xl font-semibold mb-4">${slide.question}</h3>`;
+                questionHTML += `<div id="question-body" data-question-id="${slide.id}" data-question-type="${slide.type}">`;
+
+                switch (slide.type) {
+                    case 'multiple-choice':
+                        questionHTML += slide.options.map(opt => `
+                            <label class="block p-3 my-2 border rounded-lg hover:bg-gray-100 cursor-pointer">
+                                <input type="radio" name="${slide.id}" value="${opt}" class="mr-2"> ${opt}
+                            </label>`).join('');
+                        break;
+                    case 'fill-in-the-blank':
+                        questionHTML += `<input type="text" name="${slide.id}" class="text-lg p-2 border-2 border-gray-300 rounded-lg w-full" placeholder="Type your answer here">`;
+                        break;
+                    case 'multi-select':
+                        questionHTML += slide.options.map(opt => `
+                            <label class="block p-3 my-2 border rounded-lg hover:bg-gray-100 cursor-pointer">
+                                <input type="checkbox" name="${slide.id}" value="${opt}" class="mr-2"> ${opt}
+                            </label>`).join('');
+                        break;
+                    case 'ebsr':
+                        questionHTML = slide.question; 
+                        break;
+                }
+                questionHTML += `</div>`;
+                return questionHTML;
+            }
+
+            function renderConfirmationScreen() {
+                mainContent.innerHTML = `
+                    <div class="text-center py-16">
+                        <h2 class="text-3xl font-bold mb-4">Ready to submit your findings?</h2>
+                        <p class="text-gray-600 mb-8">You can review your answers before final submission.</p>
+                        <div class="flex justify-center gap-6">
+                            <button id="review-answers-btn" class="btn-secondary">Review Answers</button>
+                            <button id="submit-grading-btn" class="btn-primary">Submit for Grading</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function renderScoreScreen() {
+                calculateScore();
+                const dayData = appState.contentData[appState.currentDay];
+                const totalQuestions = dayData.test.length;
+
+                mainContent.innerHTML = `
+                     <div class="text-center py-16">
+                        <h2 class="text-3xl font-bold mb-4">Test Complete!</h2>
+                        <p class="text-gray-600 mb-8">Here is your score for the ${dayData.title} test.</p>
+                        <div class="bg-blue-100 border-4 border-blue-500 rounded-full w-48 h-48 mx-auto flex items-center justify-center mb-8">
+                             <p class="text-5xl font-bold text-blue-800">${appState.finalScore} / ${totalQuestions}</p>
+                        </div>
+                        <p class="text-gray-500">Your results are saved. Navigation is now locked.</p>
+                        <button id="admin-reset-btn" class="text-sm text-gray-400 hover:text-gray-600 mt-4">Admin Reset</button>
+                    </div>
+                `;
+            }
+
+            function initCanvas() {
+                const canvas = document.getElementById('drawing-canvas');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const slide = appState.contentData[appState.currentDay].we_do[appState.currentSlideIndex];
+                const problem = slide.problem;
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 48px monospace';
+                ctx.textAlign = 'right';
+                const [topNum, bottomNum] = problem.split(' x ');
+                const textWidth = ctx.measureText(`x ${bottomNum}`).width;
+                const xPos = (canvas.width / 2) + (textWidth / 2);
+                const yTop = 60;
+                const yBottom = 120;
+                const yLine = 130;
+                ctx.fillText(topNum, xPos, yTop);
+                ctx.fillText(`x ${bottomNum}`, xPos, yBottom);
+                ctx.beginPath();
+                ctx.moveTo(xPos - textWidth, yLine);
+                ctx.lineTo(xPos, yLine);
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                let isDrawing = false;
+                let lastX = 0;
+                let lastY = 0;
+                function draw(e) {
+                    if (!isDrawing) return;
+                    e.preventDefault();
+                    const [x, y] = getCoords(e);
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                    [lastX, lastY] = [x, y];
+                }
+                function getCoords(e) {
+                    const rect = canvas.getBoundingClientRect();
+                    const event = e.touches ? e.touches[0] : e;
+                    return [event.clientX - rect.left, event.clientY - rect.top];
+                }
+                function startDrawing(e) {
+                    isDrawing = true;
+                    [lastX, lastY] = getCoords(e);
+                }
+                function stopDrawing() { isDrawing = false; }
+                canvas.addEventListener('mousedown', startDrawing);
+                canvas.addEventListener('mousemove', draw);
+                canvas.addEventListener('mouseup', stopDrawing);
+                canvas.addEventListener('mouseout', stopDrawing);
+                canvas.addEventListener('touchstart', startDrawing);
+                canvas.addEventListener('touchmove', draw);
+                canvas.addEventListener('touchend', stopDrawing);
+            }
+            
+            function saveTestAnswer() {
+                const qBody = document.getElementById('question-body');
+                if (!qBody) return;
+                const id = qBody.dataset.questionId;
+                const type = qBody.dataset.questionType;
+                let answer;
+                switch (type) {
+                    case 'multiple-choice':
+                        const checkedRadio = qBody.querySelector(`input[name="${id}"]:checked`);
+                        answer = checkedRadio ? checkedRadio.value : null;
+                        break;
+                    case 'fill-in-the-blank':
+                        answer = qBody.querySelector(`input[name="${id}"]`).value.trim();
+                        break;
+                    case 'multi-select':
+                        answer = Array.from(qBody.querySelectorAll(`input[name="${id}"]:checked`)).map(cb => cb.value);
+                        break;
+                    case 'ebsr':
+                        const partA = qBody.querySelector(`input[name="${id}_a"]:checked`);
+                        const partB = qBody.querySelector(`input[name="${id}_b"]:checked`);
+                        answer = {
+                            partA: partA ? partA.value : null,
+                            partB: partB ? partB.value : null
+                        };
+                        break;
+                }
+                appState.studentAnswers[id] = answer;
+            }
+
+            function restoreTestAnswer(id) {
+                const answer = appState.studentAnswers[id];
+                if (answer === undefined) return;
+                const qBody = document.getElementById('question-body');
+                const type = qBody.dataset.questionType;
+                switch (type) {
+                    case 'multiple-choice':
+                        if (answer) {
+                            const radio = qBody.querySelector(`input[value="${answer}"]`);
+                            if(radio) radio.checked = true;
+                        }
+                        break;
+                    case 'fill-in-the-blank':
+                        qBody.querySelector(`input[name="${id}"]`).value = answer;
+                        break;
+                    case 'multi-select':
+                        if (Array.isArray(answer)) {
+                            answer.forEach(val => {
+                                const checkbox = qBody.querySelector(`input[value="${val}"]`);
+                                if(checkbox) checkbox.checked = true;
+                            });
+                        }
+                        break;
+                    case 'ebsr':
+                         if (answer.partA) {
+                             const radioA = qBody.querySelector(`input[name="${id}_a"][value="${answer.partA}"]`);
+                             if (radioA) radioA.checked = true;
+                         }
+                         if (answer.partB) {
+                             const radioB = qBody.querySelector(`input[name="${id}_b"][value="${answer.partB}"]`);
+                             if (radioB) radioB.checked = true;
+                         }
+                        break;
+                }
+            }
+            
+            function calculateScore() {
+                let score = 0;
+                const testData = appState.contentData[appState.currentDay].test;
+                testData.forEach(question => {
+                    const studentAnswer = appState.studentAnswers[question.id];
+                    const correctAnswer = question.answer;
+                    if (studentAnswer === undefined || studentAnswer === null) return;
+                    let isCorrect = false;
+                    switch (question.type) {
+                        case 'multiple-choice':
+                        case 'fill-in-the-blank':
+                            isCorrect = studentAnswer === correctAnswer;
+                            break;
+                        case 'multi-select':
+                            isCorrect = Array.isArray(studentAnswer) &&
+                                        studentAnswer.length === correctAnswer.length &&
+                                        studentAnswer.every(val => correctAnswer.includes(val));
+                            break;
+                        case 'ebsr':
+                            isCorrect = studentAnswer.partA === correctAnswer.partA &&
+                                        studentAnswer.partB === correctAnswer.partB;
+                            break;
+                    }
+                    if (isCorrect) score++;
+                });
+                appState.finalScore = score;
+                saveState();
+            }
+            
+            function downloadWorkAsHTML() {
+                if (appState.currentMode === 'test') saveTestAnswer();
+                saveState();
+                const progressData = localStorage.getItem('mathAppProgress');
+                if (!progressData) {
+                    alert("No work to save yet!");
+                    return;
+                }
+                const injectionScript = `<script id="progress-data" type="application/json">${progressData}<\/script>`;
+                let fullHTML = document.documentElement.outerHTML;
+                fullHTML = fullHTML.replace('</body>', `${injectionScript}</body>`);
+                const blob = new Blob([fullHTML], { type: 'text/html' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'my-math-work.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+            }
+
+            async function downloadTestReportAsPDF() {
+                if (appState.currentDay === null || !appState.contentData[appState.currentDay]) {
+                    alert("Please select a day and complete a test before generating a report.");
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF();
+                const container = document.getElementById('pdf-container');
+                const testData = appState.contentData[appState.currentDay].test;
+                alert("Generating PDF... This may take a moment. Please wait for the download to start.");
+                for (let i = 0; i < testData.length; i++) {
+                    const question = testData[i];
+                    const studentAnswer = appState.studentAnswers[question.id];
+                    let questionHTML = `<div class="print-question"><p><strong>Question ${i+1}:</strong></p>`;
+                    switch(question.type) {
+                        case 'multiple-choice':
+                             questionHTML += `<p>${question.question}</p><ul>`;
+                             question.options.forEach(opt => {
+                                 const isSelected = studentAnswer === opt;
+                                 questionHTML += `<li class="${isSelected ? 'print-selected' : ''}">${opt} ${isSelected ? '<strong>(Selected)</strong>' : ''}</li>`;
+                             });
+                             questionHTML += '</ul>';
+                            break;
+                        case 'fill-in-the-blank':
+                            questionHTML += `<p>${question.question}</p><div><strong>Your Answer:</strong> <div class="print-selected p-2 inline-block">${studentAnswer || 'Not answered'}</div></div>`;
+                            break;
+                        case 'multi-select':
+                            questionHTML += `<p>${question.question}</p><ul>`;
+                            question.options.forEach(opt => {
+                                const isSelected = Array.isArray(studentAnswer) && studentAnswer.includes(opt);
+                                questionHTML += `<li class="${isSelected ? 'print-selected' : ''}">${opt} ${isSelected ? '<strong>(Selected)</strong>' : ''}</li>`;
+                            });
+                            questionHTML += '</ul>';
+                            break;
+                        case 'ebsr':
+                            let ebsrContent = question.question;
+                            ebsrContent = ebsrContent.replace(/<input[^>]+name="[^"]+_a"[^>]+value="([^"]+)"[^>]*>/g, (match, value) => {
+                                const isSelected = studentAnswer && studentAnswer.partA === value;
+                                return `<div class="${isSelected ? 'print-selected' : ''}">(${value}) ${isSelected ? '<strong>(Selected)</strong>' : ''}</div>`;
+                            });
+                             ebsrContent = ebsrContent.replace(/<input[^>]+name="[^"]+_b"[^>]+value="([^"]+)"[^>]*>/g, (match, value) => {
+                                const isSelected = studentAnswer && studentAnswer.partB === value;
+                                return `<div class="${isSelected ? 'print-selected' : ''}">(${value}) ${isSelected ? '<strong>(Selected)</strong>' : ''}</div>`;
+                            });
+                            questionHTML += ebsrContent.replace(/<label>|<\/label>|<br>/g, '');
+                            break;
+                    }
+                    questionHTML += `</div>`;
+                    container.innerHTML = questionHTML;
+                    const canvas = await html2canvas(container, { scale: 2 });
+                    const imgData = canvas.toDataURL('image/png');
+                    const imgProps = pdf.getImageProperties(imgData);
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    if (i > 0) pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                }
+                pdf.save(`day-${appState.currentDay.slice(-1)}-test-report.pdf`);
+                container.innerHTML = '';
+            }
+
+            // --- START THE APP --- //
+            init();
+        });
+    </script>
+
+
+
+</body></html>
+
+
