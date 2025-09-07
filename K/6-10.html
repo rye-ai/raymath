@@ -1,0 +1,1104 @@
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Lesson: Numbers 6-10</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase CDN (compat builds for simple drop-in) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <style>
+    body { font-family:'Comic Sans MS','Chalkboard SE','Marker Felt',sans-serif; -webkit-touch-callout:none; user-select:none; }
+    .slide { display:none; }
+    .active-slide { display:block; }
+    .active-tab { background-color:#10b981; color:white; }
+    .tab { transition:all .3s ease; }
+    .draggable { cursor:grab; touch-action:none; }
+    .dragging { opacity:.4; }
+    .ghost-drag { position:absolute; z-index:1000; pointer-events:none; opacity:.8; }
+    .drop-target { transition: background-color .2s ease, transform .2s ease; }
+    .drop-target.over { background-color:#a7f3d0; transform:scale(1.05); }
+    .feedback-modal { display:none; }
+    .feedback-modal.show { display:flex; }
+    .auto-grow-textarea { overflow-y:hidden; resize:none; }
+    .confetti { position:absolute; width:10px; height:10px; background:#f00; opacity:0; }
+    @keyframes confetti-fall { 0%{transform:translateY(-100vh) rotate(0deg); opacity:1;} 100%{transform:translateY(100vh) rotate(720deg); opacity:0;} }
+    .slide-content { animation:fadeIn .5s ease-in-out; }
+    @keyframes fadeIn { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+    .button-pop { transition:transform .1s ease; }
+    .button-pop:hover { transform:scale(1.05); }
+    .badge { font-size:12px; }
+    .disabled-nav { pointer-events:none; opacity:.5; }
+    #teacher-password-group { display: none; }
+    .read-aloud-btn { background: none; border: none; padding: 0; cursor: pointer; }
+  </style>
+</head>
+<body class="bg-sky-100 text-gray-800">
+
+  <!-- Setup Modal -->
+  <div id="setup-modal" class="fixed inset-0 bg-sky-100 z-50 flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+      <h1 class="text-3xl font-bold mb-6 text-gray-700">Lesson Setup</h1>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <label class="block border-2 border-gray-300 rounded-lg p-4 text-center hover:bg-yellow-100 cursor-pointer has-[:checked]:bg-emerald-200 has-[:checked]:border-emerald-500">
+            <input type="radio" name="role" value="student" class="sr-only" checked>
+            <span class="text-2xl">👩‍🎓 Student</span>
+          </label>
+          <label class="block border-2 border-gray-300 rounded-lg p-4 text-center hover:bg-yellow-100 cursor-pointer has-[:checked]:bg-emerald-200 has-[:checked]:border-emerald-500">
+            <input type="radio" name="role" value="teacher" class="sr-only">
+            <span class="text-2xl">🧑‍🏫 Teacher</span>
+          </label>
+        </div>
+        <div id="teacher-password-group" class="text-left">
+          <label for="teacher-password" class="font-bold text-gray-600">Teacher Password:</label>
+          <input type="password" id="teacher-password" class="w-full p-2 border border-gray-300 rounded-md mt-1">
+        </div>
+        <div class="text-left">
+           <label for="room-name" class="font-bold text-gray-600">Room Name:</label>
+           <input type="text" id="room-name" class="w-full p-2 border border-gray-300 rounded-md mt-1" placeholder="e.g., class-b">
+        </div>
+        <button id="open-lesson-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg button-pop text-xl">
+          Start Lesson
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App Container -->
+  <div id="app-container" class="hidden flex flex-col h-screen overflow-hidden">
+    <!-- Header with Tabs + Role/Room badge + Download -->
+    <header class="bg-white shadow-md p-2 flex justify-between items-center">
+      <nav id="day-tabs" class="flex space-x-2 overflow-x-auto"></nav>
+      <div class="flex items-center gap-4">
+        <label id="sync-toggle-label" class="hidden items-center space-x-2 cursor-pointer mr-4">
+          <span class="text-sm font-bold text-gray-600">Follow Mode:</span>
+          <div class="relative inline-block w-10 align-middle select-none transition duration-200 ease-in">
+              <input type="checkbox" id="sync-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+              <label for="sync-toggle" class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer"></label>
+          </div>
+        </label>
+        <style>
+          .toggle-label { background-color: #d1d5db; } /* Default: Gray */
+          .toggle-checkbox:checked { right: 0; border-color: #22c55e; } /* On state: Green border for the handle */
+          .toggle-checkbox:checked + .toggle-label { background-color: #22c55e; } /* On state: Green background */
+        </style>
+        <span id="role-room-badge" class="badge px-2 py-1 rounded-full bg-gray-200 text-gray-700"></span>
+        <button id="change-role-room-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded-lg text-sm button-pop">
+          Change
+        </button>
+        <button id="download-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg button-pop flex-shrink-0">
+          Download Work
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
+      <div id="lesson-container" class="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-6"></div>
+    </main>
+
+    <!-- Footer Navigation -->
+    <footer class="bg-white shadow-t-md p-4 flex justify-between items-center border-t">
+      <button id="prev-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg button-pop">Back</button>
+      <div class="text-center">
+        <button id="practice-btn" class="bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold py-2 px-6 rounded-lg button-pop">Practice!</button>
+        <button id="back-to-lesson-btn" class="hidden bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold py-2 px-6 rounded-lg button-pop">Back to Lesson</button>
+        <div id="slide-counter" class="text-sm font-bold mt-1"></div>
+      </div>
+      <button id="next-btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-lg button-pop">Next!</button>
+    </footer>
+  </div>
+
+  <!-- Feedback Modal -->
+  <div id="feedback-modal" class="feedback-modal fixed inset-0 bg-black bg-opacity-50 justify-center items-center z-50">
+    <div class="bg-white rounded-lg p-8 text-center shadow-xl max-w-sm mx-auto">
+      <div id="feedback-icon" class="text-6xl mb-4"></div>
+      <p id="feedback-text" class="text-2xl font-bold mb-6"></p>
+      <button id="feedback-close-btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-8 rounded-lg">OK</button>
+    </div>
+  </div>
+
+  <!-- Confetti Container -->
+  <div id="confetti-container" class="absolute inset-0 pointer-events-none overflow-hidden z-40"></div>
+
+  <!-- The whole app (lesson + UI + Firestore sync) -->
+  <script>
+/* ================== LESSON DATA (NEW 6-10) ================== */
+const lessonData = {
+  days: [
+    {
+      title: "Day 1: 🐞 6 & 7",
+      slides: [
+        { type: 'title', title: "Exploring Six and Seven!", text: "Let's learn our next numbers with a ladybug and a lucky clover!" },
+        { type: 'hook', title: 'Hook: Garden Count', visual: '🐞 🍀', text: 'A ladybug has 6 spots! A week has 7 days! Let\'s count them out loud.' },
+        { type: 'instruction', title: 'I Do: Meet 6 and 7', visual: '6️⃣ 7️⃣', text: 'This is 6, a loop at the bottom. This is 7, a line across and a slant down.' },
+        { type: 'drag-drop-sort', title: 'I Do 1/3: Sorting Time', instruction: 'I will put the group of 6 stars in the "6" box.', items: [{id: 'd1ido1i1', content: '🌟'.repeat(6), count: 6}, {id: 'd1ido1i2', content: '🧡'.repeat(7), count: 7}], targets: [{id: 'd1ido1t1', label: '6', accepts: 6}, {id: 'd1ido1t2', label: '7', accepts: 7}]},
+        { type: 'multiple-choice', title: 'I Do 2/3: Finding Seven', question: 'I need to find the group with seven things. Let\'s count... one, two... seven dots!', options: [{content: '⚫'.repeat(5), correct: false}, {content: '⚫'.repeat(7), correct: true}, {content: '⚫'.repeat(6), correct: false}]},
+        ...Array(5).fill(0).map((_, i) => ({ type: 'drag-drop-sort', title: `We Do ${i+1}/10: Ladybug Spots`, instruction: `The ladybug needs 6 spots. Can you help drag them to her?`, items: Array(6).fill(0).map((_, j) => ({id: `d1wdo${i}i${j}`, content: '⚫', count: 1})), targets: Array(6).fill(0).map((_, j) => ({id: `d1wdo${i}t${j}`, label: '🐞', accepts: 1}))})),
+        ...Array(5).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `We Do ${i+6}/10: Find the Number`, question: 'Which number is 7?', options: [{content: '5', correct: false}, {content: '6', correct: false}, {content: '7', correct: true}]})),
+        { type: 'drag-drop-sort', title: 'You Do 1/5: Sort the Fruit', instruction: 'Drag the fruit to the correct number box.', items: [{id: 'd1ydo1i1', content: '🍓'.repeat(6), count: 6}, {id: 'd1ydo1i2', content: '🍌'.repeat(7), count: 7}], targets: [{id: 'd1ydo1t1', label: '6', accepts: 6}, {id: 'd1ydo1t2', label: '7', accepts: 7}], isPractice: true},
+        { type: 'multiple-choice', title: 'You Do 2/5: How Many Days?', question: 'How many days are in a week?', group: '🗓️', options: [{content: '6', correct: false}, {content: '7', correct: true}], isPractice: true},
+        { type: 'drawing', title: 'You Do 3/5: Write the Number 6', instruction: 'Practice writing the number 6.', isPractice: true},
+        { type: 'drawing', title: 'You Do 4/5: Write the Number 7', instruction: 'Now, practice writing the number 7.', isPractice: true},
+        { type: 'true-false', title: 'You Do 5/5: Is this a match?', question: 'Does the picture match the number?', itemContent: '🎲'.repeat(6), numeral: 7, correct: false, isPractice: true},
+        { type: 'practice-center-gate', dayIndex: 0 }
+      ],
+      practiceCenter: [
+        { type: 'drawing', title: 'Practice Writing 6', instruction: 'Your turn! Practice writing the number 6.', isPractice: true },
+        { type: 'drawing', title: 'Practice Writing 7', instruction: 'Now try the number 7.', isPractice: true },
+        { type: 'multiple-choice', title: 'Practice 3/10', question: 'Find the group of 6.', options: [{content: '🚗'.repeat(6), correct: true}, {content: '🚗'.repeat(7), correct: false}], isPractice: true },
+        { type: 'short-answer', title: 'Practice 4/10', question: 'How many crayons?', itemContent: '🖍️'.repeat(7), correctAnswer: '7', isPractice: true },
+        { type: 'drag-drop-sort', title: 'Practice 5/10', instruction: 'Sort the items.', items: [{id: 'd1p1i1', content: 'A'.repeat(7), count: 7}, {id: 'd1p1i2', content: 'B'.repeat(6), count: 6}], targets: [{id: 'd1p1t1', label: '6', accepts: 6}, {id: 'd1p1t2', label: '7', accepts: 7}], isPractice: true },
+        { type: 'true-false', title: 'Practice 6/10', question: 'Is this right?', itemContent: '🦕'.repeat(7), numeral: 7, correct: true, isPractice: true },
+      ]
+    },
+    {
+      title: "Day 2: 🐙 No. 8",
+      slides: [
+        { type: 'title', title: "The Awesome Number 8!", text: "An octopus is here to help us learn about the number 8!" },
+        { type: 'hook', title: 'Hook: Octopus Legs', visual: '🐙', text: 'How many legs does an octopus have? Let\'s count them: 1, 2, 3, 4, 5, 6, 7, 8!' },
+        { type: 'instruction', title: 'I Do: Meet Number 8', visual: '8️⃣', text: 'This is 8. It looks like a snowman! A circle on top and a circle on the bottom.' },
+        { type: 'drag-drop-sort', title: 'I Do 1/3: Eight Planets', instruction: 'Our solar system has 8 planets. I will put them in the box.', items: [{id: 'd2ido1i1', content: '🪐'.repeat(8), count: 8}], targets: [{id: 'd2ido1t1', label: '8', accepts: 8}]},
+        ...Array(5).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `We Do ${i+1}/10: Find the Number 8`, question: 'Can you find the number 8?', options: [{content: '7', correct: false}, {content: '8', correct: true}, {content: '9', correct: false}]})),
+        ...Array(5).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `We Do ${i+6}/10: Find the Group`, question: 'Which group has 8 spiders?', options: [{content: '🕷️'.repeat(7), correct: false}, {content: '🕷️'.repeat(8), correct: true}]})),
+        { type: 'drag-drop-sort', title: 'You Do 1/5: Match Dots', instruction: 'Match the numerals to the dot patterns.', items: [{id: 'd2ydo1i1', content: '6', count: 6}, {id: 'd2ydo1i2', content: '7', count: 7}, {id: 'd2ydo1i3', content: '8', count: 8}], targets: [{id: 'd2ydo1t1', label: '⚫'.repeat(6), accepts: 6}, {id: 'd2ydo1t2', label: '⚫'.repeat(7), accepts: 7}, {id: 'd2ydo1t3', label: '⚫'.repeat(8), accepts: 8}], isPractice: true},
+        { type: 'drawing', title: 'You Do 2/5: Write the Number 8', instruction: 'Practice writing the number 8.', isPractice: true},
+        { type: 'short-answer', title: 'You Do 3/5: How Many Arms?', question: 'Count the octopus arms and type the number.', itemContent: '🐙', correctAnswer: '8', isPractice: true},
+        { type: 'practice-center-gate', dayIndex: 1 }
+      ],
+      practiceCenter: [
+          { type: 'drawing', title: 'Practice Writing 8', instruction: 'Practice writing the number 8.', isPractice: true },
+          { type: 'multiple-choice', title: 'Practice 2/5', question: 'Which group has 8?', options: [{content: '🐙'.repeat(8), correct: true}, {content: '🐙'.repeat(7), correct: false}], isPractice: true },
+          { type: 'short-answer', title: 'Practice 3/5', question: 'How many stop signs?', itemContent: '🛑'.repeat(8), correctAnswer: '8', isPractice: true },
+          { type: 'true-false', title: 'Practice 4/5', question: 'Is this correct?', itemContent: '🎱'.repeat(8), numeral: 8, correct: true, isPractice: true },
+          { type: 'drag-drop-sort', title: 'You Do 5/5: Sort the Numbers', instruction: 'Sort the numbers into the right bins.', items: [{id: 'd2p5i1', content: '6', count: 6}, {id: 'd2p5i2', content: '7', count: 7}, {id: 'd2p5i3', content: '8', count: 8}], targets: [{id: 'd2p5t1', label: '6', accepts: 6}, {id: 'd2p5t2', label: '7', accepts: 7}, {id: 'd2p5t3', label: '8', accepts: 8}], isPractice: true},
+      ]
+    },
+    {
+      title: "Day 3: 🔢 9 & 10",
+      slides: [
+        { type: 'title', title: "Nine and Ten are Super Fun!", text: "Let's learn our biggest numbers yet, 9 and 10!" },
+        { type: 'hook', title: 'Hook: All Your Fingers!', visual: '🖐️🖐️', text: 'You have 10 fingers! Let\'s count all of them together!' },
+        { type: 'instruction', title: 'I Do: Meet 9 and 10', visual: '9️⃣ 🔟', text: 'This is 9, a loop and a line. This is 10, a one and a zero!' },
+        { type: 'drag-drop-sequence', title: 'I Do 1/3: Number Order', instruction: 'I will put these numbers in the right order from 6 to 10.', items: [{id: 'd3ido2i1', content: '8'}, {id: 'd3ido2i2', content: '6'}, {id: 'd3ido2i3', content: '10'}, {id: 'd3ido2i4', content: '7'}, {id: 'd3ido2i5', content: '9'}], correctSequence: ['6', '7', '8', '9', '10']},
+        ...Array(5).fill(0).map((_, i) => ({ type: 'multiple-choice', title: `We Do ${i+1}/10: Find the Number 10`, question: 'Can you find the number 10?', options: [{content: '8', correct: false}, {content: '9', correct: false}, {content: '10', correct: true}]})),
+        { type: 'drag-drop-sort', title: 'You Do 1/5: Sort 9 and 10', instruction: 'Sort the groups of objects into the correct bins.', items: [{id: 'd3ydo2i1', content: '⭐'.repeat(9), count: 9}, {id: 'd3ydo2i2', content: '⭐'.repeat(10), count: 10}], targets: [{id: 'd3ydo2t1', label: '9', accepts: 9}, {id: 'd3ydo2t2', label: '10', accepts: 10}], isPractice: true},
+        { type: 'drawing', title: 'You Do 2/5: Write the Number 9', instruction: 'Practice writing the number 9.', isPractice: true },
+        { type: 'drawing', title: 'You Do 3/5: Write the Number 10', instruction: 'Practice writing the number 10.', isPractice: true },
+        { type: 'drag-drop-sequence', title: 'You Do 4/5: Order the Numbers', instruction: 'Put the numbers in the correct order.', items: [{id: 'd3ydo5i1', content: '8'}, {id: 'd3ydo5i2', content: '6'}, {id: 'd3ydo5i3', content: '10'}, {id: 'd3ydo5i4', content: '7'}, {id: 'd3ydo5i5', content: '9'}], correctSequence: ['6', '7', '8', '9', '10'], isPractice: true},
+        { type: 'practice-center-gate', dayIndex: 2 }
+      ],
+      practiceCenter: [
+        { type: 'drawing', title: 'Practice Writing 9', instruction: 'Practice writing 9.', isPractice: true },
+        { type: 'drawing', title: 'Practice Writing 10', instruction: 'Practice writing 10.', isPractice: true },
+        { type: 'drag-drop-sequence', title: `Practice 3/5`, instruction: 'Put the numbers in order.', items: [{id: `d3p1i1`, content: '8'}, {id: `d3p1i2`, content: '6'}, {id: `d3p1i3`, content: '10'}, {id: `d3p1i4`, content: '7'}, {id: `d3p1i5`, content: '9'}], correctSequence: ['6', '7', '8', '9', '10'], isPractice: true },
+        { type: 'multiple-choice', title: `Practice 4/5`, question: 'Which group has 9?', options: [{content: '🦋'.repeat(9), correct: true}, {content: '🦋'.repeat(10), correct: false}], isPractice: true },
+        { type: 'short-answer', title: 'Practice 5/5', question: 'How many bowling pins?', itemContent: '🎳'.repeat(10), correctAnswer: '10', isPractice: true },
+      ]
+    },
+    {
+      title: "Day 4: 🚀 Review",
+      slides: [
+        { type: 'title', title: "Blast Off! Number Review!", text: "Let's show what we know about numbers 6 through 10!" },
+        { type: 'hook', title: 'Hook: Rocket Countdown!', visual: '🚀', text: 'Let\'s count down from 10 to blast off! 10, 9, 8, 7, 6, 5, 4, 3, 2, 1... BLAST OFF!' },
+        { type: 'instruction', title: 'I Do: How to Write', visual: '6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟', text: 'Watch me write the numbers one more time.' },
+        { type: 'drawing', title: 'We Do 1/5: Let\'s Write 8', instruction: `Let's practice writing the number 8 together.`},
+        { type: 'drag-drop-sort', title: 'You Do 1/5: Final Sort!', instruction: 'Sort all the pictures into the correct bins.', items: [{id: 'd4ydo5i1', content: '🚀'.repeat(6), count: 6}, {id: 'd4ydo5i2', content: '🚀'.repeat(7), count: 7}, {id: 'd4ydo5i3', content: '🚀'.repeat(8), count: 8}, {id: 'd4ydo5i4', content: '🚀'.repeat(9), count: 9}, {id: 'd4ydo5i5', content: '🚀'.repeat(10), count: 10}], targets: [{id: 'd4ydo5t1', label: '6', accepts: 6}, {id: 'd4ydo5t2', label: '7', accepts: 7}, {id: 'd4ydo5t3', label: '8', accepts: 8}, {id: 'd4ydo5t4', label: '9', accepts: 9}, {id: 'd4ydo5t5', label: '10', accepts: 10}], isPractice: true},
+        { type: 'practice-center-gate', dayIndex: 3 }
+      ],
+      practiceCenter: [
+        ...[6,7,8,9,10].map((num, i) => ({ type: 'drawing', title: `Practice ${i+1}/10`, instruction: `Practice writing the number ${num}.`, isPractice: true })),
+        { type: 'multiple-choice', title: 'Practice 6/10', question: 'How many?', group: '💎'.repeat(9), options: [{content: '9', correct: true}, {content: '8', correct: false}], isPractice: true },
+        { type: 'short-answer', title: 'Practice 7/10', question: 'Type the number.', itemContent: '🎈'.repeat(10), correctAnswer: '10', isPractice: true},
+        { type: 'true-false', title: 'Practice 8/10', question: 'Is this a match?', itemContent: '⭐'.repeat(7), numeral: 6, correct: false, isPractice: true },
+        { type: 'drag-drop-sort', title: 'Practice 9/10', instruction: 'Sort the items.', items: [{id: 'd4p10i1', content: 'A'.repeat(8), count: 8}, {id: 'd4p10i2', content: 'B'.repeat(9), count: 9}], targets: [{id: 'd4p10t1', label: '8', accepts: 8}, {id: 'd4p10t2', label: '9', accepts: 9}], isPractice: true },
+        { type: 'multiple-choice', title: 'Practice 10/10', question: 'Which has less?', group: '🔴'.repeat(10) + ' vs ' + '🔵'.repeat(6), options: [{content: '🔴'.repeat(10), correct: false}, {content: '🔵'.repeat(6), correct: true}], isPractice: true },
+      ]
+    }
+  ]
+};
+
+/* ================== APP STATE ================== */
+const appState = {
+    isTeacher: false,
+    roomId: 'default',
+    currentDay: 0,
+    currentSlide: 0,
+    view: 'lesson', // 'lesson' or 'practice'
+    allowFreeExplore: true, // Default to "Free Explore Mode"
+    lastLessonSlide: 0,
+};
+
+let progressData = {};
+let practiceProgress = {};
+
+// DOM Elements
+const setupModal = document.getElementById('setup-modal');
+const appContainer = document.getElementById('app-container');
+const openLessonBtn = document.getElementById('open-lesson-btn');
+const roomNameInput = document.getElementById('room-name');
+const teacherPasswordInput = document.getElementById('teacher-password');
+const teacherPasswordGroup = document.getElementById('teacher-password-group');
+const roleRadios = document.querySelectorAll('input[name="role"]');
+const roleRoomBadge = document.getElementById('role-room-badge');
+const changeRoleRoomBtn = document.getElementById('change-role-room-btn');
+const syncToggleLabel = document.getElementById('sync-toggle-label');
+const syncToggle = document.getElementById('sync-toggle');
+const practiceBtn = document.getElementById('practice-btn');
+const backToLessonBtn = document.getElementById('back-to-lesson-btn');
+
+const lessonContainer = document.getElementById('lesson-container');
+const dayTabsContainer = document.getElementById('day-tabs');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+const downloadBtn = document.getElementById('download-btn');
+const feedbackModal = document.getElementById('feedback-modal');
+const feedbackIcon = document.getElementById('feedback-icon');
+const feedbackText = document.getElementById('feedback-text');
+const feedbackCloseBtn = document.getElementById('feedback-close-btn');
+const slideCounter = document.getElementById('slide-counter');
+
+
+/* ================== SPEECH SYNTHESIS ================== */
+const speech = window.speechSynthesis;
+function readAloud(text) {
+    if (!speech) {
+        alert('Sorry, your browser does not support text-to-speech.');
+        return;
+    }
+    if (speech.speaking) {
+        speech.cancel();
+    }
+    // Clean up text for better pronunciation
+    const cleanedText = text.replace(/(\d+)\/(\d+)/g, '$1 of $2');
+    const utterance = new SpeechSynthesisUtterance(cleanedText);
+    utterance.rate = 0.9;
+    utterance.pitch = 1.1;
+    speech.speak(utterance);
+}
+
+
+/* ================== INIT & SETUP ================== */
+document.addEventListener('DOMContentLoaded', () => {
+    // Add one listener for all read aloud buttons
+    lessonContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.read-aloud-btn');
+        if (btn) {
+            const textToRead = btn.dataset.textToRead;
+            if (textToRead) {
+                readAloud(textToRead);
+            }
+        }
+    });
+    
+    initAppSetup();
+    const savedRole = localStorage.getItem('lesson_role');
+    const savedRoom = localStorage.getItem('lesson_room');
+    if (savedRole && savedRoom) {
+        startLesson(savedRole, savedRoom);
+    } else {
+        setupModal.style.display = 'flex';
+    }
+});
+
+function initAppSetup() {
+    roleRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            teacherPasswordGroup.style.display = (radio.value === 'teacher') ? 'block' : 'none';
+        });
+    });
+
+    openLessonBtn.addEventListener('click', () => {
+        const role = document.querySelector('input[name="role"]:checked').value;
+        const room = roomNameInput.value.trim();
+        const pass = teacherPasswordInput.value;
+
+        if (!room) {
+            alert('Please enter a room name.');
+            return;
+        }
+        if (role === 'teacher' && pass !== '2026') {
+            alert('Incorrect teacher password.');
+            return;
+        }
+
+        localStorage.setItem('lesson_role', role);
+        localStorage.setItem('lesson_room', room);
+        startLesson(role, room);
+    });
+
+    changeRoleRoomBtn.addEventListener('click', () => {
+        disconnectFirebase();
+        localStorage.removeItem('lesson_role');
+        localStorage.removeItem('lesson_room');
+        location.reload();
+    });
+}
+
+
+function startLesson(role, room) {
+    appState.isTeacher = role === 'teacher';
+    appState.roomId = room;
+
+    setupModal.style.display = 'none';
+    appContainer.classList.remove('hidden');
+
+    roleRoomBadge.textContent = `${appState.isTeacher ? 'Teacher' : 'Student'} • room: ${appState.roomId}`;
+    syncToggle.checked = !appState.allowFreeExplore;
+
+    if (appState.isTeacher) {
+        syncToggleLabel.classList.remove('hidden');
+        syncToggleLabel.classList.add('flex');
+    } else {
+        syncToggleLabel.classList.add('hidden');
+    }
+
+    const savedProgress = localStorage.getItem(`progress_${appState.roomId}`);
+    if (savedProgress) {
+        progressData = JSON.parse(savedProgress);
+    }
+    for (const key in progressData) {
+        if (key.startsWith('p-') && progressData[key].completed) {
+            const dayIndex = parseInt(key.match(/d(\d+)/)[1]);
+            practiceProgress[dayIndex] = (practiceProgress[dayIndex] || 0) + 1;
+        }
+    }
+    
+    initLessonUI();
+    initFirebaseSync();
+}
+
+function initLessonUI() {
+    initTabs();
+    showSlide(appState.currentDay, appState.currentSlide);
+    updateStudentNavControls();
+
+    prevBtn.onclick = () => {
+        const isCurrentlyDisabled = !appState.isTeacher && !appState.allowFreeExplore;
+        if (isCurrentlyDisabled) return;
+        navigatePrev();
+        if (appState.isTeacher) syncPush();
+    };
+    nextBtn.onclick = () => {
+        const isCurrentlyDisabled = !appState.isTeacher && !appState.allowFreeExplore;
+        if (isCurrentlyDisabled) return;
+        navigateNext();
+        if (appState.isTeacher) syncPush();
+    };
+
+    downloadBtn.addEventListener('click', downloadWork);
+    feedbackCloseBtn.addEventListener('click', hideFeedback);
+
+    syncToggle.addEventListener('change', (e) => {
+        if (!appState.isTeacher) return;
+        appState.allowFreeExplore = !e.target.checked;
+        syncPush();
+    });
+
+    practiceBtn.addEventListener('click', () => {
+        goToPracticeCenter(appState.currentDay);
+    });
+
+    backToLessonBtn.addEventListener('click', () => {
+        goToLesson();
+    });
+}
+
+
+/* ================== NAV / RENDER ================== */
+function initTabs() {
+  dayTabsContainer.innerHTML = '';
+  lessonData.days.forEach((day, index) => {
+    const tab = document.createElement('button');
+    tab.textContent = day.title;
+    tab.className = `tab font-bold py-2 px-4 rounded-lg flex-shrink-0 ${index === appState.currentDay ? 'active-tab' : 'bg-gray-200 hover:bg-gray-300'}`;
+    
+    if (!appState.isTeacher && !appState.allowFreeExplore) {
+        tab.classList.add('disabled-nav');
+    }
+
+    tab.onclick = () => {
+      const isCurrentlyDisabled = !appState.isTeacher && !appState.allowFreeExplore;
+      if (isCurrentlyDisabled) return;
+
+      appState.view = 'lesson';
+      appState.currentDay = index;
+      appState.currentSlide = 0;
+      initTabs();
+      showSlide(appState.currentDay, appState.currentSlide);
+      
+      if (appState.isTeacher) {
+        syncPush();
+      }
+    };
+    dayTabsContainer.appendChild(tab);
+  });
+}
+function navigatePrev() {
+  const slideSet = appState.view === 'practice' ? lessonData.days[appState.currentDay].practiceCenter : lessonData.days[appState.currentDay].slides;
+  if (appState.currentSlide > 0) { appState.currentSlide--; showSlide(appState.currentDay, appState.currentSlide); }
+}
+function navigateNext() {
+  const slideSet = appState.view === 'practice' ? lessonData.days[appState.currentDay].practiceCenter : lessonData.days[appState.currentDay].slides;
+  if (appState.currentSlide < slideSet.length - 1) { appState.currentSlide++; showSlide(appState.currentDay, appState.currentSlide); }
+}
+function goToPracticeCenter(dayIndex) {
+  appState.view = 'practice';
+  appState.currentDay = dayIndex;
+  appState.currentSlide = 0;
+  showSlide(appState.currentDay, appState.currentSlide);
+  if (appState.isTeacher) {
+    syncPush();
+  }
+}
+
+function goToLesson() {
+    appState.view = 'lesson';
+    appState.currentSlide = appState.lastLessonSlide || 0;
+    showSlide(appState.currentDay, appState.currentSlide);
+    initTabs(); 
+    if (appState.isTeacher) {
+        syncPush();
+    }
+}
+
+function showSlide(dayIndex, slideIndex) {
+  if (speech && speech.speaking) {
+    speech.cancel();
+  }
+    
+  if (appState.view === 'lesson') {
+      appState.lastLessonSlide = slideIndex;
+  }
+    
+  const slideSet = appState.view === 'practice' ? lessonData.days[dayIndex].practiceCenter : lessonData.days[dayIndex].slides;
+  const slideData = slideSet[slideIndex];
+
+  lessonContainer.innerHTML = `<div class="slide-content"></div>`;
+  const contentWrapper = lessonContainer.querySelector('.slide-content');
+
+  let html = '';
+  if (appState.view === 'practice') html += renderPracticeHeader(dayIndex, slideIndex);
+
+  switch (slideData.type) {
+    case 'title':
+      html += `<h1 class="text-4xl font-bold text-center text-emerald-600 mb-4">${slideData.title}</h1>`;
+      html += `<div class="flex items-center justify-center gap-2"><p class="text-xl text-center">${slideData.text}</p><button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${(slideData.title + '. ' + slideData.text).replace(/"/g, '&quot;')}">🔊</button></div>`;
+      break;
+    case 'hook':
+    case 'instruction':
+      if (slideData.visual) {
+          html += `<div class="text-8xl text-center mb-6">${slideData.visual}</div>`;
+      }
+      html += `<h2 class="text-3xl font-bold text-blue-600 mb-4">${slideData.title}</h2>`;
+      html += `<div class="flex items-center justify-center gap-2"><p class="text-lg">${slideData.text}</p><button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${(slideData.title + '. ' + slideData.text).replace(/"/g, '&quot;')}">🔊</button></div>`;
+      break;
+    case 'drag-drop-sort': html += renderDragDropSort(slideData); break;
+    case 'multiple-choice': html += renderMultipleChoice(slideData); break;
+    case 'true-false': html += renderTrueFalse(slideData); break;
+    case 'short-answer': html += renderShortAnswer(slideData); break;
+    case 'drag-drop-sequence': html += renderDragDropSequence(slideData); break;
+    case 'drawing': html += renderDrawingCanvas(slideData); break;
+    case 'practice-center-gate':
+      html += `<div class="text-center">
+        <h2 class="text-3xl font-bold mb-6">Great work today!</h2>
+        <p class="text-lg">Ready for more? Go to the Practice Center using the button below!</p>
+      </div>`;
+      break;
+  }
+  contentWrapper.innerHTML = html;
+
+  if (appState.view === 'practice') {
+      practiceBtn.classList.add('hidden');
+      backToLessonBtn.classList.remove('hidden');
+  } else {
+      practiceBtn.classList.remove('hidden');
+      backToLessonBtn.classList.add('hidden');
+  }
+
+  activateSlide(slideData, dayIndex, slideIndex);
+  updateNavButtons();
+  updateSlideCounter();
+}
+
+/* ================== ACTIVATION / RENDERERS ================== */
+function activateSlide(slideData, dayIndex, slideIndex) {
+  const progressKey = getProgressKey(dayIndex, slideIndex);
+  switch (slideData.type) {
+    case 'drag-drop-sort':
+    case 'drag-drop-sequence': initDragAndDrop(slideData, progressKey); break;
+    case 'short-answer': initShortAnswer(slideData, progressKey); break;
+    case 'drawing': initDrawingCanvas(slideData, progressKey); break;
+    case 'multiple-choice':
+    case 'true-false':
+      const savedAnswer = progressData[progressKey]?.answer;
+      if (savedAnswer !== undefined) {
+        const radio = document.querySelector(`input[name="mc-option"][value="${savedAnswer}"]`);
+        if (radio) radio.checked = true;
+      }
+      break;
+  }
+}
+
+function renderPracticeHeader(dayIndex, slideIndex) {
+  const total = lessonData.days[dayIndex].practiceCenter.length;
+  const correctCount = practiceProgress[dayIndex] || 0;
+
+  let berriesHtml = '';
+  for (let i = 0; i < total; i++) {
+    const isCollected = i < correctCount;
+    berriesHtml += `<div class="w-6 h-6 rounded-full ${isCollected ? 'bg-red-500' : 'bg-gray-300'} border-2 border-white"></div>`;
+  }
+  return `
+    <div class="mb-6">
+      <h2 class="text-2xl font-bold text-center">Practice Center</h2>
+      <p class="text-center text-gray-600">Question ${slideIndex + 1} of ${total}</p>
+      <div class="flex justify-center items-center space-x-1 mt-2 p-2 bg-green-200 rounded-full flex-wrap">${berriesHtml}</div>
+    </div>
+  `;
+}
+
+/* --- Drag & Drop (sort/sequence) --- */
+function renderDragDropSort(slideData) {
+  const itemsHtml = slideData.items.map(item => {
+    const charCount = Array.from(item.content).length;
+    let textClasses = '';
+    if (charCount <= 3) { textClasses = 'text-5xl p-4'; } 
+    else if (charCount <= 6) { textClasses = 'text-3xl p-3'; } 
+    else { textClasses = 'text-2xl p-2'; }
+    return `<div id="${item.id}" class="draggable ${textClasses} bg-yellow-200 rounded-lg flex items-center justify-center text-center flex-wrap break-all" draggable="true" data-count="${item.count}">${item.content}</div>`;
+  }).join('');
+  const targetsHtml = slideData.targets.map(target => {
+    const charCount = Array.from(target.label).length;
+    let fontSizeClass = '';
+    if (charCount <= 3) { fontSizeClass = 'text-6xl'; } 
+    else if (charCount <= 6) { fontSizeClass = 'text-4xl'; } 
+    else { fontSizeClass = 'text-2xl'; }
+    return `<div class="drop-target w-32 h-32 border-4 border-dashed border-gray-400 rounded-lg flex justify-center items-start flex-wrap p-2" data-accepts="${target.accepts}"><span class="${fontSizeClass} font-bold text-gray-300 text-center break-all leading-none">${target.label}</span></div>`;
+  }).join('');
+  return `
+    <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
+    <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.instruction}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.instruction.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
+    <div class="bg-blue-100 p-4 rounded-lg mb-6 flex justify-center flex-wrap gap-4" id="start-area">${itemsHtml}</div>
+    <div class="flex justify-center flex-wrap gap-4">${targetsHtml}</div>
+    ${slideData.isPractice ? '<div class="text-center mt-6"><button class="check-answer-btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg button-pop">Did I get it?</button></div>' : ''}
+  `;
+}
+function renderDragDropSequence(slideData) {
+  const itemsHtml = slideData.items.map(item => `
+    <div id="${item.id}" class="draggable text-4xl p-4 bg-orange-200 rounded-lg" draggable="true" data-value="${item.content}">${item.content}</div>
+  `).join('');
+  const targetsHtml = slideData.correctSequence.map((_, index) => `
+    <div class="drop-target w-24 h-24 border-4 border-dashed border-gray-400 rounded-lg flex justify-center items-center" data-index="${index}"></div>
+  `).join('');
+  return `
+    <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
+    <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.instruction}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.instruction.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
+    <div class="bg-blue-100 p-4 rounded-lg mb-6 flex justify-center flex-wrap gap-4" id="start-area">${itemsHtml}</div>
+    <div class="flex justify-center flex-wrap gap-4" id="sequence-targets">${targetsHtml}</div>
+    ${slideData.isPractice ? '<div class="text-center mt-6"><button class="check-answer-btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg button-pop">Did I get it?</button></div>' : ''}
+  `;
+}
+function initDragAndDrop(slideData, progressKey) {
+  const draggables = Array.from(document.querySelectorAll('.draggable'));
+  const targets = Array.from(document.querySelectorAll('.drop-target'));
+  const startArea = document.getElementById('start-area');
+  let draggedItem = null, ghost = null, offsetX = 0, offsetY = 0;
+
+  const savedPositions = progressData[progressKey]?.positions;
+  if (savedPositions) {
+    for (const [itemId, parentData] of Object.entries(savedPositions)) {
+      const item = document.getElementById(itemId);
+      if (!item) continue;
+      let target = null;
+      if (parentData.type === 'start') target = startArea;
+      else if (parentData.type === 'target') target = targets.find(t => (t.dataset.accepts == parentData.id) || (t.dataset.index == parentData.id));
+      if (item && target) {
+        target.appendChild(item);
+        if (target.querySelector('span')) target.querySelector('span').style.display = 'none';
+      }
+    }
+  }
+
+  function handleDragStart(e) {
+    const target = e.currentTarget;
+    draggedItem = target;
+    draggedItem.classList.add('dragging');
+
+    const rect = draggedItem.getBoundingClientRect();
+    ghost = draggedItem.cloneNode(true);
+    ghost.classList.add('ghost-drag');
+    document.body.appendChild(ghost);
+
+    if (e.type === 'touchstart') {
+      const touch = e.touches[0];
+      offsetX = touch.clientX - rect.left;
+      offsetY = touch.clientY - rect.top;
+      ghost.style.left = `${touch.clientX - offsetX}px`;
+      ghost.style.top = `${touch.clientY - offsetY}px`;
+    } else {
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+      ghost.style.left = `${e.clientX - offsetX}px`;
+      ghost.style.top = `${e.clientY - offsetY}px`;
+    }
+  }
+  function handleMove(e) {
+    if (!draggedItem) return;
+    e.preventDefault();
+    let clientX, clientY;
+    if (e.type === 'touchmove') { const t = e.touches[0]; clientX = t.clientX; clientY = t.clientY; }
+    else { clientX = e.clientX; clientY = e.clientY; }
+    ghost.style.left = `${clientX - offsetX}px`;
+    ghost.style.top = `${clientY - offsetY}px`;
+    targets.forEach(t => t.classList.remove('over'));
+    startArea.classList.remove('over');
+    const el = document.elementFromPoint(clientX, clientY);
+    const targetUnder = el ? el.closest('.drop-target') : null;
+    if (targetUnder) targetUnder.classList.add('over');
+    else if (el && el.closest('#start-area')) startArea.classList.add('over');
+  }
+  function handleEnd(e) {
+    if (!draggedItem) return;
+    let clientX, clientY;
+    if (e.type === 'touchend') { const t = e.changedTouches[0]; clientX = t.clientX; clientY = t.clientY; }
+    else { clientX = e.clientX; clientY = e.clientY; }
+    const el = document.elementFromPoint(clientX, clientY);
+    const targetUnder = el ? el.closest('.drop-target') : null;
+    const startAreaUnder = el ? el.closest('#start-area') : null;
+
+    if (targetUnder) {
+      if (targetUnder.children.length > 0 && targetUnder.children[0].classList.contains('draggable')) {
+        const existing = targetUnder.children[0];
+        const originalParent = draggedItem.parentElement;
+        originalParent.appendChild(existing);
+        targetUnder.appendChild(draggedItem);
+      } else {
+        targetUnder.appendChild(draggedItem);
+      }
+      if (targetUnder.querySelector('span')) targetUnder.querySelector('span').style.display = 'none';
+    } else if (startAreaUnder) {
+      startArea.appendChild(draggedItem);
+    }
+
+    draggedItem.classList.remove('dragging');
+    targets.forEach(t => t.classList.remove('over'));
+    startArea.classList.remove('over');
+    document.body.removeChild(ghost);
+    draggedItem = null; ghost = null;
+
+    saveDragDropState(progressKey);
+  }
+
+  draggables.forEach(d => {
+    d.addEventListener('mousedown', handleDragStart);
+    d.addEventListener('touchstart', handleDragStart, { passive:false });
+  });
+  document.addEventListener('mousemove', handleMove);
+  document.addEventListener('touchmove', handleMove, { passive:false });
+  document.addEventListener('mouseup', handleEnd);
+  document.addEventListener('touchend', handleEnd);
+
+  const checkBtn = document.querySelector('.check-answer-btn');
+  if (checkBtn) {
+    checkBtn.addEventListener('click', () => {
+      let isCorrect = false;
+      if (slideData.type === 'drag-drop-sort') {
+        const currentTargets = document.querySelectorAll('.drop-target');
+        const startArea = document.getElementById('start-area');
+        let allTargetsCorrect = true;
+        currentTargets.forEach(target => {
+          const accepts = target.dataset.accepts;
+          const contained = Array.from(target.children).filter(c => c.classList.contains('draggable'));
+          if (contained.some(item => item.dataset.count != accepts)) allTargetsCorrect = false;
+        });
+        const totalPlaced = Array.from(currentTargets).reduce((acc, t) => acc + t.querySelectorAll('.draggable').length, 0);
+        isCorrect = allTargetsCorrect && (totalPlaced === slideData.items.length) && (startArea.children.length === 0);
+      } else if (slideData.type === 'drag-drop-sequence') {
+        const seqTargets = document.getElementById('sequence-targets');
+        const placed = Array.from(seqTargets.children).map(t => t.children[0]?.dataset.value);
+        isCorrect = placed.length === slideData.correctSequence.length && placed.every((v, i) => v === slideData.correctSequence[i]);
+      }
+      handleAnswer(isCorrect);
+    });
+  }
+}
+function saveDragDropState(progressKey) {
+  if (!progressData[progressKey]) progressData[progressKey] = {};
+  progressData[progressKey].positions = {};
+  document.querySelectorAll('.draggable').forEach(item => {
+    const parent = item.parentElement;
+    let parentData = {};
+    if (parent.id === 'start-area') parentData = { type:'start' };
+    else if (parent.classList.contains('drop-target')) parentData = { type:'target', id: parent.dataset.accepts || parent.dataset.index };
+    progressData[progressKey].positions[item.id] = parentData;
+  });
+  saveProgress();
+}
+
+/* --- MC / TF --- */
+function renderMultipleChoice(slideData) {
+  if (slideData.group && !slideData.options) {
+    const count = slideData.group.match(/./gu).length;
+    slideData.options = [
+      { content: `${count}`, correct: true },
+      { content: `${count === 5 ? 4 : count + 1}`, correct: false },
+      { content: `${count === 1 ? 2 : count - 1}`, correct: false }
+    ].sort(() => Math.random() - 0.5);
+  }
+  const optionsHtml = slideData.options.map((opt, index) => `
+    <label class="block border-2 border-gray-300 rounded-lg p-4 text-center hover:bg-yellow-100 cursor-pointer has-[:checked]:bg-emerald-200 has-[:checked]:border-emerald-500 flex flex-col justify-center min-h-[6rem]">
+      <input type="radio" name="mc-option" value="${index}" class="sr-only">
+      <span class="text-4xl break-all leading-tight">${opt.content}</span>
+    </label>
+  `).join('');
+  return `
+    <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
+    <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.question}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.question.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
+    ${slideData.group ? `<div class="text-6xl text-center mb-4 break-all">${slideData.group}</div>` : ''}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">${optionsHtml}</div>
+    ${slideData.isPractice ? '<div class="text-center mt-6"><button class="check-answer-btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg button-pop">Did I get it?</button></div>' : ''}
+  `;
+}
+function renderTrueFalse(slideData) {
+  return `
+    <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
+    <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.question}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.question.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
+    <div class="flex justify-center items-center space-x-8 bg-gray-100 p-8 rounded-lg">
+      <div class="text-8xl">${slideData.itemContent}</div>
+      <div class="text-8xl font-bold">${slideData.numeral}</div>
+    </div>
+    <div class="grid grid-cols-2 gap-4 mt-6">
+      <label class="block border-2 border-gray-300 rounded-lg p-4 text-center hover:bg-yellow-100 cursor-pointer has-[:checked]:bg-emerald-200 has-[:checked]:border-emerald-500">
+        <input type="radio" name="mc-option" value="true" class="sr-only">
+        <span class="text-4xl">✔️ True</span>
+      </label>
+      <label class="block border-2 border-gray-300 rounded-lg p-4 text-center hover:bg-yellow-100 cursor-pointer has-[:checked]:bg-red-200 has-[:checked]:border-red-500">
+        <input type="radio" name="mc-option" value="false" class="sr-only">
+        <span class="text-4xl">❌ False</span>
+      </label>
+    </div>
+    ${slideData.isPractice ? '<div class="text-center mt-6"><button class="check-answer-btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg button-pop">Did I get it?</button></div>' : ''}
+  `;
+}
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('check-answer-btn')) {
+    const slideSet = appState.view === 'practice' ? lessonData.days[appState.currentDay].practiceCenter : lessonData.days[appState.currentDay].slides;
+    const slideData = slideSet[appState.currentSlide];
+    if (slideData.type === 'multiple-choice' || slideData.type === 'true-false') {
+      const selectedRadio = document.querySelector('input[name="mc-option"]:checked');
+      if (!selectedRadio) { showFeedback(false, "Please choose an answer!"); return; }
+      const selectedValue = selectedRadio.value;
+
+      let isCorrect;
+      if (slideData.type === 'multiple-choice') {
+        isCorrect = slideData.options[selectedValue].correct;
+      } else {
+        isCorrect = (selectedValue === 'true') === slideData.correct;
+      }
+
+      const progressKey = getProgressKey(appState.currentDay, appState.currentSlide);
+      if (!progressData[progressKey]) progressData[progressKey] = {};
+      progressData[progressKey].answer = selectedValue;
+      saveProgress();
+
+      handleAnswer(isCorrect);
+    }
+  }
+});
+
+/* --- Short Answer --- */
+function renderShortAnswer(slideData) {
+  return `
+    <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
+    <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.question}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.question.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
+    <div class="text-8xl text-center mb-4 break-all">${slideData.itemContent}</div>
+    <input type="text" id="short-answer-input" class="block w-40 mx-auto text-center text-4xl p-2 border-4 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500" maxlength="2" inputmode="numeric" pattern="[0-9]*">
+    ${slideData.isPractice ? '<div class="text-center mt-6"><button class="check-answer-btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg button-pop">Did I get it?</button></div>' : ''}
+  `;
+}
+function initShortAnswer(slideData, progressKey) {
+  const input = document.getElementById('short-answer-input');
+  if (progressData[progressKey]?.answer) input.value = progressData[progressKey].answer;
+  input.addEventListener('input', () => {
+    if (!progressData[progressKey]) progressData[progressKey] = {};
+    progressData[progressKey].answer = input.value;
+    saveProgress();
+  });
+  const checkBtn = document.querySelector('.check-answer-btn');
+  if (checkBtn) {
+    checkBtn.addEventListener('click', () => {
+      const isCorrect = input.value.trim() === slideData.correctAnswer;
+      handleAnswer(isCorrect);
+    });
+  }
+}
+
+/* --- Drawing --- */
+function renderDrawingCanvas(slideData) {
+  return `
+    <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
+    <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.instruction}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.instruction.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-4">
+      <div id="drawing-tools" class="flex sm:flex-col justify-center items-center gap-2 p-2 bg-gray-100 rounded-lg">
+        <button class="color-btn w-10 h-10 rounded-full border-4 border-white" data-color="black" style="background-color:black;"></button>
+        <button class="color-btn w-10 h-10 rounded-full border-4 border-white" data-color="red" style="background-color:red;"></button>
+        <button class="color-btn w-10 h-10 rounded-full border-4 border-white" data-color="blue" style="background-color:blue;"></button>
+        <button class="color-btn w-10 h-10 rounded-full border-4 border-white" data-color="green" style="background-color:green;"></button>
+        <hr class="w-full my-2 hidden sm:block">
+        <button class="size-btn p-1 rounded-full border-2 border-transparent" data-size="5"><div class="w-3 h-3 bg-black rounded-full"></div></button>
+        <button class="size-btn p-1 rounded-full border-2 border-transparent" data-size="10"><div class="w-5 h-5 bg-black rounded-full"></div></button>
+        <button class="size-btn p-1 rounded-full border-2 border-transparent" data-size="20"><div class="w-7 h-7 bg-black rounded-full"></div></button>
+        <hr class="w-full my-2 hidden sm:block">
+        <button id="eraser-btn" class="text-2xl p-2">✏️</button>
+        <button id="clear-canvas-btn" class="text-2xl p-2">🗑️</button>
+      </div>
+      <canvas id="drawing-canvas" class="bg-gray-50 border-2 border-gray-300 rounded-lg w-full" style="touch-action:none;"></canvas>
+    </div>
+  `;
+}
+function initDrawingCanvas(slideData, progressKey) {
+  const canvas = document.getElementById('drawing-canvas');
+  const tools = document.getElementById('drawing-tools');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let isDrawing = false;
+
+  const parent = canvas.parentElement;
+  canvas.width = parent.clientWidth - (tools ? tools.clientWidth : 0) - 20;
+  canvas.height = 400;
+
+  let brushColor = 'black', brushSize = 10;
+
+  if (progressData[progressKey]?.drawing) {
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0);
+    img.src = progressData[progressKey].drawing;
+  }
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const touch = e.touches ? e.touches[0] : e;
+    return { x: (touch.clientX - rect.left) * scaleX, y: (touch.clientY - rect.top) * scaleY };
+    }
+  function startDrawing(e) { e.preventDefault(); isDrawing = true; const {x,y}=getPos(e); ctx.beginPath(); ctx.moveTo(x,y); }
+  function draw(e) { if(!isDrawing) return; e.preventDefault(); const {x,y}=getPos(e); ctx.lineTo(x,y); ctx.strokeStyle=brushColor; ctx.lineWidth=brushSize; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke(); ctx.beginPath(); ctx.moveTo(x,y); }
+  function stopDrawing(){ if(!isDrawing)return; isDrawing=false; ctx.beginPath(); if(!progressData[progressKey]) progressData[progressKey]={}; progressData[progressKey].drawing=canvas.toDataURL(); saveProgress(); }
+
+  canvas.addEventListener('mousedown', startDrawing);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stopDrawing);
+  canvas.addEventListener('mouseleave', stopDrawing);
+  canvas.addEventListener('touchstart', startDrawing, { passive:false });
+  canvas.addEventListener('touchmove', draw, { passive:false });
+  canvas.addEventListener('touchend', stopDrawing);
+
+  tools.addEventListener('click', (e) => {
+    const target = e.target.closest('button'); if(!target) return;
+    if (target.classList.contains('color-btn')) brushColor = target.dataset.color;
+    else if (target.classList.contains('size-btn')) brushSize = target.dataset.size;
+    else if (target.id === 'eraser-btn') brushColor = '#f9fafb';
+    else if (target.id === 'clear-canvas-btn') { ctx.clearRect(0,0,canvas.width,canvas.height); if (progressData[progressKey]) { delete progressData[progressKey].drawing; saveProgress(); } }
+  });
+}
+
+/* --- Helpers --- */
+function getProgressKey(day, slide) { return appState.view === 'practice' ? `p-d${day}s${slide}` : `d${day}s${slide}`; }
+
+function updateNavButtons() {
+  const slideSet = appState.view === 'practice' ? lessonData.days[appState.currentDay].practiceCenter : lessonData.days[appState.currentDay].slides;
+  prevBtn.disabled = appState.currentSlide === 0;
+  nextBtn.disabled = appState.currentSlide === slideSet.length - 1;
+  prevBtn.classList.toggle('opacity-50', prevBtn.disabled);
+  nextBtn.classList.toggle('opacity-50', nextBtn.disabled);
+}
+
+function updateStudentNavControls() {
+    if (appState.isTeacher) return;
+    const disable = !appState.allowFreeExplore;
+    prevBtn.classList.toggle('disabled-nav', disable);
+    nextBtn.classList.toggle('disabled-nav', disable);
+    dayTabsContainer.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.toggle('disabled-nav', disable);
+    });
+}
+
+
+function updateSlideCounter() {
+  const slideSet = appState.view === 'practice' ? lessonData.days[appState.currentDay].practiceCenter : lessonData.days[appState.currentDay].slides;
+  const mode = appState.view === 'practice' ? "Practice" : "Lesson";
+  slideCounter.textContent = `${mode} ${appState.currentSlide + 1} / ${slideSet.length}`;
+}
+
+function handleAnswer(isCorrect) {
+  if (isCorrect) {
+    const affirmations = ["Superstar!", "You're a number genius!", "Wow, you got it!", "Amazing counting!"];
+    const affirmation = affirmations[Math.floor(Math.random()*affirmations.length)];
+    showFeedback(true, affirmation);
+    if (appState.view === 'practice') {
+      const progressKey = getProgressKey(appState.currentDay, appState.currentSlide);
+      if (!progressData[progressKey]?.completed) {
+        practiceProgress[appState.currentDay] = (practiceProgress[appState.currentDay] || 0) + 1;
+        if (!progressData[progressKey]) progressData[progressKey] = {};
+        progressData[progressKey].completed = true;
+        saveProgress();
+        if (practiceProgress[appState.currentDay] === lessonData.days[appState.currentDay].practiceCenter.length) {
+          setTimeout(() => { showFeedback(true, "You collected all the berries! You're a Practice Pro!"); triggerConfetti(); }, 500);
+        }
+      }
+    }
+  } else {
+    const nudges = ["Not quite, let's try again!", "So close! Give it another look.", "Good try! Remember to count carefully."];
+    const nudge = nudges[Math.floor(Math.random()*nudges.length)];
+    showFeedback(false, nudge);
+  }
+}
+function showFeedback(isCorrect, text) {
+  feedbackIcon.textContent = isCorrect ? '⭐' : '🤔';
+  feedbackText.textContent = text;
+  feedbackModal.classList.add('show');
+}
+function hideFeedback() {
+  feedbackModal.classList.remove('show');
+  if (appState.view === 'practice') showSlide(appState.currentDay, appState.currentSlide);
+}
+function triggerConfetti() {
+  const container = document.getElementById('confetti-container');
+  for (let i=0;i<100;i++){
+    const confetti = document.createElement('div');
+    confetti.classList.add('confetti');
+    confetti.style.left = `${Math.random()*100}vw`;
+    confetti.style.animation = `confetti-fall ${Math.random()*2+3}s linear ${Math.random()*2}s forwards`;
+    confetti.style.backgroundColor = `hsl(${Math.random()*360},100%,50%)`;
+    container.appendChild(confetti);
+    setTimeout(()=>confetti.remove(),5000);
+  }
+}
+function saveProgress() {
+  try { localStorage.setItem(`progress_${appState.roomId}`, JSON.stringify(progressData)); }
+  catch (e) { console.error("Could not save progress:", e); }
+}
+function downloadWork() {
+    const scriptToInject = `<script>const loadedProgress = ${JSON.stringify(progressData)};<\/script>`;
+    const bodyTag = /<body[^>]*>/i;
+    const currentHtml = document.documentElement.outerHTML;
+    let modifiedHtml;
+    if (currentHtml.includes('const loadedProgress =')) {
+        const scriptRegex = /<script>const loadedProgress = .*?;<\/script>/;
+        modifiedHtml = currentHtml.replace(scriptRegex, scriptToInject);
+    } else {
+        modifiedHtml = currentHtml.replace(bodyTag, `$&${scriptToInject}`);
+    }
+    const blob = new Blob([modifiedHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'my-number-lesson-6-10.html';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+/* ================== FIREBASE SYNC LAYER ================== */
+let _app, _db, _auth, _roomRef, _unsubSnap = null;
+let _isApplyingRemote = false;
+
+function initFirebaseSync() {
+    try {
+        const firebaseConfig = {
+            apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+            authDomain: "lesson-sync-a223a.firebaseapp.com",
+            projectId: "lesson-sync-a223a",
+            storageBucket: "lesson-sync-a223a.firebasestorage.app",
+            messagingSenderId: "906128715071",
+            appId: "1:906128715071:web:347ea08f4d864fde02778a"
+        };
+        _app = firebase.initializeApp(firebaseConfig);
+        _auth = firebase.auth();
+        _db = firebase.firestore();
+
+        _roomRef = _db.collection('rooms').doc(appState.roomId);
+
+        if (appState.isTeacher) {
+            _auth.signInAnonymously().then(() => syncPush());
+        }
+
+        _unsubSnap = _roomRef.onSnapshot((doc) => {
+            const data = doc.data();
+            if (!data || _isApplyingRemote) return;
+
+            // Default to 'true' (Free Explore Mode) if not set in Firestore
+            appState.allowFreeExplore = data.allowFreeExplore ?? true;
+            updateStudentNavControls();
+
+            if (!appState.isTeacher && !appState.allowFreeExplore) {
+                _isApplyingRemote = true;
+                const viewChanged = appState.view !== data.view;
+                const dayChanged = appState.currentDay !== data.day;
+                const slideChanged = appState.currentSlide !== data.slide;
+                
+                appState.currentDay = data.day ?? 0;
+                appState.view = data.view ?? 'lesson';
+                appState.currentSlide = data.slide ?? 0;
+                
+                if (dayChanged || viewChanged) initTabs();
+                if (dayChanged || viewChanged || slideChanged) {
+                  showSlide(appState.currentDay, appState.currentSlide);
+                }
+
+                _isApplyingRemote = false;
+            }
+        });
+    } catch (e) {
+        console.error('Firebase sync init failed:', e);
+        alert('Sync could not be enabled. Please check your Firebase configuration and internet connection.');
+    }
+}
+
+function syncPush() {
+    if (!appState.isTeacher || !_roomRef || _isApplyingRemote) return;
+    try {
+        _roomRef.set({
+            day: appState.currentDay,
+            slide: appState.currentSlide,
+            view: appState.view,
+            allowFreeExplore: appState.allowFreeExplore,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    } catch (e) {
+        console.error('Sync push failed:', e);
+    }
+}
+
+function disconnectFirebase() {
+    if (_unsubSnap) {
+        _unsubSnap();
+        _unsubSnap = null;
+    }
+    if (_auth && _auth.currentUser) {
+        _auth.signOut();
+    }
+}
+  </script>
+
+</body></html>
+
