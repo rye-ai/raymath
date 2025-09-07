@@ -32,6 +32,7 @@
     .badge { font-size:12px; }
     .disabled-nav { pointer-events:none; opacity:.5; }
     #teacher-password-group { display: none; }
+    .read-aloud-btn { background: none; border: none; padding: 0; cursor: pointer; }
   </style>
 </head>
 <body class="bg-sky-100 text-gray-800">
@@ -289,8 +290,38 @@ const feedbackCloseBtn = document.getElementById('feedback-close-btn');
 const slideCounter = document.getElementById('slide-counter');
 
 
+/* ================== SPEECH SYNTHESIS ================== */
+const speech = window.speechSynthesis;
+function readAloud(text) {
+    if (!speech) {
+        alert('Sorry, your browser does not support text-to-speech.');
+        return;
+    }
+    if (speech.speaking) {
+        speech.cancel();
+    }
+    // Clean up text for better pronunciation
+    const cleanedText = text.replace(/(\d+)\/(\d+)/g, '$1 of $2');
+    const utterance = new SpeechSynthesisUtterance(cleanedText);
+    utterance.rate = 0.9;
+    utterance.pitch = 1.1;
+    speech.speak(utterance);
+}
+
+
 /* ================== INIT & SETUP ================== */
 document.addEventListener('DOMContentLoaded', () => {
+    // Add one listener for all read aloud buttons
+    lessonContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.read-aloud-btn');
+        if (btn) {
+            const textToRead = btn.dataset.textToRead;
+            if (textToRead) {
+                readAloud(textToRead);
+            }
+        }
+    });
+    
     initAppSetup();
     const savedRole = localStorage.getItem('lesson_role');
     const savedRoom = localStorage.getItem('lesson_room');
@@ -471,6 +502,10 @@ function goToLesson() {
 }
 
 function showSlide(dayIndex, slideIndex) {
+  if (speech && speech.speaking) {
+    speech.cancel();
+  }
+
   if (appState.view === 'lesson') {
       appState.lastLessonSlide = slideIndex;
   }
@@ -486,14 +521,16 @@ function showSlide(dayIndex, slideIndex) {
 
   switch (slideData.type) {
     case 'title':
-      html += `<h1 class="text-4xl font-bold text-center text-emerald-600 mb-4">${slideData.title}</h1><p class="text-xl text-center">${slideData.text}</p>`;
+      html += `<h1 class="text-4xl font-bold text-center text-emerald-600 mb-4">${slideData.title}</h1>`;
+      html += `<div class="flex items-center justify-center gap-2"><p class="text-xl text-center">${slideData.text}</p><button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${(slideData.title + '. ' + slideData.text).replace(/"/g, '&quot;')}">🔊</button></div>`;
       break;
     case 'hook':
     case 'instruction':
       if (slideData.visual) {
           html += `<div class="text-8xl text-center mb-6">${slideData.visual}</div>`;
       }
-      html += `<h2 class="text-3xl font-bold text-blue-600 mb-4">${slideData.title}</h2><p class="text-lg">${slideData.text}</p>`;
+      html += `<h2 class="text-3xl font-bold text-blue-600 mb-4">${slideData.title}</h2>`;
+      html += `<div class="flex items-center justify-center gap-2"><p class="text-lg">${slideData.text}</p><button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${(slideData.title + '. ' + slideData.text).replace(/"/g, '&quot;')}">🔊</button></div>`;
       break;
     case 'drag-drop-sort': html += renderDragDropSort(slideData); break;
     case 'multiple-choice': html += renderMultipleChoice(slideData); break;
@@ -568,22 +605,32 @@ function renderDragDropSort(slideData) {
     const fontSizeClass = charCount > 3 ? 'text-3xl' : 'text-5xl';
     const paddingClass = charCount > 3 ? 'p-2' : 'p-4';
     return `
-    <div id="${item.id}" class="draggable ${fontSizeClass} ${paddingClass} bg-yellow-200 rounded-lg flex items-center justify-center text-center break-all" draggable="true" data-count="${item.count}">${item.content}</div>
+    <div id="${item.id}" class="draggable ${fontSizeClass} ${paddingClass} bg-yellow-200 rounded-lg flex items-center justify-center text-center flex-wrap break-all" draggable="true" data-count="${item.count}">${item.content}</div>
     `;
   }).join('');
   const targetsHtml = slideData.targets.map(target => {
     // Also adjust font size for the target labels to prevent overflow
     const charCount = Array.from(target.label).length;
-    const fontSizeClass = charCount > 3 ? 'text-4xl' : 'text-6xl';
+    let fontSizeClass = '';
+     if (charCount <= 3) {
+        fontSizeClass = 'text-6xl';
+    } else if (charCount <= 6) {
+        fontSizeClass = 'text-4xl';
+    } else {
+        fontSizeClass = 'text-2xl'; // Use a smaller size for 7+ items
+    }
     return `
-    <div class="drop-target w-32 h-32 border-4 border-dashed border-gray-400 rounded-lg flex justify-center items-center p-2" data-accepts="${target.accepts}">
-      <span class="${fontSizeClass} font-bold text-gray-300 text-center break-all">${target.label}</span>
+    <div class="drop-target w-32 h-32 border-4 border-dashed border-gray-400 rounded-lg flex justify-center items-start flex-wrap p-2" data-accepts="${target.accepts}">
+      <span class="${fontSizeClass} font-bold text-gray-300 text-center break-all leading-none">${target.label}</span>
     </div>
     `;
   }).join('');
   return `
     <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
-    <p class="text-lg mb-4">${slideData.instruction}</p>
+    <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.instruction}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.instruction.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
     <div class="bg-blue-100 p-4 rounded-lg mb-6 flex justify-center flex-wrap gap-4" id="start-area">${itemsHtml}</div>
     <div class="flex justify-center flex-wrap gap-4">${targetsHtml}</div>
     ${slideData.isPractice ? '<div class="text-center mt-6"><button class="check-answer-btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg button-pop">Did I get it?</button></div>' : ''}
@@ -598,7 +645,10 @@ function renderDragDropSequence(slideData) {
   `).join('');
   return `
     <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
-    <p class="text-lg mb-4">${slideData.instruction}</p>
+    <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.instruction}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.instruction.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
     <div class="bg-blue-100 p-4 rounded-lg mb-6 flex justify-center flex-wrap gap-4" id="start-area">${itemsHtml}</div>
     <div class="flex justify-center flex-wrap gap-4" id="sequence-targets">${targetsHtml}</div>
     ${slideData.isPractice ? '<div class="text-center mt-6"><button class="check-answer-btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg button-pop">Did I get it?</button></div>' : ''}
@@ -752,14 +802,17 @@ function renderMultipleChoice(slideData) {
     ].sort(() => Math.random() - 0.5);
   }
   const optionsHtml = slideData.options.map((opt, index) => `
-    <label class="block border-2 border-gray-300 rounded-lg p-4 text-center hover:bg-yellow-100 cursor-pointer has-[:checked]:bg-emerald-200 has-[:checked]:border-emerald-500">
+    <label class="block border-2 border-gray-300 rounded-lg p-4 text-center hover:bg-yellow-100 cursor-pointer has-[:checked]:bg-emerald-200 has-[:checked]:border-emerald-500 flex flex-col justify-center min-h-[6rem]">
       <input type="radio" name="mc-option" value="${index}" class="sr-only">
-      <span class="text-4xl">${opt.content}</span>
+      <span class="text-4xl break-all leading-tight">${opt.content}</span>
     </label>
   `).join('');
   return `
     <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
-    <p class="text-lg mb-4">${slideData.question}</p>
+     <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.question}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.question.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
     ${slideData.group ? `<div class="text-6xl text-center mb-4 break-all">${slideData.group}</div>` : ''}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">${optionsHtml}</div>
     ${slideData.isPractice ? '<div class="text-center mt-6"><button class="check-answer-btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg button-pop">Did I get it?</button></div>' : ''}
@@ -768,7 +821,10 @@ function renderMultipleChoice(slideData) {
 function renderTrueFalse(slideData) {
   return `
     <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
-    <p class="text-lg mb-4">${slideData.question}</p>
+     <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.question}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.question.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
     <div class="flex justify-center items-center space-x-8 bg-gray-100 p-8 rounded-lg">
       <div class="text-8xl">${slideData.itemContent}</div>
       <div class="text-8xl font-bold">${slideData.numeral}</div>
@@ -816,7 +872,10 @@ document.addEventListener('click', (e) => {
 function renderShortAnswer(slideData) {
   return `
     <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
-    <p class="text-lg mb-4">${slideData.question}</p>
+    <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.question}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.question.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
     <div class="text-8xl text-center mb-4 break-all">${slideData.itemContent}</div>
     <input type="text" id="short-answer-input" class="block w-40 mx-auto text-center text-4xl p-2 border-4 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500" maxlength="1" inputmode="numeric" pattern="[0-9]*">
     ${slideData.isPractice ? '<div class="text-center mt-6"><button class="check-answer-btn bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg button-pop">Did I get it?</button></div>' : ''}
@@ -843,7 +902,10 @@ function initShortAnswer(slideData, progressKey) {
 function renderDrawingCanvas(slideData) {
   return `
     <h3 class="text-2xl font-bold mb-2">${slideData.title}</h3>
-    <p class="text-lg mb-4">${slideData.instruction}</p>
+    <div class="flex items-center justify-center text-center gap-2 mb-4">
+        <p class="text-lg">${slideData.instruction}</p>
+        <button class="read-aloud-btn text-3xl button-pop" data-text-to-read="${slideData.instruction.replace(/"/g, '&quot;')}">🔊</button>
+    </div>
     <div class="flex flex-col sm:flex-row gap-4">
       <div id="drawing-tools" class="flex sm:flex-col justify-center items-center gap-2 p-2 bg-gray-100 rounded-lg">
         <button class="color-btn w-10 h-10 rounded-full border-4 border-white" data-color="black" style="background-color:black;"></button>
@@ -1085,9 +1147,4 @@ function disconnectFirebase() {
   </script>
 
 </body></html>
-
-
-
-
-
 
