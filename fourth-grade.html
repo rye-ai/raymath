@@ -27,7 +27,7 @@
             <!-- Edit these 4 cards for your lessons -->
             <div class="card" data-lesson-src="4/w2.html">
                 <div class="card-icon">➗</div>
-                <h3>Addition and Subtraction Word Problem upto 10,000</h3
+                <h3>Addition and Subtraction Word Problem upto 10,000</h3>
             
             </div>
             <!-- Edit these 4 cards for your lessons -->
@@ -45,11 +45,48 @@
             <iframe id="lesson-iframe" src="" title="Interactive Lesson"></iframe>
         </div>
     </div>
-    <script>
-        const lessonCards=document.querySelectorAll('.card:not(.placeholder)'),modal=document.getElementById('lesson-modal'),iframe=document.getElementById('lesson-iframe'),closeModalButton=document.getElementById('close-modal');function openModal(e){iframe.src=e,modal.style.display='flex'}function closeModal(){modal.style.display='none',iframe.src=''}lessonCards.forEach(e=>{e.addEventListener('click',()=>{const o=e.getAttribute('data-lesson-src');o&&openModal(o)})}),closeModalButton.addEventListener('click',closeModal),modal.addEventListener('click',e=>{e.target===modal&&closeModal()});
-    </script>
+     // Get references to all the necessary elements
+    const lessonCards = document.querySelectorAll('.card:not(.placeholder)');
+    const modal = document.getElementById('lesson-modal');
+    const iframe = document.getElementById('lesson-iframe');
+    const closeModalButton = document.getElementById('close-modal');
+
+    // Function to open the modal and load the lesson
+    function openModal(lessonSrc) {
+        iframe.src = lessonSrc;
+        modal.style.display = 'flex';
+    }
+
+    // Function to close the modal and UNLOAD the lesson
+    function closeModal() {
+        modal.style.display = 'none';
+        // Use 'about:blank' to completely stop the iframe's content (audio, video, etc.)
+        iframe.src = 'about:blank'; 
+    }
+
+    // Add a click listener to each lesson card
+    lessonCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const lessonSrc = card.getAttribute('data-lesson-src');
+            if (lessonSrc) {
+                openModal(lessonSrc);
+            }
+        });
+    });
+
+    // Add a click listener to the close button
+    closeModalButton.addEventListener('click', closeModal);
+
+    // Add a click listener to the modal overlay (to close when clicking outside the content)
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+</script>
 </body>
 </html>
+
 
 
 
