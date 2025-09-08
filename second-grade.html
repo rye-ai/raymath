@@ -45,7 +45,7 @@
             margin: 0 auto;
         }
 
-        /* --- Refined Card for Equal Size --- */
+        /* --- Refined Card for Equal Size (UPDATED) --- */
         .card {
             background-color: #fff;
             border-radius: 15px;
@@ -54,15 +54,13 @@
             transition: transform .2s, box-shadow .2s;
             cursor: pointer;
 
-            /* Flexbox to center the content inside */
+            /* Flexbox to arrange the content inside */
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
 
-            /* **KEY CHANGE**: This forces the card to be a square.
-               Its height will automatically adjust to be equal to its responsive width. */
-            aspect-ratio: 1 / 1;
+            /* This pushes the icon to the top and text to the bottom, creating a uniform look */
+            justify-content: space-between; 
         }
 
         .card:hover {
@@ -225,7 +223,7 @@
             }
         });
         
-        // **NEW**: Add an event listener to the whole document to listen for key presses
+        // Add an event listener to the whole document to listen for key presses
         document.addEventListener('keydown', (event) => {
             // If the modal is open and the user presses the 'Escape' key, close the modal
             if (event.key === 'Escape' && modal.style.display === 'flex') {
@@ -236,4 +234,3 @@
 
 </body>
 </html>
-
