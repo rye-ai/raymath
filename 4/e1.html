@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Codebreaker's Challenge</title>
+    <style>
+        /* --- Global Styles & Fonts --- */
+        @import url('https://fonts.googleapis.com/css2?family=Cutive+Mono&family=Almendra:wght@400;700&display=swap');
+
+        :root {
+            --font-primary: 'Almendra', serif;
+            --font-mono: 'Cutive Mono', monospace;
+            --color-bg: #4a3f35;
+            --color-container-bg: #d7c7b7;
+            --color-text: #3d352a;
+            --color-accent: #00e5ff;
+            --color-accent-dark: #00aacc;
+            --color-header: #8c785d;
+            --color-border: #6b5b4a;
+            --color-shadow: rgba(0, 0, 0, 0.4);
+            --color-correct: #2c9a3f;
+            --color-incorrect: #c73434;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            background-color: var(--color-bg);
+            background-image:
+                linear-gradient(rgba(0,0,0,0.3) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.3) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+            background-position:-1px -1px, -1px -1px, 0 0, 0 0;
+            color: var(--color-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 1000px;
+            height: 95vh;
+            max-height: 700px;
+            background-color: var(--color-container-bg);
+            border: 8px solid var(--color-border);
+            border-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M25 50 C25 25, 75 25, 75 50 S125 75, 75 100 S25 125, 25 100 S-25 75, 25 50 z' fill='%236b5b4a'/%3E%3C/svg%3E") 25;
+            box-shadow: 0 10px 30px var(--color-shadow);
+            border-radius: 15px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* --- Screen Management --- */
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .screen.active {
+            display: flex;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* --- Header / Player Info --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 4px double var(--color-border);
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .player-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid var(--color-border);
+            background-color: #fff;
+            object-fit: cover;
+        }
+
+        #player-name-display {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .player-stats {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 1.2rem;
+            font-family: var(--font-mono);
+        }
+
+        .keys-display {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .keys-display svg {
+            width: 30px;
+            height: 30px;
+        }
+
+        /* --- UI Components --- */
+        button, .button-style {
+            font-family: var(--font-primary);
+            font-size: 1.1rem;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid var(--color-border);
+            background: linear-gradient(145deg, #e6d5c5, #c0b3a3);
+            box-shadow: 3px 3px 6px #a79a8b, -3px -3px 6px #fff8f0;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            color: var(--color-text);
+            text-shadow: 1px 1px 1px #fff8f0;
+        }
+
+        button:hover, .button-style:hover {
+            background: linear-gradient(145deg, #c0b3a3, #e6d5c5);
+            box-shadow: inset 3px 3px 6px #a79a8b, inset -3px -3px 6px #fff8f0;
+        }
+        
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        input[type="text"], input[type="number"] {
+            padding: 10px;
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 1.2rem;
+            text-align: center;
+            background-color: #efe8e1;
+            box-shadow: inset 2px 2px 5px #b9a898, inset -2px -2px 5px #ffffff;
+        }
+        
+        .title {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--color-border);
+            text-shadow: 2px 2px 2px #fff8f0;
+        }
+
+        /* --- Start Screen --- */
+        #start-screen {
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+        #start-screen .content {
+            background-color: rgba(255,255,255,0.2);
+            padding: 40px;
+            border-radius: 12px;
+            border: 2px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+            box-shadow: 0 4px 15px var(--color-shadow);
+        }
+        #start-screen input { width: 100%; max-width: 300px; }
+        .avatar-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 4px solid var(--color-border);
+            background-color: #fff;
+            margin-bottom: 10px;
+            object-fit: cover;
+        }
+
+        /* --- Game Screen --- */
+        #game-screen {
+            flex-grow: 1;
+            display: flex;
+            gap: 20px;
+        }
+
+        .main-content {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .sidebar {
+            flex: 1;
+            border-left: 4px double var(--color-border);
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .code-journal {
+            background-color: #efe8e1;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid var(--color-border);
+            box-shadow: inset 3px 3px 6px #a79a8b;
+        }
+
+        .code-journal h3 {
+            text-align: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 5px;
+        }
+
+        .code-display {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+        }
+        
+        .code-digit {
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            text-align: center;
+            background-color: #fff;
+            border: 2px solid var(--color-border);
+            border-radius: 5px;
+            color: var(--color-accent-dark);
+        }
+        
+        /* Question Area */
+        #question-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            flex-grow: 1;
+        }
+
+        #question-prompt {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+        }
+
+        #question-visual {
+            margin: 20px auto;
+            max-width: 100%;
+        }
+
+        #question-visual svg {
+             font-family: var(--font-mono);
+             font-size: 2rem;
+             fill: var(--color-text);
+        }
+        
+        #question-answer-area {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .mc-options button {
+             margin: 5px;
+             min-width: 150px;
+        }
+
+        .mc-options button.selected {
+            border-color: var(--color-accent);
+            box-shadow: inset 0 0 10px var(--color-accent);
+        }
+        
+        #question-feedback {
+            margin-top: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            height: 30px; /* Reserve space */
+            text-align: center;
+        }
+        
+        #question-feedback.correct { color: var(--color-correct); }
+        #question-feedback.incorrect { color: var(--color-incorrect); }
+
+        #progress-bar-container {
+            width: 100%;
+            height: 20px;
+            background-color: #efe8e1;
+            border: 2px solid var(--color-border);
+            border-radius: 10px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: var(--color-accent-dark);
+            transition: width 0.5s ease-in-out;
+        }
+
+        /* Place Value Input */
+        .place-value-input-container {
+            display: flex;
+            flex-direction: column-reverse; /* Labels on bottom */
+            align-items: center;
+            gap: 5px;
+        }
+        .place-value-inputs {
+            display: flex;
+            flex-direction: row-reverse;
+            gap: 5px;
+        }
+        .place-value-input-container input {
+            width: 45px;
+            height: 45px;
+            font-size: 1.5rem;
+            text-align: center;
+            padding: 5px;
+        }
+        .place-value-labels {
+            display: flex;
+            flex-direction: row-reverse;
+            gap: 5px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+        .place-value-labels span {
+            width: 45px;
+            text-align: center;
+        }
+
+        /* --- Vault Screen (Final Keypad) --- */
+        #vault-screen {
+            justify-content: center;
+            align-items: center;
+        }
+
+        #vault-screen .content {
+            margin: auto;
+            text-align: center;
+            background-color: rgba(255,255,255,0.2);
+            padding: 40px;
+            border-radius: 12px;
+            border: 2px solid var(--color-border);
+            box-shadow: 0 4px 15px var(--color-shadow);
+            max-width: 500px;
+        }
+        
+        .keypad-input-display {
+            font-family: var(--font-mono);
+            font-size: 2rem;
+            letter-spacing: 10px;
+            padding: 10px;
+            border: 2px solid var(--color-border);
+            background-color: #efe8e1;
+            margin: 20px 0;
+            min-height: 50px;
+            border-radius: 5px;
+        }
+        
+        #keypad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 250px;
+            margin: 20px auto;
+        }
+
+        .keypad-btn {
+            padding: 15px;
+            font-size: 1.5rem;
+            font-family: var(--font-mono);
+        }
+
+        /* --- Win Screen --- */
+        #win-screen .content {
+             margin: auto;
+            text-align: center;
+            background-color: rgba(255,255,255,0.2);
+            padding: 40px;
+            border-radius: 12px;
+            border: 2px solid var(--color-border);
+            box-shadow: 0 4px 15px var(--color-shadow);
+        }
+        #win-screen h1 {
+            color: var(--color-correct);
+        }
+        .secret-message {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #efe8e1;
+            border: 2px dashed var(--color-border);
+            border-radius: 10px;
+        }
+        .secret-message p {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        .secret-message code {
+            font-family: var(--font-mono);
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--color-accent-dark);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+
+        <!-- ===== START SCREEN ===== -->
+        <div id="start-screen" class="screen active">
+            <div class="content">
+                <h1 class="title">The Codebreaker's Challenge</h1>
+                <p>Enter your name and choose an avatar to begin your initiation.</p>
+                <img id="avatar-preview" class="avatar-preview" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzRhM2YzNSI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MxLjY2IDAgMyAxLjM0IDMgM3MtMS4zNCAzLTMgMy0zLTEuMzQtMy0zIDEuMzQtMyAzLTN6bTAgMTRjLTIuMzMgMC00LjMxLTEuNDYtNS4xMS0zLjUgMS4zOS0yLjMzIDQuMTYtMy41IDUuMTItMy41czMuNzMgMS4xNyA1LjEyIDMuNWMtLjggMi4wNC0yLjc4IDMuNS01LjEyIDMuNXoiLz48L3N2Zz4=" alt="Avatar Preview">
+                <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+                <label for="avatar-upload" class="button-style">Upload Avatar</label>
+                <input type="text" id="player-name-input" placeholder="Enter Codebreaker Name">
+                <button id="start-game-btn">Begin Trial</button>
+            </div>
+        </div>
+
+        <!-- ===== GAME SCREEN ===== -->
+        <div id="game-screen" class="screen">
+            <header class="header">
+                <div class="player-info">
+                    <img id="player-avatar-display" class="player-avatar" alt="Player Avatar">
+                    <h2 id="player-name-display"></h2>
+                </div>
+                <div class="player-stats">
+                    <span>Decoder Keys:</span>
+                    <div id="keys-display" class="keys-display"></div>
+                </div>
+            </header>
+            <main id="game-main-area" class="game-main">
+                 <div class="main-content">
+                    <div id="question-container">
+                        <!-- Question content will be dynamically inserted here -->
+                    </div>
+                    <div id="progress-bar-container">
+                        <div id="progress-bar"></div>
+                    </div>
+                </div>
+                <aside class="sidebar">
+                    <div class="code-journal">
+                        <h3>Code Journal</h3>
+                        <div id="code-display" class="code-display"></div>
+                    </div>
+                </aside>
+            </main>
+        </div>
+
+        <!-- ===== VAULT SCREEN (FINAL KEYPAD) ===== -->
+        <div id="vault-screen" class="screen">
+            <div class="content">
+                <h1 class="title">The Final Vault</h1>
+                <p>You've collected all the digits! Now, enter the 10-digit master code to unlock the door.</p>
+                <div id="keypad-input-display" class="keypad-input-display"></div>
+                <div id="keypad-grid"></div>
+                <div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
+                    <button id="unlock-btn">Unlock</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== WIN SCREEN ===== -->
+        <div id="win-screen" class="screen">
+             <div class="content">
+                <h1 class="title">Success!</h1>
+                <p>Congratulations, Codebreaker! You have passed the trial. The vault door swings open...</p>
+                <div class="secret-message">
+                    <p>A hidden inscription is revealed! Whisper this secret phrase to your teacher:</p>
+                    <code>Ms. Shaw is the Best</code>
+                </div>
+                <button id="play-again-btn">Play Again</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    /**
+     * The Codebreaker's Challenge - Educational Game
+     * This file contains all the logic for a self-contained educational game.
+     * It's driven by a single JSON object that defines the game's state and content.
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // --- DATA & STATE MANAGEMENT --- //
+        const GAME_DATA = {
+            "player": {
+                "codebreakerName": "", "avatar": "", "decoderKeys": 3, "solvedPuzzles": [], "currentPuzzleIndex": 0,
+                "codeJournal": {"0": null,"1": null,"2": null,"3": null,"4": null,"5": null,"6": null,"7": null,"8": null,"9": null}
+            },
+            "gameConfig": {"totalPuzzles": 10,"maxKeys": 3},
+            "puzzles": [
+                {"id": "puzzle_0","type": "text-box","prompt": "The first lock hums with energy. A screen flickers to life. What is the sum?","visual": "vertical_equation|12,345|54,321","data": { "size": 6 },"correct": "66666"},
+                {"id": "puzzle_1","type": "mc","prompt": "A series of gears click into place, revealing a new challenge.","visual": "vertical_equation|45,802|23,197","data": {"options": ["68,999", "68,899", "69,099", "67,999"]},"correct": "68,999"},
+                {"id": "puzzle_2","type": "text-box","prompt": "Sunlight streams through a stained-glass window, illuminating this equation on the wall.","visual": "vertical_equation|71,050|18,950","data": { "size": 6 },"correct": "90000"},
+                {"id": "puzzle_3","type": "mc","prompt": "You find an ancient scroll with a problem written in shimmering ink.","visual": "vertical_equation|33,333|55,555","data": {"options": ["88,888", "88,889", "89,888", "88,878"]},"correct": "88,888"},
+                {"id": "puzzle_4","type": "text-box","prompt": "A hidden panel slides open. This calculation is etched into a brass plate inside.","visual": "vertical_equation|90,123|9,876","data": { "size": 6 },"correct": "99999"},
+                {"id": "puzzle_5","type": "mc","prompt": "Solve the problem displayed on the dusty abacus in the corner.","visual": "vertical_equation|24,680|13,579","data": {"options": ["38,159", "38,259", "37,259", "39,249"]},"correct": "38,259"},
+                {"id": "puzzle_6","type": "text-box","prompt": "A ghostly projection appears in the air, showing two numbers to be added.","visual": "vertical_equation|50,005|40,004","data": { "size": 6 },"correct": "90009"},
+                {"id": "puzzle_7","type": "mc","prompt": "The librarian's automaton rolls up and presents you with a puzzle on its ticker-tape.","visual": "vertical_equation|62,731|17,268","data": {"options": ["79,899", "80,099", "79,999", "78,999"]},"correct": "79,999"},
+                {"id": "puzzle_8","type": "text-box","prompt": "You notice this problem carved into the base of a large statue.","visual": "vertical_equation|81,818|18,181","data": { "size": 6 },"correct": "99999"},
+                {"id": "puzzle_9","type": "mc","prompt": "The final lock! This problem is projected directly onto the vault door itself.","visual": "vertical_equation|49,999|1","data": {"options": ["50,001", "49,998", "50,000", "51,000"]},"correct": "50000"}
+            ],
+            "sfx": {
+                "click": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==",
+                "correct": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==",
+                "incorrect": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w=="
+            }
+        };
+        const SECRET_CODE = "7390284516";
+
+        let gameState = {};
+
+        // --- DOM Elements --- //
+        const screens = {
+            start: document.getElementById('start-screen'),
+            game: document.getElementById('game-screen'),
+            vault: document.getElementById('vault-screen'),
+            win: document.getElementById('win-screen')
+        };
+        const playerNameInput = document.getElementById('player-name-input');
+        const avatarUpload = document.getElementById('avatar-upload');
+        const avatarPreview = document.getElementById('avatar-preview');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const playerNameDisplay = document.getElementById('player-name-display');
+        const playerAvatarDisplay = document.getElementById('player-avatar-display');
+        const keysDisplay = document.getElementById('keys-display');
+        const codeDisplay = document.getElementById('code-display');
+        const questionContainer = document.getElementById('question-container');
+        const progressBar = document.getElementById('progress-bar');
+        const finalKeypadGrid = document.getElementById('keypad-grid');
+        const finalKeypadDisplay = document.getElementById('keypad-input-display');
+        const unlockBtn = document.getElementById('unlock-btn');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        
+        // --- Audio Player --- //
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const sfx = {};
+
+        function base64ToBuffer(base64) {
+            try {
+                const binaryString = window.atob(base64.split(',')[1]);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                return bytes.buffer;
+            } catch (error) {
+                console.error('Failed to decode base64 string:', error);
+                return new ArrayBuffer(0); // Return empty buffer on failure
+            }
+        }
+
+        async function setupAudio() {
+            for (const key in GAME_DATA.sfx) {
+                const buffer = base64ToBuffer(GAME_DATA.sfx[key]);
+                if (buffer.byteLength > 0) {
+                    try {
+                        const audioBuffer = await audioCtx.decodeAudioData(buffer);
+                        sfx[key] = audioBuffer;
+                    } catch(e) {
+                        console.error(`Error decoding audio data for ${key}:`, e);
+                    }
+                }
+            }
+        }
+        
+        function playSound(name) {
+            if (sfx[name] && audioCtx.state === 'running') {
+                const source = audioCtx.createBufferSource();
+                source.buffer = sfx[name];
+                source.connect(audioCtx.destination);
+                source.start(0);
+            }
+        }
+
+        // --- SVG Rendering Engine --- //
+        function renderSVG(visualString) {
+            const [type, ...params] = visualString.split('|');
+            if (type === 'vertical_equation') {
+                const [num1, num2] = params;
+                const paddedNum1 = num1.padStart(num2.length, ' ');
+                const paddedNum2 = num2.padStart(num1.length, ' ');
+                const longerNumLength = Math.max(paddedNum1.length, paddedNum2.length);
+                const charWidth = 18; // Approx width of a mono font char
+                const width = (longerNumLength + 2) * charWidth;
+                const height = 120;
+                
+                const plusX = width - (longerNumLength * charWidth) - (charWidth * 1.5);
+
+                return `
+                    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+                        <text x="${width - 10}" y="35" font-size="28" text-anchor="end">${paddedNum1}</text>
+                        <text x="${plusX}" y="75" font-size="28" text-anchor="end">+</text>
+                        <text x="${width - 10}" y="75" font-size="28" text-anchor="end">${paddedNum2}</text>
+                        <line x1="10" y1="90" x2="${width - 10}" y2="90" stroke="${'var(--color-text)'}" stroke-width="3"/>
+                    </svg>
+                `;
+            }
+            return '';
+        }
+        
+        // --- Place Value Input Generator --- //
+        function createPlaceValueInput(answerLength) {
+            let inputsHTML = '';
+            let labelsHTML = '';
+            const labels = ["1s", "10s", "100s", "1,000s", "10,000s", "100,000s"];
+            for (let i = 0; i < answerLength; i++) {
+                inputsHTML += `<input type="number" class="place-value-input" maxlength="1" data-index="${i}" oninput="this.value=this.value.slice(0,1)">`;
+                labelsHTML += `<span>${labels[i] || ''}</span>`;
+            }
+            return `
+                <div class="place-value-input-container">
+                    <div class="place-value-inputs">${inputsHTML}</div>
+                    <div class="place-value-labels">${labelsHTML}</div>
+                </div>
+            `;
+        }
+
+
+        // --- Game Logic & State --- //
+        function saveGame() {
+            localStorage.setItem('codebreakerGameState', JSON.stringify(gameState.player));
+        }
+
+        function loadGame() {
+            const savedState = localStorage.getItem('codebreakerGameState');
+            if (savedState) {
+                let loadedPlayerState = JSON.parse(savedState);
+                gameState.player = {...GAME_DATA.player, ...loadedPlayerState};
+                gameState.player.codeJournal = {...GAME_DATA.player.codeJournal, ...loadedPlayerState.codeJournal};
+                return true;
+            }
+            return false;
+        }
+        
+        function resetGame() {
+            localStorage.removeItem('codebreakerGameState');
+            location.reload();
+        }
+
+        // --- UI Rendering --- //
+        function showScreen(screenName) {
+            Object.values(screens).forEach(screen => screen.classList.remove('active'));
+            if (screens[screenName]) {
+                screens[screenName].classList.add('active');
+            }
+        }
+
+        function updatePlayerUI() {
+            playerNameDisplay.textContent = gameState.player.codebreakerName;
+            playerAvatarDisplay.src = gameState.player.avatar || avatarPreview.src;
+
+            // Update Keys
+            keysDisplay.innerHTML = '';
+            for (let i = 0; i < gameState.gameConfig.maxKeys; i++) {
+                const keySVG = `
+                    <svg viewBox="0 0 24 24" fill="${i < gameState.player.decoderKeys ? 'var(--color-accent-dark)' : 'rgba(0,0,0,0.2)'}" stroke="var(--color-border)" stroke-width="1">
+                       <path d="M16.5,8c-1.9,0-3.5,1.6-3.5,3.5S14.6,15,16.5,15s3.5-1.6,3.5-3.5S18.4,8,16.5,8z M16.5,13c-0.8,0-1.5-0.7-1.5-1.5S15.7,10,16.5,10s1.5,0.7,1.5,1.5S17.3,13,16.5,13z"/>
+                       <path d="M12,8v2.1c-1.7,0.8-3,2.5-3,4.4c0,2.8,2.2,5,5,5s5-2.2,5-5c0-1.9-1.3-3.7-3-4.4V8h-1V6h-2v2H12z M16.5,18c-1.9,0-3.5-1.6-3.5-3.5S14.6,11,16.5,11s3.5,1.6,3.5,3.5S18.4,18,16.5,18z"/>
+                       <path d="M10,12H4v2h1v2H4v2h1v2H4v2h1v-2h1v-2h1v-2h2v-2H10z"/>
+                    </svg>`;
+                keysDisplay.innerHTML += keySVG;
+            }
+
+            // Update Code Journal
+            codeDisplay.innerHTML = '';
+            for (let i = 0; i < gameState.gameConfig.totalPuzzles; i++) {
+                const digit = gameState.player.codeJournal[i] !== null ? gameState.player.codeJournal[i] : '_';
+                codeDisplay.innerHTML += `<div class="code-digit">${digit}</div>`;
+            }
+        }
+        
+        function updateProgressBar() {
+            const progress = (gameState.player.currentPuzzleIndex / gameState.gameConfig.totalPuzzles) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+
+        function showQuestion(index) {
+            if (index >= gameState.gameConfig.totalPuzzles) {
+                showVault();
+                return;
+            }
+
+            const puzzle = gameState.puzzles[index];
+            if (!puzzle) return;
+            
+            let answerHTML = '';
+            if (puzzle.type === 'text-box') {
+                answerHTML = createPlaceValueInput(puzzle.correct.length);
+            } else if (puzzle.type === 'mc') {
+                answerHTML = `<div class="mc-options">` +
+                    puzzle.data.options.map(opt => `<button class="mc-option" data-value="${opt}">${opt}</button>`).join('') +
+                    `</div>`;
+            }
+
+            questionContainer.innerHTML = `
+                <h2 class="title">Puzzle ${index + 1} of ${gameState.gameConfig.totalPuzzles}</h2>
+                <p id="question-prompt">${puzzle.prompt}</p>
+                <div id="question-visual">${renderSVG(puzzle.visual)}</div>
+                <div id="question-answer-area">${answerHTML}</div>
+                <div id="question-feedback"></div>
+                <button id="check-answer-btn" data-puzzle-id="${puzzle.id}">Check Answer</button>
+            `;
+            
+            updateProgressBar();
+
+            // Attach event listeners to locally scoped elements
+            const checkBtn = questionContainer.querySelector('#check-answer-btn');
+            
+            if (puzzle.type === 'mc') {
+                const options = questionContainer.querySelectorAll('.mc-option');
+                options.forEach(opt => {
+                    opt.addEventListener('click', (e) => {
+                        if (audioCtx.state === 'suspended') audioCtx.resume();
+                        playSound('click');
+                        options.forEach(o => o.classList.remove('selected'));
+                        e.target.classList.add('selected');
+                    });
+                });
+            } else if (puzzle.type === 'text-box') {
+                const inputs = questionContainer.querySelectorAll('.place-value-input');
+                inputs.forEach(input => {
+                    input.addEventListener('keyup', (e) => {
+                        const nextIndex = parseInt(e.target.dataset.index) - 1;
+                        if(nextIndex >= 0 && e.target.value) {
+                           inputs[nextIndex].focus();
+                        }
+                    });
+                });
+            }
+
+            checkBtn.addEventListener('click', handleAnswerCheck);
+        }
+        
+        function handleAnswerCheck(event) {
+            const btn = event.target;
+            const puzzleId = btn.dataset.puzzleId;
+            const puzzle = gameState.puzzles.find(p => p.id === puzzleId);
+            const parentContainer = btn.closest('#question-container');
+            const feedbackEl = parentContainer.querySelector('#question-feedback');
+
+            let userAnswer;
+            if (puzzle.type === 'text-box') {
+                const inputs = Array.from(parentContainer.querySelectorAll('.place-value-input'));
+                userAnswer = inputs.reverse().map(i => i.value).join('');
+            } else if (puzzle.type === 'mc') {
+                const selected = parentContainer.querySelector('.mc-option.selected');
+                userAnswer = selected ? selected.dataset.value.replace(/,/g, '') : null;
+            }
+            
+            const correctAnswer = puzzle.correct.replace(/,/g, '');
+
+            if (userAnswer === correctAnswer) {
+                playSound('correct');
+                const puzzleIndex = gameState.player.currentPuzzleIndex;
+                const secretDigit = SECRET_CODE[puzzleIndex];
+                
+                if(!gameState.player.solvedPuzzles.includes(puzzleId)) {
+                    gameState.player.solvedPuzzles.push(puzzleId);
+                }
+                gameState.player.codeJournal[puzzleIndex] = secretDigit;
+                
+                feedbackEl.className = 'correct';
+                feedbackEl.innerHTML = `Correct! The secret digit is: <span style="font-size: 1.5em">${secretDigit}</span>`;
+                
+                btn.disabled = true;
+                
+                gameState.player.currentPuzzleIndex++;
+                saveGame();
+                updatePlayerUI();
+                
+                setTimeout(() => {
+                    showQuestion(gameState.player.currentPuzzleIndex);
+                }, 2500);
+                
+            } else {
+                playSound('incorrect');
+                gameState.player.decoderKeys--;
+                feedbackEl.className = 'incorrect';
+                feedbackEl.textContent = "Incorrect. A Decoder Key was lost!";
+                updatePlayerUI();
+                saveGame();
+                
+                if(gameState.player.decoderKeys <= 0) {
+                    feedbackEl.textContent = "Out of keys! Resetting...";
+                     setTimeout(() => {
+                        resetGame();
+                    }, 2000);
+                }
+            }
+        }
+        
+        function showVault() {
+            renderFinalKeypad();
+            showScreen('vault');
+        }
+
+        function renderFinalKeypad() {
+            let keypadHTML = '';
+            const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'DEL', 0, ''];
+            numbers.forEach(num => {
+                keypadHTML += `<button class="keypad-btn" ${num === '' ? 'style="visibility:hidden;"' : ''}>${num}</button>`;
+            });
+            finalKeypadGrid.innerHTML = keypadHTML;
+
+            finalKeypadGrid.querySelectorAll('.keypad-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    playSound('click');
+                    const value = btn.textContent;
+                    let currentCode = finalKeypadDisplay.textContent;
+                    if (value === 'DEL') {
+                        finalKeypadDisplay.textContent = currentCode.slice(0, -1);
+                    } else if (currentCode.length < 10) {
+                        finalKeypadDisplay.textContent += value;
+                    }
+                });
+            });
+            finalKeypadDisplay.textContent = '';
+        }
+
+        // --- Event Listeners Setup --- //
+        function initEventListeners() {
+            avatarUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        avatarPreview.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            startGameBtn.addEventListener('click', () => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                const name = playerNameInput.value.trim();
+                if (name) {
+                    playSound('click');
+                    gameState.player.codebreakerName = name;
+                    gameState.player.avatar = avatarPreview.src;
+                    saveGame();
+                    updatePlayerUI();
+                    showQuestion(gameState.player.currentPuzzleIndex);
+                    showScreen('game');
+                } else {
+                    const originalText = playerNameInput.placeholder;
+                    playerNameInput.placeholder = "A name is required!";
+                    playerNameInput.style.borderColor = 'red';
+                    setTimeout(() => {
+                        playerNameInput.placeholder = originalText;
+                        playerNameInput.style.borderColor = '';
+                    }, 2000);
+                }
+            });
+            
+            unlockBtn.addEventListener('click', () => {
+                const enteredCode = finalKeypadDisplay.textContent;
+                if (enteredCode === SECRET_CODE) {
+                    playSound('correct');
+                    showScreen('win');
+                    localStorage.removeItem('codebreakerGameState');
+                } else {
+                    playSound('incorrect');
+                    finalKeypadDisplay.classList.add('incorrect-shake');
+                    finalKeypadDisplay.style.color = 'var(--color-incorrect)';
+                    setTimeout(() => {
+                        finalKeypadDisplay.classList.remove('incorrect-shake');
+                        finalKeypadDisplay.style.color = '';
+                        finalKeypadDisplay.textContent = '';
+                    }, 1000);
+                }
+            });
+            
+            playAgainBtn.addEventListener('click', () => {
+                playSound('click');
+                resetGame();
+            });
+        }
+
+
+        // --- Initialization --- //
+        function init() {
+            gameState = JSON.parse(JSON.stringify(GAME_DATA)); 
+            
+            if (loadGame()) {
+                console.log("Saved game found. Loading state.");
+                updatePlayerUI();
+                showQuestion(gameState.player.currentPuzzleIndex);
+                showScreen('game');
+            } else {
+                console.log("No saved game. Showing start screen.");
+                showScreen('start');
+            }
+            setupAudio();
+            initEventListeners();
+        }
+
+        init();
+    });
+    </script>
+</body>
+</html>
+
