@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Bee-Bot Mat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the Bee-Bot and grid */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        #grid-container {
+            display: grid;
+            aspect-ratio: 1 / 1;
+            position: relative;
+            border: 2px solid #4a5568;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            background-color: white;
+        }
+        #path-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .grid-cell {
+            border: 1px solid #cbd5e0;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            cursor: pointer;
+            transition: background-color 0.2s, outline 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2d3748;
+            text-align: center;
+            padding: 4px;
+            overflow: hidden;
+        }
+        .grid-cell.student-mode {
+            cursor: default;
+        }
+        .grid-cell span {
+            word-break: break-word;
+            max-width: 100%;
+            max-height: 100%;
+            overflow: hidden;
+        }
+        .grid-cell:not(.student-mode):hover {
+            background-color: rgba(255, 255, 0, 0.3);
+        }
+        .grid-cell.active-cell {
+            outline: 3px solid #3b82f6;
+            outline-offset: -3px;
+        }
+        .grid-cell input[type="file"] {
+            display: none;
+        }
+        .clear-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 20px;
+            height: 20px;
+            background-color: rgba(255, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            line-height: 20px;
+            z-index: 15;
+        }
+        .grid-cell:not(.student-mode):hover .clear-btn {
+            display: flex;
+        }
+        #beebot {
+            position: absolute;
+            background-image: url('https://img.icons8.com/plasticine/100/000000/bee.png');
+            background-size: 80%;
+            background-repeat: no-repeat;
+            background-position: center;
+            transition: transform 0.5s ease-in-out;
+            z-index: 10;
+        }
+        .command-btn, .slide-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .command-btn:hover, .slide-btn:hover {
+            transform: scale(1.05);
+        }
+        .command-btn:active, .slide-btn:active {
+            transform: scale(0.95);
+        }
+        input[type="color"] {
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            background-color: transparent; border: none; cursor: pointer;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 2px solid #e2e8f0; border-radius: 0.375rem; }
+        #instruction-input {
+            background-color: #f7fafc;
+            border: 2px dashed #e2e8f0;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+        #instruction-input:focus {
+            border-color: #4299e1;
+            outline: none;
+        }
+        #instruction-input:read-only {
+            background-color: transparent;
+            border: none;
+            pointer-events: none;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <!-- Homepage View -->
+    <div id="home-page" class="w-full max-w-lg mx-auto text-center">
+        <h1 class="text-4xl font-bold text-gray-800 mb-6">Bee-Bot Lesson Creator</h1>
+        <div class="bg-white p-8 rounded-lg shadow-lg">
+            <p class="text-gray-600 mb-6">Customize your lesson settings.</p>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="rows-input" class="block text-gray-700 text-sm font-bold mb-2 text-left">Rows (3-12):</label>
+                    <input type="number" id="rows-input" value="8" min="3" max="12" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label for="cols-input" class="block text-gray-700 text-sm font-bold mb-2 text-left">Columns (3-12):</label>
+                    <input type="number" id="cols-input" value="8" min="3" max="12" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                 <div>
+                    <label for="start-row-input" class="block text-gray-700 text-sm font-bold mb-2 text-left">Start Row:</label>
+                    <input type="number" id="start-row-input" value="1" min="1" max="12" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label for="start-col-input" class="block text-gray-700 text-sm font-bold mb-2 text-left">Start Column:</label>
+                    <input type="number" id="start-col-input" value="1" min="1" max="12" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+            </div>
+             <div class="mb-6">
+                <label for="start-dir-select" class="block text-gray-700 text-sm font-bold mb-2 text-left">Initial "Forward" Direction:</label>
+                <select id="start-dir-select" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <option value="0">Up</option> <option value="1" selected>Right</option> <option value="2">Down</option> <option value="3">Left</option>
+                </select>
+            </div>
+            <div class="mb-6">
+                 <button id="change-bee-btn" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md text-sm">Change Bee Character</button>
+                 <input type="file" id="bee-upload-input" class="hidden" accept="image/*">
+                 <p id="bee-status" class="text-xs text-gray-500 mt-1">Default bee selected.</p>
+            </div>
+            <div class="flex gap-4">
+                <button id="start-image-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md">Start Image Lesson</button>
+                <button id="start-text-btn" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg shadow-md">Start Text Lesson</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game View (Initially Hidden) -->
+    <div id="game-page" class="w-full max-w-7xl mx-auto hidden h-full">
+        <div class="flex flex-col lg:flex-row gap-8 h-full lg:items-start">
+            <!-- Grid Section -->
+            <div class="w-full lg:w-2/3 flex flex-col">
+                 <input type="text" id="instruction-input" class="w-full text-3xl font-bold text-center text-gray-800 mb-4 p-2 rounded-lg" value="Interactive Bee-Bot Mat">
+                <div class="flex-grow flex items-center justify-center">
+                    <div id="grid-container" class="w-full max-w-[80vh]">
+                        <canvas id="path-canvas"></canvas>
+                        <div id="beebot"></div>
+                    </div>
+                </div>
+                 <!-- Slide Controls -->
+                <div id="slide-controls" class="mt-4 p-4 bg-gray-200 rounded-lg flex items-center justify-center gap-4 flex-wrap">
+                    <button id="prev-slide-btn" class="slide-btn bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md disabled:opacity-50" disabled>&lt; Prev</button>
+                    <div id="slide-counter" class="text-lg font-bold text-gray-700">Slide 1 of 1</div>
+                    <button id="next-slide-btn" class="slide-btn bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md disabled:opacity-50" disabled>Next &gt;</button>
+                    <div class="w-px bg-gray-400 h-8 teacher-only"></div>
+                    <button id="add-slide-btn" class="slide-btn bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md teacher-only">Add Slide</button>
+                    <button id="delete-slide-btn" class="slide-btn bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md disabled:opacity-50 teacher-only">Delete Slide</button>
+                </div>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="w-full lg:w-1/3 bg-white p-6 rounded-lg shadow-lg flex flex-col">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4 shrink-0">Controls</h2>
+                <div id="text-edit-controls" class="hidden mb-6 teacher-only">
+                    <label for="tile-text-input" class="block text-gray-700 text-sm font-bold mb-2">Selected Tile Text:</label>
+                    <input type="text" id="tile-text-input" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700">
+                    <button id="set-text-btn" class="w-full mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Set Text</button>
+                </div>
+                <div class="shrink-0">
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div></div>
+                        <button id="forward-btn" class="command-btn bg-blue-500 text-white p-3 rounded-lg shadow-md"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>Forward</button>
+                        <div></div>
+                        <button id="left-btn" class="command-btn bg-yellow-500 text-white p-3 rounded-lg shadow-md"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>Left</button>
+                        <div class="flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-bee-fill text-yellow-400" viewBox="0 0 16 16"><path d="M7.999.504a.5.5 0 0 1 .5.5v.753l.393.281c.288.207.555.48.783.821l.229.343c.116.173.224.355.32.543l.111.222c.087.173.167.355.237.543l.053.145a5 5 0 0 1 0 5.164l-.053.145c-.07.188-.15-.37-.237.543l-.111.222a5 5 0 0 1-.32.543l-.229.343c-.228.342-.495.614-.783.821l-.393.281v.753a.5.5 0 0 1-1 0v-.753l-.393-.281a5.2 5.2 0 0 1-.783-.821l-.229-.343a5 5 0 0 1-.32-.543l-.111-.222c-.087-.173-.167-.355-.237-.543l-.053-.145a5 5 0 0 1 0-5.164l.053-.145c.07-.188.15-.37.237-.543l.111-.222c.096-.188.204-.37.32-.543l.229-.343c.228-.342.495-.614-.783-.821l.393-.281V1a.5.5 0 0 1 .5-.5m2.953 4.234a.5.5 0 0 0-.853-.505l-1.15 2A.5.5 0 0 0 9 6.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1.5zM4.947 4.234a.5.5 0 0 1 .853-.505l1.15 2A.5.5 0 0 1 7 6.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1.5z"/></svg></div>
+                        <button id="right-btn" class="command-btn bg-yellow-500 text-white p-3 rounded-lg shadow-md"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>Right</button>
+                        <div></div>
+                        <button id="backward-btn" class="command-btn bg-blue-500 text-white p-3 rounded-lg shadow-md"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>Backward</button>
+                        <div></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="go-btn" class="command-btn bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-md">GO</button>
+                        <button id="stop-btn" class="command-btn bg-orange-500 text-white font-bold py-3 px-4 rounded-lg shadow-md">Stop</button>
+                    </div>
+                    <button id="clear-btn" class="w-full mt-4 command-btn bg-red-500 text-white font-bold py-3 px-4 rounded-lg shadow-md">Clear Commands</button>
+                    <div class="mt-4 flex items-center justify-center gap-3 p-2 bg-gray-100 rounded-lg">
+                        <label for="path-color-picker" class="font-semibold text-gray-700 text-sm">Path Color:</label>
+                        <input type="color" id="path-color-picker" value="#10B981" class="w-10 h-8">
+                    </div>
+                </div>
+                <div class="mt-6 flex-grow flex flex-col min-h-0">
+                    <h3 class="font-semibold text-gray-700 mb-2 shrink-0">Command Sequence:</h3>
+                    <div id="command-sequence" class="bg-gray-200 p-3 rounded-lg flex-grow overflow-y-auto flex flex-wrap gap-2 content-start"></div>
+                </div>
+                 <div id="student-controls" class="hidden w-full mt-4 space-y-2">
+                    <button id="save-work-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Save My Work</button>
+                    <button id="export-report-btn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg shadow-md">Print Report</button>
+                 </div>
+                 <button id="download-btn" class="w-full mt-4 bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg shadow-md shrink-0 teacher-only">Download Lesson</button>
+                 <button id="new-game-btn" class="w-full mt-2 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md shrink-0">New Lesson Setup</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const homePage = document.getElementById('home-page');
+            const gamePage = document.getElementById('game-page');
+            const startImageBtn = document.getElementById('start-image-btn');
+            const startTextBtn = document.getElementById('start-text-btn');
+            const newGameBtn = document.getElementById('new-game-btn');
+            const changeBeeBtn = document.getElementById('change-bee-btn');
+            const beeUploadInput = document.getElementById('bee-upload-input');
+            const beeStatus = document.getElementById('bee-status');
+            const downloadBtn = document.getElementById('download-btn');
+            const gridContainer = document.getElementById('grid-container');
+            const beebot = document.getElementById('beebot');
+            const commandSequenceDiv = document.getElementById('command-sequence');
+            const stopBtn = document.getElementById('stop-btn');
+            const textEditControls = document.getElementById('text-edit-controls');
+            const tileTextInput = document.getElementById('tile-text-input');
+            const setTextBtn = document.getElementById('set-text-btn');
+            const pathCanvas = document.getElementById('path-canvas');
+            const pathCtx = pathCanvas.getContext('2d');
+            const pathColorPicker = document.getElementById('path-color-picker');
+            const instructionInput = document.getElementById('instruction-input');
+            const slideControls = {
+                prev: document.getElementById('prev-slide-btn'),
+                next: document.getElementById('next-slide-btn'),
+                counter: document.getElementById('slide-counter'),
+                add: document.getElementById('add-slide-btn'),
+                delete: document.getElementById('delete-slide-btn'),
+            };
+            const studentControls = document.getElementById('student-controls');
+            const saveWorkBtn = document.getElementById('save-work-btn');
+            const exportReportBtn = document.getElementById('export-report-btn');
+
+            // --- Game State ---
+            let commands = [];
+            let beebotState = {};
+            let isExecuting = false;
+            let gridRows = 8, gridCols = 8;
+            let customBeeImageUrl = null;
+            let gameMode = 'image';
+            let activeCell = null;
+            let pathHistory = [];
+            
+            // --- Lesson State ---
+            let lessonData = [];
+            let currentSlideIndex = 0;
+            let isStudentMode = false;
+            let studentWork = [];
+
+            // --- Homepage & Setup ---
+            changeBeeBtn.addEventListener('click', () => beeUploadInput.click());
+            beeUploadInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        customBeeImageUrl = e.target.result;
+                        beeStatus.textContent = `Image "${file.name}" selected.`;
+                        beeStatus.classList.add('text-green-600');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            function startGame(mode) {
+                gameMode = mode;
+                const rowsInput = document.getElementById('rows-input');
+                const colsInput = document.getElementById('cols-input');
+                const startRowInput = document.getElementById('start-row-input');
+                const startColInput = document.getElementById('start-col-input');
+                const startDirSelect = document.getElementById('start-dir-select');
+                
+                gridRows = parseInt(rowsInput.value, 10);
+                gridCols = parseInt(colsInput.value, 10);
+                let startRow = parseInt(startRowInput.value, 10);
+                let startCol = parseInt(startColInput.value, 10);
+                let startDir = parseInt(startDirSelect.value, 10);
+
+                if (isNaN(gridRows) || gridRows < 3 || gridRows > 12 || isNaN(gridCols) || gridCols < 3 || gridCols > 12) { console.error("Invalid grid dimensions."); return; }
+                if (isNaN(startRow) || isNaN(startCol) || startRow < 1 || startCol < 1 || startRow > gridRows || startCol > gridCols) { console.error("Invalid start position."); return; }
+
+                homePage.classList.add('hidden');
+                gamePage.classList.remove('hidden');
+                gamePage.classList.add('flex');
+                
+                const codeRow = gridRows - startRow;
+                const codeCol = startCol - 1;
+                
+                const firstSlide = {
+                    instruction: "Interactive Bee-Bot Mat",
+                    tiles: Array(gridRows * gridCols).fill(null),
+                    initialBeebotState: { row: codeRow, col: codeCol, dir: startDir, visualRotation: 0 }
+                };
+
+                initializeGame({
+                    mode: gameMode,
+                    rows: gridRows,
+                    cols: gridCols,
+                    beeImg: customBeeImageUrl,
+                    lesson: [firstSlide],
+                    isStudent: false
+                });
+            }
+
+            startImageBtn.addEventListener('click', () => startGame('image'));
+            startTextBtn.addEventListener('click', () => startGame('text'));
+            newGameBtn.addEventListener('click', () => window.location.reload());
+
+            // --- Game Initialization ---
+            function initializeGame(config) {
+                gameMode = config.mode;
+                gridRows = config.rows;
+                gridCols = config.cols;
+                customBeeImageUrl = config.beeImg;
+                lessonData = config.lesson;
+                isStudentMode = config.isStudent || false;
+                currentSlideIndex = 0;
+                studentWork = Array(lessonData.length).fill([]);
+
+                if (gameMode === 'text') textEditControls.classList.remove('hidden');
+                else textEditControls.classList.add('hidden');
+
+                if (customBeeImageUrl) beebot.style.backgroundImage = `url(${customBeeImageUrl})`;
+
+                gridContainer.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
+                gridContainer.style.gridTemplateRows = `repeat(${gridRows}, 1fr)`;
+                
+                buildGridCells();
+                loadSlide(currentSlideIndex);
+                
+                if (isStudentMode) {
+                    enterStudentMode();
+                    loadStudentWork();
+                }
+            }
+            
+            function enterStudentMode() {
+                instructionInput.readOnly = true;
+                document.querySelectorAll('.teacher-only').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.grid-cell').forEach(el => el.classList.add('student-mode'));
+                studentControls.classList.remove('hidden');
+            }
+
+            function buildGridCells() {
+                gridContainer.innerHTML = '';
+                gridContainer.appendChild(pathCanvas);
+                gridContainer.appendChild(beebot);
+
+                for (let i = 0; i < gridRows * gridCols; i++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell');
+                    cell.dataset.index = i;
+                    const textSpan = document.createElement('span');
+                    cell.appendChild(textSpan);
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    cell.appendChild(input);
+                    const clearBtn = document.createElement('button');
+                    clearBtn.classList.add('clear-btn');
+                    clearBtn.innerHTML = '&times;';
+                    cell.appendChild(clearBtn);
+
+                    cell.addEventListener('click', (e) => handleCellClick(e, cell, input));
+                    input.addEventListener('change', (event) => handleFileInput(event, cell, textSpan));
+                    clearBtn.addEventListener('click', (e) => clearCell(e, cell, input, textSpan));
+                    
+                    gridContainer.insertBefore(cell, beebot);
+                }
+            }
+
+            // --- Slide Management ---
+            function loadSlide(index) {
+                if (index < 0 || index >= lessonData.length) return;
+                
+                if (isStudentMode) {
+                    studentWork[currentSlideIndex] = [...commands];
+                }
+
+                currentSlideIndex = index;
+                const slide = lessonData[currentSlideIndex];
+                instructionInput.value = slide.instruction;
+                
+                const cells = document.querySelectorAll('.grid-cell');
+                cells.forEach((cell, i) => {
+                    const textSpan = cell.querySelector('span');
+                    const tile = slide.tiles[i];
+                    cell.style.backgroundImage = '';
+                    textSpan.textContent = '';
+                    cell.dataset.base64 = '';
+                    if (tile) {
+                        if (tile.type === 'text') textSpan.textContent = tile.data;
+                        else if (tile.type === 'image') {
+                            cell.style.backgroundImage = `url(${tile.data})`;
+                            cell.dataset.base64 = tile.data;
+                        }
+                    }
+                });
+
+                beebotState = { ...slide.initialBeebotState };
+                
+                if (isStudentMode) {
+                    commands = [...studentWork[currentSlideIndex]];
+                    clearCommands(false);
+                } else {
+                    clearCommands(true);
+                }
+                
+                updateSlideControls();
+                resizeCanvasAndPath();
+            }
+
+            function updateSlideControls() {
+                slideControls.counter.textContent = `Slide ${currentSlideIndex + 1} of ${lessonData.length}`;
+                slideControls.prev.disabled = currentSlideIndex === 0;
+                slideControls.next.disabled = currentSlideIndex === lessonData.length - 1;
+                slideControls.delete.disabled = lessonData.length <= 1;
+            }
+
+            slideControls.prev.addEventListener('click', () => loadSlide(currentSlideIndex - 1));
+            slideControls.next.addEventListener('click', () => loadSlide(currentSlideIndex + 1));
+            
+            slideControls.add.addEventListener('click', () => {
+                const newSlide = JSON.parse(JSON.stringify(lessonData[currentSlideIndex]));
+                lessonData.splice(currentSlideIndex + 1, 0, newSlide);
+                if (isStudentMode) studentWork.splice(currentSlideIndex + 1, 0, []);
+                loadSlide(currentSlideIndex + 1);
+            });
+
+            slideControls.delete.addEventListener('click', () => {
+                if (lessonData.length <= 1) return;
+                lessonData.splice(currentSlideIndex, 1);
+                if (isStudentMode) studentWork.splice(currentSlideIndex, 1);
+                const newIndex = Math.min(currentSlideIndex, lessonData.length - 1);
+                loadSlide(newIndex);
+            });
+
+            instructionInput.addEventListener('input', () => {
+                if (!isStudentMode) lessonData[currentSlideIndex].instruction = instructionInput.value;
+            });
+
+            // --- Tile Editing (Teacher only) ---
+            function handleCellClick(e, cell, input) {
+                if (isStudentMode || e.target.classList.contains('clear-btn')) return;
+                if (gameMode === 'text') {
+                    if (activeCell) activeCell.classList.remove('active-cell');
+                    activeCell = cell;
+                    activeCell.classList.add('active-cell');
+                    tileTextInput.value = cell.querySelector('span').textContent;
+                    tileTextInput.focus();
+                } else {
+                    input.click();
+                }
+            }
+
+            function handleFileInput(event, cell, textSpan) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const base64String = e.target.result;
+                        const index = parseInt(cell.dataset.index, 10);
+                        lessonData[currentSlideIndex].tiles[index] = { type: 'image', data: base64String };
+                        textSpan.textContent = '';
+                        cell.style.backgroundImage = `url(${base64String})`;
+                        cell.dataset.base64 = base64String;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            setTextBtn.addEventListener('click', () => {
+                if (activeCell) {
+                    const index = parseInt(activeCell.dataset.index, 10);
+                    lessonData[currentSlideIndex].tiles[index] = { type: 'text', data: tileTextInput.value };
+                    activeCell.querySelector('span').textContent = tileTextInput.value;
+                    activeCell.style.backgroundImage = ''; activeCell.dataset.base64 = '';
+                    activeCell.classList.remove('active-cell'); activeCell = null;
+                    tileTextInput.value = '';
+                }
+            });
+
+            function clearCell(e, cell, input, textSpan) {
+                e.stopPropagation();
+                const index = parseInt(cell.dataset.index, 10);
+                lessonData[currentSlideIndex].tiles[index] = null;
+                cell.style.backgroundImage = ''; textSpan.textContent = '';
+                input.value = ''; cell.dataset.base64 = '';
+            }
+
+            // --- Bee-Bot Movement & Path ---
+            function updateBeebotPosition(pos = beebotState) {
+                if (!gridContainer.offsetWidth) return;
+                const cellWidth = gridContainer.offsetWidth / gridCols;
+                const cellHeight = gridContainer.offsetHeight / gridRows;
+                beebot.style.width = `${cellWidth}px`; beebot.style.height = `${cellHeight}px`;
+                beebot.style.top = `${pos.row * cellHeight}px`; beebot.style.left = `${pos.col * cellWidth}px`;
+                beebot.style.transform = `rotate(${pos.visualRotation}deg)`;
+            }
+            
+            function resizeCanvasAndPath() {
+                pathCanvas.width = gridContainer.offsetWidth;
+                pathCanvas.height = gridContainer.offsetHeight;
+                redrawFullPath();
+            }
+
+            function redrawFullPath(isAnimating = false, currentBeePos = null) {
+                pathCtx.clearRect(0, 0, pathCanvas.width, pathCanvas.height);
+                if (pathHistory.length < 1) return;
+                const cellWidth = pathCanvas.width / gridCols;
+                const cellHeight = pathCanvas.height / gridRows;
+                pathCtx.strokeStyle = pathColorPicker.value;
+                pathCtx.lineWidth = 5;
+                pathCtx.lineCap = 'round'; pathCtx.lineJoin = 'round';
+                pathCtx.beginPath();
+                let startPoint = pathHistory[0];
+                pathCtx.moveTo(startPoint.col * cellWidth + cellWidth / 2, startPoint.row * cellHeight + cellHeight / 2);
+                for (let i = 1; i < pathHistory.length; i++) {
+                    pathCtx.lineTo(pathHistory[i].col * cellWidth + cellWidth / 2, pathHistory[i].row * cellHeight + cellHeight / 2);
+                }
+                if (isAnimating && currentBeePos && pathHistory.length > 0) {
+                    pathCtx.lineTo(currentBeePos.col * cellWidth + cellWidth / 2, currentBeePos.row * cellHeight + cellHeight / 2);
+                }
+                pathCtx.stroke();
+            }
+
+            window.addEventListener('resize', resizeCanvasAndPath);
+
+            // --- Command Handling ---
+            function addCommand(command) {
+                if (isExecuting) return;
+                commands.push(command);
+                updateCommandDisplay();
+            }
+
+            function updateCommandDisplay() {
+                commandSequenceDiv.innerHTML = '';
+                commands.forEach(cmd => {
+                    const cmdIcon = document.createElement('div');
+                    cmdIcon.className = 'w-8 h-8 rounded-md flex items-center justify-center text-white shrink-0';
+                    let svg = '';
+                    switch(cmd) {
+                        case 'F': cmdIcon.classList.add('bg-blue-500'); svg = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>`; break;
+                        case 'B': cmdIcon.classList.add('bg-blue-500'); svg = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>`; break;
+                        case 'L': cmdIcon.classList.add('bg-yellow-500'); svg = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>`; break;
+                        case 'R': cmdIcon.classList.add('bg-yellow-500'); svg = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>`; break;
+                    }
+                    cmdIcon.innerHTML = svg;
+                    commandSequenceDiv.appendChild(cmdIcon);
+                });
+            }
+
+            function stopExecution() { isExecuting = false; }
+
+            function clearCommands(fullReset = true) {
+                stopExecution();
+                if (fullReset) {
+                    commands = [];
+                    beebotState = { ...lessonData[currentSlideIndex].initialBeebotState };
+                }
+                updateCommandDisplay();
+                pathHistory = [{ col: beebotState.col, row: beebotState.row }];
+                pathCtx.clearRect(0, 0, pathCanvas.width, pathCanvas.height);
+                updateBeebotPosition();
+            }
+
+            // --- Animation & Execution ---
+            function animateMove(startPos, endPos, duration) {
+                return new Promise(resolve => {
+                    let startTime = null;
+                    function animationLoop(currentTime) {
+                        if (!isExecuting) { updateBeebotPosition(); redrawFullPath(); return; }
+                        if (!startTime) startTime = currentTime;
+                        const progress = Math.min((currentTime - startTime) / duration, 1);
+                        const currentPos = {
+                            col: startPos.col + (endPos.col - startPos.col) * progress,
+                            row: startPos.row + (endPos.row - startPos.row) * progress,
+                            visualRotation: beebotState.visualRotation
+                        };
+                        updateBeebotPosition(currentPos);
+                        redrawFullPath(true, currentPos);
+                        if (progress < 1) requestAnimationFrame(animationLoop);
+                        else resolve();
+                    }
+                    requestAnimationFrame(animationLoop);
+                });
+            }
+
+            async function executeCommands() {
+                if (isExecuting || commands.length === 0) return Promise.resolve();
+                isExecuting = true;
+                const goBtn = document.getElementById('go-btn');
+                goBtn.disabled = true; goBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                
+                beebotState = { ...lessonData[currentSlideIndex].initialBeebotState };
+                pathHistory = [{ col: beebotState.col, row: beebotState.row }];
+                redrawFullPath();
+                updateBeebotPosition();
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                for (const command of commands) {
+                    if (!isExecuting) break;
+                    await processCommand(command);
+                }
+                isExecuting = false;
+                goBtn.disabled = false; goBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+
+            async function processCommand(command) {
+                const oldPos = { col: beebotState.col, row: beebotState.row };
+                let hasMoved = false;
+                switch (command) {
+                    case 'F':
+                        if (beebotState.dir === 0 && beebotState.row > 0) { beebotState.row--; hasMoved = true; }
+                        else if (beebotState.dir === 1 && beebotState.col < gridCols - 1) { beebotState.col++; hasMoved = true; }
+                        else if (beebotState.dir === 2 && beebotState.row < gridRows - 1) { beebotState.row++; hasMoved = true; }
+                        else if (beebotState.dir === 3 && beebotState.col > 0) { beebotState.col--; hasMoved = true; }
+                        break;
+                    case 'B':
+                        if (beebotState.dir === 0 && beebotState.row < gridRows - 1) { beebotState.row++; hasMoved = true; }
+                        else if (beebotState.dir === 1 && beebotState.col > 0) { beebotState.col--; hasMoved = true; }
+                        else if (beebotState.dir === 2 && beebotState.row > 0) { beebotState.row--; hasMoved = true; }
+                        else if (beebotState.dir === 3 && beebotState.col < gridCols - 1) { beebotState.col++; hasMoved = true; }
+                        break;
+                    case 'L': beebotState.dir = (beebotState.dir + 3) % 4; beebotState.visualRotation -= 90; break;
+                    case 'R': beebotState.dir = (beebotState.dir + 1) % 4; beebotState.visualRotation += 90; break;
+                }
+                if (hasMoved) {
+                    const newPos = { col: beebotState.col, row: beebotState.row };
+                    await animateMove(oldPos, newPos, 500);
+                    pathHistory.push(newPos);
+                    redrawFullPath();
+                } else {
+                    updateBeebotPosition();
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            }
+            
+            // --- Student Mode Functionality ---
+            function saveStudentWork() {
+                studentWork[currentSlideIndex] = [...commands];
+                localStorage.setItem('beebotStudentWork', JSON.stringify(studentWork));
+                alert('Your work has been saved!');
+            }
+
+            function loadStudentWork() {
+                const savedWork = localStorage.getItem('beebotStudentWork');
+                if (savedWork) {
+                    studentWork = JSON.parse(savedWork);
+                    if (studentWork.length !== lessonData.length) {
+                        studentWork = Array(lessonData.length).fill([]);
+                    }
+                    loadSlide(currentSlideIndex);
+                }
+            }
+
+            function exportReport() {
+                // Save the current slide's commands before generating the report
+                studentWork[currentSlideIndex] = [...commands];
+
+                let reportHTML = `
+                    <html>
+                        <head>
+                            <title>Bee-Bot Lesson Report</title>
+                            <style>
+                                body { font-family: sans-serif; }
+                                .slide { page-break-after: always; padding: 20px; width: 700px; margin: 0 auto; }
+                                .slide:last-child { page-break-after: auto; }
+                                h2 { font-size: 1.5em; }
+                                .grid-report {
+                                    display: grid;
+                                    border: 1px solid black;
+                                    position: relative;
+                                    width: 700px;
+                                    height: 700px;
+                                }
+                                .cell-report {
+                                    border: 1px solid #ccc;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    background-size: contain;
+                                    background-repeat: no-repeat;
+                                    background-position: center;
+                                    font-size: 1.2em;
+                                    text-align: center;
+                                    word-break: break-word;
+                                }
+                                .path-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+                                .commands { margin-top: 10px; font-family: monospace; word-wrap: break-word; }
+                            </style>
+                        </head>
+                        <body onload="window.print()">
+                `;
+
+                for (let i = 0; i < lessonData.length; i++) {
+                    const slide = lessonData[i];
+                    const slideCommands = studentWork[i] || [];
+                    
+                    // Calculate path
+                    let tempState = { ...slide.initialBeebotState };
+                    let tempPath = [{...tempState}];
+                    for(const command of slideCommands) {
+                         switch (command) {
+                            case 'F':
+                                if (tempState.dir === 0 && tempState.row > 0) tempState.row--;
+                                else if (tempState.dir === 1 && tempState.col < gridCols - 1) tempState.col++;
+                                else if (tempState.dir === 2 && tempState.row < gridRows - 1) tempState.row++;
+                                else if (tempState.dir === 3 && tempState.col > 0) tempState.col--;
+                                tempPath.push({...tempState});
+                                break;
+                            case 'B':
+                                if (tempState.dir === 0 && tempState.row < gridRows - 1) tempState.row++;
+                                else if (tempState.dir === 1 && tempState.col > 0) tempState.col--;
+                                else if (tempState.dir === 2 && tempState.row > 0) tempState.row--;
+                                else if (tempState.dir === 3 && tempState.col < gridCols - 1) tempState.col++;
+                                tempPath.push({...tempState});
+                                break;
+                            case 'L': tempState.dir = (tempState.dir + 3) % 4; break;
+                            case 'R': tempState.dir = (tempState.dir + 1) % 4; break;
+                        }
+                    }
+
+                    reportHTML += `<div class="slide">`;
+                    reportHTML += `<h2>Slide ${i + 1}: ${slide.instruction}</h2>`;
+                    reportHTML += `<div class="grid-report" style="grid-template-columns: repeat(${gridCols}, 1fr); grid-template-rows: repeat(${gridRows}, 1fr);">`;
+
+                    // Add tiles
+                    for(let tileIndex = 0; tileIndex < slide.tiles.length; tileIndex++) {
+                        const tile = slide.tiles[tileIndex];
+                        let style = '';
+                        let content = '';
+                        if (tile) {
+                            if (tile.type === 'image') {
+                                style = `background-image: url('${tile.data}')`;
+                            } else {
+                                content = tile.data;
+                            }
+                        }
+                        reportHTML += `<div class="cell-report" style="${style}">${content}</div>`;
+                    }
+
+                    // Add SVG Path
+                    let points = tempPath.map(p => `${(p.col * (700 / gridCols)) + (700 / gridCols / 2)},${(p.row * (700 / gridRows)) + (700 / gridRows / 2)}`).join(' ');
+                    reportHTML += `<svg class="path-svg" viewBox="0 0 700 700"><polyline points="${points}" stroke="${pathColorPicker.value}" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
+                    
+                    reportHTML += `</div>`; // end grid-report
+                    reportHTML += `<div class="commands"><b>Commands:</b> ${slideCommands.join(', ') || 'None'}</div>`;
+                    reportHTML += `</div>`; // end slide
+                }
+
+                reportHTML += `</body></html>`;
+                
+                const blob = new Blob([reportHTML], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            saveWorkBtn.addEventListener('click', saveStudentWork);
+            exportReportBtn.addEventListener('click', exportReport);
+
+            // --- Download (Teacher) ---
+            downloadBtn.addEventListener('click', () => {
+                const config = {
+                    mode: gameMode, rows: gridRows, cols: gridCols,
+                    beeImg: customBeeImageUrl, lesson: lessonData,
+                    isStudent: true
+                };
+                const docClone = document.documentElement.cloneNode(true);
+                const configScript = docClone.ownerDocument.createElement('script');
+                configScript.id = 'game-config';
+                configScript.textContent = `window.beebotGameConfig = ${JSON.stringify(config)};`;
+                docClone.querySelector('body').appendChild(configScript);
+                const finalHtml = `<!DOCTYPE html>\n` + docClone.outerHTML;
+                const blob = new Blob([finalHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'beebot-lesson-student.html';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+
+            // --- Event Listeners ---
+            document.getElementById('forward-btn').addEventListener('click', () => addCommand('F'));
+            document.getElementById('backward-btn').addEventListener('click', () => addCommand('B'));
+            document.getElementById('left-btn').addEventListener('click', () => addCommand('L'));
+            document.getElementById('right-btn').addEventListener('click', () => addCommand('R'));
+            document.getElementById('go-btn').addEventListener('click', executeCommands);
+            stopBtn.addEventListener('click', stopExecution);
+            document.getElementById('clear-btn').addEventListener('click', () => clearCommands(true));
+
+            // --- Auto-start if config exists ---
+            if (window.beebotGameConfig) {
+                homePage.classList.add('hidden');
+                gamePage.classList.remove('hidden');
+                gamePage.classList.add('flex');
+                initializeGame(window.beebotGameConfig);
+            }
+        });
+    </script>
+</body>
+</html>
