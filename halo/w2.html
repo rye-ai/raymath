@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Food Truck Venture</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        .slide { display: none; }
+        .slide.active { display: block; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab.active { border-color: #2563eb; color: #2563eb; font-weight: 600; }
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 8px solid #3498db;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Print-friendly styles for PDF generation */
+        .print-container {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 800px;
+            background-color: white;
+            color: black;
+        }
+        .print-container .slide {
+            display: block; /* Show all slides for printing */
+            page-break-inside: avoid;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 15px;
+        }
+        .print-container h1, .print-container h2, .print-container h3 { color: black; }
+        .print-container button, .print-container input[type=radio] + label:before, .print-container input[type=checkbox] + label:before { display: none; }
+        .print-container textarea { display: none; }
+        .print-container canvas { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6 text-center">Join Session</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block font-medium mb-2">Select Your Role:</label>
+                    <div class="flex space-x-4">
+                        <label class="flex items-center p-3 border rounded-lg flex-1 cursor-pointer hover:bg-gray-50"><input type="radio" name="role" value="Student" class="mr-2" checked> Student</label>
+                        <label class="flex items-center p-3 border rounded-lg flex-1 cursor-pointer hover:bg-gray-50"><input type="radio" name="role" value="Teacher" class="mr-2"> Teacher</label>
+                    </div>
+                </div>
+                <div id="teacher-password-container" class="hidden">
+                    <label for="teacher-password" class="block font-medium mb-2">Teacher Password:</label>
+                    <input type="password" id="teacher-password" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Enter password...">
+                </div>
+                <div>
+                    <label for="room-name" class="block font-medium mb-2">Room Name:</label>
+                    <input type="text" id="room-name" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="e.g., class-a">
+                </div>
+                <div id="setup-error" class="text-red-500 text-sm hidden"></div>
+                <button id="start-lesson-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-all">Start Lesson</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-80 z-50 flex flex-col items-center justify-center hidden">
+        <div class="loader"></div>
+        <p class="mt-4 text-lg font-semibold">Generating PDF... Please wait.</p>
+    </div>
+
+    <!-- Main container -->
+    <div id="main-app-container" class="container mx-auto p-4 max-w-5xl invisible">
+        <!-- Header -->
+        <header class="flex flex-wrap justify-between items-center bg-white p-4 rounded-lg shadow-md mb-4 gap-4">
+            <h1 class="text-2xl font-bold text-gray-900">🚚 The Food Truck Venture</h1>
+            <div class="flex items-center gap-2">
+                <div id="role-room-badge" class="text-sm font-semibold bg-gray-200 text-gray-700 px-3 py-1 rounded-full"></div>
+                <div id="sync-toggle-container" class="hidden items-center space-x-2 border-l pl-2">
+                    <span class="font-medium text-gray-600">Sync:</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="sync-toggle" class="sr-only peer" checked>
+                      <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
+                </div>
+                 <button id="change-role-room-btn" class="text-sm text-blue-600 hover:underline">Change</button>
+            </div>
+            <div>
+                <button id="download-html-btn" class="bg-green-500 text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-green-600 transition-all">Download Work (HTML)</button>
+                <button id="download-pdf-btn" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-red-600 transition-all ml-2">Download as PDF</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Lesson View -->
+            <div id="lesson-view">
+                <!-- Content will be injected here -->
+            </div>
+            <!-- Practice Center View -->
+            <div id="practice-center-view" class="hidden">
+                 <!-- Content will be injected here -->
+            </div>
+        </main>
+    </div>
+    
+    <!-- This is the original content, which will be moved into the main app container by JS -->
+    <div id="original-content" class="hidden">
+         <!-- Lesson View -->
+            <div id="lesson-view-content">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <!-- Lesson Progress Bar -->
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                        <div id="lesson-progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                    
+                    <div id="slides-container">
+                        <!-- Slides will be injected here by JS -->
+                    </div>
+                    
+                    <!-- Lesson Navigation -->
+                    <div class="flex justify-between items-center mt-6">
+                        <button id="prev-btn" class="bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow hover:bg-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+                        <span id="slide-counter" class="text-sm text-gray-500"></span>
+                        <button id="next-btn" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-blue-600 transition-all disabled:opacity-50">Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Practice Center View -->
+            <div id="practice-center-view-content" class="hidden">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-3xl font-bold">Assessment Center</h2>
+                        <div>
+                           <button id="back-to-lesson-btn" class="text-sm text-blue-600 hover:underline">Back to Lesson</button>
+                        </div>
+                    </div>
+                    <!-- Tabs -->
+                    <div id="practice-tabs-container" class="border-b border-gray-200">
+                        <nav id="practice-tabs" class="flex space-x-4" aria-label="Tabs">
+                            <button class="tab active" data-tab="level1">Approaching</button>
+                            <button class="tab" data-tab="level3">Exceeding</button>
+                        </nav>
+                    </div>
+
+                    <!-- Tab Content -->
+                    <div id="practice-content" class="mt-4">
+                        <div id="level1" class="tab-content active space-y-4"></div>
+                        <div id="level3" class="tab-content space-y-4"></div>
+                        <button id="submit-assessment-btn" class="mt-6 w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg hover:bg-green-700 transition-all">Submit Assessment</button>
+                    </div>
+
+                    <!-- Results Screen -->
+                    <div id="results-screen" class="hidden text-center mt-4 p-8 bg-blue-50 rounded-lg">
+                        <h3 class="text-3xl font-bold text-blue-800">Great work! Your report is ready.</h3>
+                        
+                        <div id="student-score-summary" class="mt-4">
+                            <!-- Student's score summary will be injected here -->
+                        </div>
+
+                        <p class="text-gray-600 mt-4">You can now download your work using the buttons in the header.</p>
+                        <div class="mt-6">
+                            <button id="admin-btn" class="text-xs text-gray-500 hover:underline">Admin: View Detailed Report</button>
+                        </div>
+                        <div id="score-report" class="hidden mt-6 text-left p-4 border border-gray-300 bg-white rounded-lg">
+                            <!-- Detailed score report will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+
+    <!-- This script tag is where student progress will be injected for saving/loading -->
+    <script id="progress-data" type="application/json"></script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- FIREBASE & SYNC STATE ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+          authDomain: "lesson-sync-a223a.firebaseapp.com",
+          projectId: "lesson-sync-a223a",
+          storageBucket: "lesson-sync-a223a.firebasestorage.app",
+          messagingSenderId: "906128715071",
+          appId: "1:906128715071:web:347ea08f4d864fde02778a"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        let roomRef = null;
+        let unsubscribe = null;
+        let _isApplyingRemote = false;
+
+        let role = '';
+        let roomName = '';
+        
+        // --- DATA & STATE MANAGEMENT ---
+        const lessonSlidesData = [
+            { type: 'title', title: 'The Food Truck Venture', subtitle: 'Your Recipe for Success!', content: `Welcome, entrepreneurs! Today, you'll use math to design a profitable food truck business. Let's get cooking!` },
+            { type: 'hook', title: 'Hook: The Lemonade Stand', content: `Imagine you start a lemonade stand. You buy lemons, sugar, and cups for $10. You sell 20 cups of lemonade for $1 each. Did you make money? How do you know? <br><br>Discuss with a partner: What information do you need to decide if a business is successful?` },
+            { type: 'discussion', title: 'Core Concepts', content: `Every business uses three key ideas: <ul class='list-disc list-inside mt-2 space-y-1'><li><strong>Expenses:</strong> Money you SPEND.</li><li><strong>Revenue:</strong> Money you EARN.</li><li><strong>Profit:</strong> The money left over.</li></ul> We use a simple step-by-step process, an <strong>algorithm</strong>, to find the profit: <code class='bg-gray-200 p-1 rounded'>Profit = Revenue - Expenses</code>` },
+            { type: 'discussion', title: 'Decomposition', content: `A big problem like "start a food truck" is too complex to solve all at once. We use <strong>decomposition</strong> to break it into smaller, manageable parts. <br><br>For example: <ol class='list-decimal list-inside mt-2 space-y-1'><li>Calculate the cost of ONE menu item.</li><li>Set a price for that item.</li><li>Calculate the profit for that single item.</li></ol>By solving these small pieces, we can understand the big picture.`},
+            
+            { type: 'i-do', title: 'I Do: Grilled Cheese Truck (1/3)', activityId: 'i-do-1', prompt: `I want to sell grilled cheese. My recipe is 2 slices of bread ($0.25 each), 2 slices of cheese ($0.40 each), and 1 pat of butter ($0.05). What is the total ingredient cost for one sandwich?`, answer: '1.00', inputType: 'text' },
+            { type: 'i-do', title: 'I Do: Grilled Cheese Truck (2/3)', activityId: 'i-do-2', prompt: `Great. I also need to include a napkin, which costs $0.03. What are my total expenses for one sandwich (ingredients + napkin)?`, answer: '1.03', inputType: 'text' },
+            { type: 'i-do', title: 'I Do: Grilled Cheese Truck (3/3)', activityId: 'i-do-3', prompt: `I'm going to sell my sandwich for $4.00. Using our algorithm (Revenue - Expenses), what is my profit for one sandwich?`, answer: '2.97', inputType: 'text' },
+
+            ...Array.from({ length: 10 }, (_, i) => ({
+                type: 'we-do',
+                title: `We Do: Taco Time (${i + 1}/10)`,
+                activityId: `we-do-${i + 1}`,
+                ...getWeDoQuestion(i)
+            })),
+            
+            ...Array.from({ length: 5 }, (_, i) => ({
+                type: 'you-do',
+                title: `You Do: Pizza Palace (${i + 1}/5)`,
+                activityId: `you-do-${i + 1}`,
+                ...getYouDoQuestion(i)
+            })),
+
+            { type: 'closure', title: 'Closure & Reflection', activityId: 'closure-1', prompt: `If you were opening a real food truck, what is one other expense you would need to plan for that we didn't talk about today (e.g., the truck itself, gas, paying employees)?`, inputType: 'textarea' },
+            { type: 'final', title: 'Lesson Complete!', content: 'You have completed the guided lesson. You are now ready to test your skills in the Assessment Center!', button: true }
+        ];
+
+        let studentData = {};
+        let assessmentResults = null;
+        let currentSlideIndex = 0;
+        let lastLessonSlide = 0;
+        let currentView = 'lesson';
+        let currentTab = 'level1';
+        let allPracticeProblems = [];
+
+        let slidesContainer, prevBtn, nextBtn, slideCounter, progressBar, lessonView, practiceView, practiceTabs;
+
+        function setupInit() {
+            document.getElementById('lesson-view').innerHTML = document.getElementById('lesson-view-content').innerHTML;
+            document.getElementById('practice-center-view').innerHTML = document.getElementById('practice-center-view-content').innerHTML;
+            document.getElementById('original-content').remove();
+
+            const setupModal = document.getElementById('setup-modal');
+            const roleRadios = document.querySelectorAll('input[name="role"]');
+            const passwordContainer = document.getElementById('teacher-password-container');
+            const startBtn = document.getElementById('start-lesson-btn');
+            const changeBtn = document.getElementById('change-role-room-btn');
+            
+            const savedRole = localStorage.getItem('lessonRole');
+            const savedRoom = localStorage.getItem('lessonRoom');
+            
+            if (savedRole && savedRoom) {
+                role = savedRole;
+                roomName = savedRoom;
+                setupModal.classList.add('hidden');
+                startApp();
+            } else {
+                 setupModal.classList.remove('hidden');
+            }
+
+            roleRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    passwordContainer.classList.toggle('hidden', radio.value !== 'Teacher');
+                });
+            });
+
+            startBtn.addEventListener('click', () => {
+                const selectedRole = document.querySelector('input[name="role"]:checked').value;
+                const roomInput = document.getElementById('room-name').value.trim();
+                const passwordInput = document.getElementById('teacher-password').value;
+                const errorEl = document.getElementById('setup-error');
+                
+                errorEl.classList.add('hidden');
+                if (!roomInput) {
+                    errorEl.textContent = 'Please enter a room name.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+                if (selectedRole === 'Teacher' && passwordInput !== '2026') {
+                    errorEl.textContent = 'Incorrect teacher password.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+                
+                role = selectedRole;
+                roomName = roomInput;
+                localStorage.setItem('lessonRole', role);
+                localStorage.setItem('lessonRoom', roomName);
+                
+                setupModal.classList.add('hidden');
+                startApp();
+            });
+
+            changeBtn.addEventListener('click', () => {
+                if (unsubscribe) unsubscribe();
+                localStorage.removeItem('lessonRole');
+                localStorage.removeItem('lessonRoom');
+                window.location.reload();
+            });
+        }
+
+        function startApp() {
+            document.getElementById('main-app-container').classList.remove('invisible');
+
+            slidesContainer = document.getElementById('slides-container');
+            prevBtn = document.getElementById('prev-btn');
+            nextBtn = document.getElementById('next-btn');
+            slideCounter = document.getElementById('slide-counter');
+            progressBar = document.getElementById('lesson-progress-bar');
+            lessonView = document.getElementById('lesson-view');
+            practiceView = document.getElementById('practice-center-view');
+            practiceTabs = document.getElementById('practice-tabs');
+            
+            document.getElementById('role-room-badge').textContent = `${role} • room: ${roomName}`;
+            if (role === 'Teacher') {
+                document.getElementById('sync-toggle-container').classList.remove('hidden');
+                document.getElementById('sync-toggle-container').classList.add('flex');
+            }
+
+            firebase.auth().signInAnonymously()
+                .then(() => {
+                    console.log('Anonymous sign-in successful.');
+                    syncInit();
+                    loadProgress();
+                    renderAllSlides();
+                    showSlide(currentSlideIndex);
+                    generatePracticeProblems();
+                    attachEventListeners();
+                    rehydrateState();
+                    updateDownloadButtonStates();
+                })
+                .catch((error) => {
+                    console.error("Anonymous sign-in failed:", error);
+                });
+        }
+        
+        function syncInit() {
+            if (!roomName) return;
+            roomRef = db.collection('rooms').doc(roomName);
+
+            if (role === 'Teacher') {
+                syncPush();
+            } else {
+                unsubscribe = roomRef.onSnapshot(doc => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        _isApplyingRemote = true;
+                        
+                        const isFreeExplore = data.allowFreeExplore === true;
+                        setNavigationLock(!isFreeExplore);
+
+                        if (!isFreeExplore) {
+                            if (data.view === 'lesson' && lessonView.classList.contains('hidden')) {
+                                showLessonView();
+                            } else if (data.view === 'practice' && practiceView.classList.contains('hidden')) {
+                                showPracticeCenterView();
+                            }
+    
+                            if (data.tab && currentTab !== data.tab) {
+                                switchTab(data.tab);
+                            }
+    
+                            if (data.slide !== undefined && currentSlideIndex !== data.slide) {
+                                showSlide(data.slide);
+                            }
+                        }
+                        
+                        _isApplyingRemote = false;
+                    }
+                });
+            }
+        }
+        
+        function setNavigationLock(isLocked) {
+             prevBtn.disabled = isLocked || currentSlideIndex === 0;
+             nextBtn.disabled = isLocked || currentSlideIndex === lessonSlidesData.length - 1;
+             
+             document.getElementById('back-to-lesson-btn').disabled = isLocked;
+             
+             practiceTabs.querySelectorAll('button').forEach(btn => {
+                 btn.disabled = isLocked;
+             });
+             
+             const goToPracticeBtn = document.getElementById('go-to-practice-btn');
+             if(goToPracticeBtn) goToPracticeBtn.disabled = isLocked;
+        }
+
+        function syncPush() {
+            if (role !== 'Teacher' || !roomRef || _isApplyingRemote) return;
+            const syncToggle = document.getElementById('sync-toggle');
+            
+            const state = {
+                day: 1,
+                slide: currentSlideIndex,
+                view: currentView,
+                tab: currentTab,
+                allowFreeExplore: !syncToggle.checked,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            roomRef.set(state).catch(e => console.error("Firestore write failed:", e));
+        }
+
+        function loadProgress() {
+            const dataScript = document.getElementById('progress-data');
+            let loadedData = null;
+
+            if (dataScript && dataScript.textContent.trim().length > 2) {
+                try {
+                    loadedData = JSON.parse(dataScript.textContent);
+                } catch (e) {
+                    console.error("Could not parse injected progress data:", e);
+                }
+            } 
+            else {
+                const localData = localStorage.getItem('foodTruckVentureProgress');
+                if (localData) {
+                    try {
+                        loadedData = JSON.parse(localData);
+                    } catch (e) {
+                        console.error("Could not parse localStorage data:", e);
+                    }
+                }
+            }
+
+            if(loadedData) {
+                 studentData = loadedData;
+                 currentSlideIndex = studentData.lastSlideIndex || 0;
+                 assessmentResults = studentData.assessmentResults || null;
+            }
+        }
+
+        function saveProgress() {
+            studentData.lastSlideIndex = currentSlideIndex;
+            studentData.assessmentResults = assessmentResults;
+            try {
+                localStorage.setItem('foodTruckVentureProgress', JSON.stringify(studentData));
+            } catch (e) {
+                console.error("Could not save progress to localStorage:", e);
+            }
+        }
+        
+        function rehydrateState() {
+            Object.keys(studentData).forEach(key => {
+                if (key.startsWith('activity-')) {
+                    const activityId = key.replace('activity-', '');
+                    const element = document.querySelector(`[data-activity-id="${activityId}"]`);
+                    if (element) {
+                        const input = element.querySelector('input[type="text"], textarea');
+                        if (input) {
+                            input.value = studentData[key];
+                            if (input.tagName.toLowerCase() === 'textarea') {
+                                input.style.height = 'auto';
+                                input.style.height = (input.scrollHeight) + 'px';
+                            }
+                        }
+                        const radioInputs = element.querySelectorAll('input[type="radio"]');
+                        if (radioInputs.length > 0) {
+                           radioInputs.forEach(radio => {
+                               if(radio.value === studentData[key]) {
+                                   radio.checked = true;
+                               }
+                           });
+                        }
+                    }
+                }
+            });
+            
+            if (assessmentResults) {
+                showResultsScreen();
+            }
+        }
+
+        function renderAllSlides() {
+            slidesContainer.innerHTML = '';
+            lessonSlidesData.forEach((slideData, index) => {
+                const slideEl = document.createElement('div');
+                slideEl.className = 'slide p-4 border rounded-lg bg-gray-50';
+                slideEl.dataset.slideIndex = index;
+                slideEl.innerHTML = createSlideHTML(slideData);
+                slidesContainer.appendChild(slideEl);
+            });
+        }
+        
+        function createSlideHTML(slideData) {
+            let contentHTML = `<h2 class="text-2xl font-bold mb-4">${slideData.title}</h2>`;
+            if(slideData.subtitle) contentHTML += `<p class="text-lg mb-4">${slideData.subtitle}</p>`;
+            if(slideData.content) contentHTML += `<div class="text-lg prose">${slideData.content}</div>`;
+            if (slideData.activityId) contentHTML += createActivityHTML(slideData);
+            if (slideData.button) contentHTML += `<button id="go-to-practice-btn" class="mt-6 w-full bg-purple-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-purple-700 transition-transform transform hover:scale-105">Go to Assessment Center</button>`;
+            return contentHTML;
+        }
+
+        function createActivityHTML(activityData, isAssessment = false) {
+            const { activityId, prompt, inputType, options, answer } = activityData;
+            let activityHTML = `<div class="question-container mt-4 p-4 border-l-4 border-blue-300 bg-blue-50 rounded-r-lg" data-activity-id="${activityId}">
+                <p class="font-semibold text-lg mb-3">${prompt}</p>`;
+
+            if (inputType === 'text') {
+                activityHTML += `<input type="text" placeholder="Type your answer here..." class="w-full md:w-1/2 p-2 border border-gray-300 rounded-lg">`;
+            } else if (inputType === 'textarea') {
+                activityHTML += `<textarea placeholder="Type your thoughts here..." class="w-full p-2 border border-gray-300 rounded-lg min-h-[80px]"></textarea>`;
+            } else if (inputType === 'mc') {
+                activityHTML += `<div class="space-y-2">`;
+                options.forEach(option => {
+                     activityHTML += `<div><label class="flex items-center space-x-2 p-2 border rounded-lg hover:bg-gray-100 cursor-pointer"><input type="radio" name="${activityId}" value="${option}" class="form-radio h-5 w-5 text-blue-600"><span>${option}</span></label></div>`;
+                });
+                activityHTML += `</div>`;
+            }
+
+            if (answer && !isAssessment) {
+                activityHTML += `<div class="mt-3">
+                    <button class="check-answer-btn bg-green-500 text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-green-600 transition-all">Check Answer</button>
+                    <span class="feedback-message ml-3 font-medium"></span>
+                </div>`;
+            }
+            activityHTML += `</div>`;
+            return activityHTML;
+        }
+
+        function showSlide(index) {
+            document.querySelectorAll('.slide').forEach(slide => slide.classList.remove('active'));
+            const activeSlide = document.querySelector(`.slide[data-slide-index="${index}"]`);
+            if (activeSlide) activeSlide.classList.add('active');
+            currentSlideIndex = index;
+            lastLessonSlide = index;
+            updateNavControls();
+            saveProgress();
+            syncPush();
+        }
+
+        function updateNavControls() {
+            prevBtn.disabled = currentSlideIndex === 0;
+            nextBtn.disabled = currentSlideIndex === lessonSlidesData.length - 1;
+            slideCounter.textContent = `Slide ${currentSlideIndex + 1} of ${lessonSlidesData.length}`;
+            progressBar.style.width = `${((currentSlideIndex + 1) / lessonSlidesData.length) * 100}%`;
+        }
+
+        function showLessonView() {
+            practiceView.classList.add('hidden');
+            lessonView.classList.remove('hidden');
+            currentView = 'lesson';
+            updateDownloadButtonStates();
+            showSlide(lastLessonSlide); 
+            syncPush();
+        }
+
+        function showPracticeCenterView() {
+            lessonView.classList.add('hidden');
+            practiceView.classList.remove('hidden');
+            currentView = 'practice';
+            updateDownloadButtonStates();
+            syncPush();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            currentTab = tabId;
+            syncPush();
+        }
+        
+        function updateDownloadButtonStates() {
+            const downloadHtmlBtn = document.getElementById('download-html-btn');
+            const downloadPdfBtn = document.getElementById('download-pdf-btn');
+            
+            if (currentView === 'practice' && !assessmentResults) {
+                downloadHtmlBtn.disabled = true;
+                downloadPdfBtn.disabled = true;
+                downloadHtmlBtn.title = "Please submit the assessment first.";
+                downloadPdfBtn.title = "Please submit the assessment first.";
+                downloadHtmlBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                downloadPdfBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                downloadHtmlBtn.disabled = false;
+                downloadPdfBtn.disabled = false;
+                downloadHtmlBtn.title = "";
+                downloadPdfBtn.title = "";
+                downloadHtmlBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                downloadPdfBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function attachEventListeners() {
+            nextBtn.addEventListener('click', () => { if (!nextBtn.disabled) showSlide(currentSlideIndex + 1) });
+            prevBtn.addEventListener('click', () => { if (!prevBtn.disabled) showSlide(currentSlideIndex - 1) });
+            
+            document.getElementById('back-to-lesson-btn').addEventListener('click', (e) => { 
+                if (!e.target.disabled) showLessonView() 
+            });
+            
+            document.body.addEventListener('click', e => {
+                if (e.target.closest('#go-to-practice-btn') && !e.target.closest('#go-to-practice-btn').disabled) {
+                    showPracticeCenterView();
+                }
+                if (e.target.classList.contains('check-answer-btn')) {
+                    checkAnswer(e.target);
+                }
+                if (e.target.id === 'submit-assessment-btn') {
+                    calculateAndStoreScore();
+                    showResultsScreen();
+                }
+                if (e.target.id === 'admin-btn') {
+                    const password = prompt("Enter teacher password:");
+                    if (password === '2026') {
+                        renderScoreReport();
+                        document.getElementById('score-report').classList.remove('hidden');
+                    } else if (password !== null) {
+                        alert("Incorrect password.");
+                    }
+                }
+                if (e.target.id === 'reset-assessment-btn') {
+                    resetAssessment();
+                }
+            });
+            
+            practiceTabs.addEventListener('click', e => {
+                if (e.target.classList.contains('tab') && !e.target.disabled) {
+                    switchTab(e.target.dataset.tab);
+                }
+            });
+
+            document.body.addEventListener('input', e => {
+                const target = e.target;
+                 if (target.tagName.toLowerCase() === 'textarea') {
+                    target.style.height = 'auto';
+                    target.style.height = (target.scrollHeight) + 'px';
+                }
+                const container = target.closest('.question-container');
+                if (container) {
+                    const activityId = container.dataset.activityId;
+                    studentData[`activity-${activityId}`] = target.value;
+                    saveProgress();
+                }
+            });
+            
+            document.body.addEventListener('change', e => {
+                const target = e.target;
+                const container = target.closest('.question-container');
+                 if (target.type === 'radio' && container) {
+                    const activityId = container.dataset.activityId;
+                    studentData[`activity-${activityId}`] = target.value;
+                    saveProgress();
+                }
+            });
+
+            document.getElementById('download-html-btn').addEventListener('click', downloadHTML);
+            document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
+            
+            const syncToggle = document.getElementById('sync-toggle');
+            if (syncToggle) {
+                syncToggle.addEventListener('change', syncPush);
+            }
+        }
+        
+        function checkAnswer(buttonEl) {
+            const questionContainer = buttonEl.closest('.question-container');
+            if (!questionContainer) return;
+            const activityId = questionContainer.dataset.activityId;
+            const feedbackEl = questionContainer.querySelector('.feedback-message');
+            const activityData = lessonSlidesData.find(s => s.activityId === activityId);
+            if (!activityData) return;
+            const correctAnswer = activityData.answer.toString();
+            let userAnswer = '';
+            const textInput = questionContainer.querySelector('input[type="text"]');
+            const radioInput = questionContainer.querySelector('input[type="radio"]:checked');
+            if(textInput) userAnswer = textInput.value.trim();
+            if(radioInput) userAnswer = radioInput.value;
+            let isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
+            if (isCorrect) {
+                feedbackEl.textContent = 'Correct! ' + getPositiveAffirmation();
+                feedbackEl.className = 'feedback-message ml-3 font-medium text-green-600';
+            } else {
+                feedbackEl.textContent = 'Not quite. Check your numbers and try again!';
+                feedbackEl.className = 'feedback-message ml-3 font-medium text-red-600';
+            }
+            saveProgress();
+        }
+
+        function getPositiveAffirmation() {
+            const affirmations = ["Awesome!", "You're a natural entrepreneur!", "That's a profitable idea!", "Great calculation!", "Nice pitch!"];
+            return affirmations[Math.floor(Math.random() * affirmations.length)];
+        }
+        
+        function calculateAndStoreScore() {
+            let results = {
+                level1: { correct: 0, total: 0, details: [] },
+                level3: { correct: 0, total: 0, details: [] },
+            };
+            allPracticeProblems.forEach(problem => {
+                const levelKey = problem.activityId.startsWith('l1') ? 'level1' : 'level3';
+                results[levelKey].total++;
+                const userAnswer = studentData[`activity-${problem.activityId}`] || "";
+                const correctAnswer = problem.answer.toString();
+                let isCorrect = false;
+                if (problem.tolerance) {
+                    const diff = Math.abs(parseFloat(correctAnswer) - parseFloat(userAnswer));
+                    isCorrect = !isNaN(diff) && diff <= problem.tolerance;
+                } else {
+                    isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
+                }
+                if(isCorrect) results[levelKey].correct++;
+                results[levelKey].details.push({
+                    prompt: problem.prompt,
+                    userAnswer: userAnswer || "[No Answer]",
+                    correctAnswer: correctAnswer,
+                    isCorrect: isCorrect
+                });
+            });
+            assessmentResults = results;
+            saveProgress();
+        }
+
+        function showResultsScreen() {
+            document.getElementById('practice-content').classList.add('hidden');
+            document.getElementById('practice-tabs-container').classList.add('hidden');
+            document.getElementById('results-screen').classList.remove('hidden');
+            renderStudentScoreSummary();
+            updateDownloadButtonStates();
+        }
+
+        function resetAssessment() {
+            allPracticeProblems.forEach(problem => {
+                const key = `activity-${problem.activityId}`;
+                if (studentData[key]) {
+                    delete studentData[key];
+                }
+            });
+
+            assessmentResults = null;
+            saveProgress();
+
+            document.getElementById('results-screen').classList.add('hidden');
+            document.getElementById('score-report').classList.add('hidden');
+            
+            document.getElementById('practice-content').classList.remove('hidden');
+            document.getElementById('practice-tabs-container').classList.remove('hidden');
+
+            document.querySelectorAll('#practice-content input[type="text"]').forEach(input => input.value = '');
+            document.querySelectorAll('#practice-content input[type="radio"]').forEach(radio => radio.checked = false);
+            
+            updateDownloadButtonStates();
+            console.log("Assessment has been reset.");
+        }
+        
+        function renderStudentScoreSummary() {
+            if (!assessmentResults) return;
+            const summaryContainer = document.getElementById('student-score-summary');
+            const l1Score = assessmentResults.level1.correct;
+            const l1Total = assessmentResults.level1.total;
+            const l3Score = assessmentResults.level3.correct;
+            const l3Total = assessmentResults.level3.total;
+            let html = `<h4 class="text-xl font-bold mb-2">Your Score</h4>`;
+            html += `<div class="flex justify-center gap-4">
+                <div class="bg-white p-3 rounded-lg border shadow-sm">
+                    <p class="font-bold text-lg">Approaching</p>
+                    <p class="text-2xl">${l1Score} / ${l1Total}</p>
+                </div>
+                <div class="bg-white p-3 rounded-lg border shadow-sm">
+                    <p class="font-bold text-lg">Exceeding</p>
+                    <p class="text-2xl">${l3Score} / ${l3Total}</p>
+                </div>
+            </div>`;
+            summaryContainer.innerHTML = html;
+        }
+
+        function renderScoreReport() {
+            if (!assessmentResults) return;
+            const reportContainer = document.getElementById('score-report');
+            let html = `<h5 class="text-lg font-bold mb-2">Detailed Breakdown</h5>`;
+            ['level1', 'level3'].forEach(level => {
+                html += `<div class="mb-4"><strong class="capitalize">${level === 'level1' ? 'Approaching' : 'Exceeding'} Questions</strong>`;
+                assessmentResults[level].details.forEach(detail => {
+                    const resultClass = detail.isCorrect ? 'bg-green-100 border-green-300' : 'bg-red-100 border-red-300';
+                    const icon = detail.isCorrect ? '✔️' : '❌';
+                    html += `<div class="p-3 mt-2 border rounded ${resultClass}">
+                        <p class="font-semibold">${icon} ${detail.prompt}</p>
+                        <p class="text-sm mt-1"><strong>Your Answer:</strong> ${detail.userAnswer}</p>
+                        ${!detail.isCorrect ? `<p class="text-sm"><strong>Correct Answer:</strong> ${detail.correctAnswer}</p>` : ''}
+                    </div>`;
+                });
+                html += `</div>`;
+            });
+
+            html += `<div class="mt-6 text-center">
+                        <button id="reset-assessment-btn" class="bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-red-700">Reset Student Assessment</button>
+                     </div>`;
+            reportContainer.innerHTML = html;
+        }
+
+        function getWeDoQuestion(index) {
+            const data = [
+                { prompt: "A single taco needs one tortilla ($0.22), beef ($0.78), cheese ($0.15), and salsa ($0.08). What is the ingredient cost per taco?", answer: '1.23', inputType: 'text' },
+                { prompt: "If we sell each taco for $3.50, and it costs us $1.23 to make, what is our profit per taco?", answer: '2.27', inputType: 'mc', options: ['$2.27', '$4.73', '$1.23', '$3.50'] },
+                { prompt: "A customer buys 3 tacos. What is our total revenue for this sale?", answer: '10.50', inputType: 'text' },
+                { prompt: "What is our total profit from selling those 3 tacos?", answer: '6.81', inputType: 'text' },
+                { prompt: "On Saturday, we sell 100 tacos. What is our total profit for the day?", answer: '227.00', inputType: 'text' },
+                { prompt: "A side of guacamole costs us $0.50 and we sell it for $1.50. What's the profit?", answer: '$1.00', inputType: 'mc', options: ['$0.50', '$1.00', '$1.50', '$2.00'] },
+                { prompt: "If 50 people buy a side of guac, what's the total profit from guac?", answer: '50.00', inputType: 'text' },
+                { prompt: "Our fixed costs for the day (gas, permit) are $50. If we sell 100 tacos, what is our final profit after fixed costs?", answer: '177.00', inputType: 'text' },
+                { prompt: "We want to make a vegetarian taco that costs $0.95 to make. To get the same profit as the beef taco ($2.27), what should we sell it for?", answer: '3.22', inputType: 'text' },
+                { prompt: "Which item has a higher profit margin (profit / price)? A taco (profit $2.27, price $3.50) or Guac (profit $1.00, price $1.50)?", answer: 'Guac', inputType: 'mc', options: ['Taco', 'Guac', 'They are the same'] },
+            ];
+            return data[index];
+        }
+
+        function getYouDoQuestion(index) {
+            const data = [
+                { prompt: "Your personal pizza requires dough ($0.80), sauce ($0.25), cheese ($0.55), and pepperoni ($0.40). What is the total ingredient cost?", answer: '2.00', inputType: 'text' },
+                { prompt: "You also need a box ($0.20) and a napkin ($0.05). What are your total expenses per pizza?", answer: '2.25', inputType: 'text' },
+                { prompt: "You decide to sell each pizza for $7.00. What is your profit per pizza?", answer: '4.75', inputType: 'text' },
+                { prompt: "A family buys 4 pizzas. What is your total profit from this sale?", answer: '19.00', inputType: 'text' },
+                { prompt: "To cover your daily truck rental cost of $95, how many pizzas do you need to sell?", answer: '20', inputType: 'mc', options: ['15', '18', '20', '25'] },
+            ];
+            return data[index];
+        }
+
+        function getPracticeProblem(level, index) {
+             const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+            if (level === 'level1') {
+                if (index % 2 === 0) {
+                    const items = ["Hot Dog", "Cookie", "Pretzel", "Soda"];
+                    const prices = [2.00, 1.00, 3.00, 1.50];
+                    const sales = [5, 10, 15, 20];
+                    const item = items[rand(0,3)];
+                    const price = prices[rand(0,3)];
+                    const numSales = sales[rand(0,3)];
+                    return { activityId: `l1-${index}`, prompt: `Your food truck sells ${item}s for $${price.toFixed(2)} each. How much money (revenue) do you make if you sell ${numSales} of them?`, answer: (price * numSales).toFixed(2), inputType: 'text' };
+                } else {
+                    const revenues = [20, 50, 100, 75];
+                    const expenses = [10, 20, 40, 50];
+                    const i = rand(0,3);
+                    const rev = revenues[i];
+                    const exp = expenses[i];
+                    const correct = rev - exp;
+                    return { activityId: `l1-${index}`, prompt: `You earned $${rev} in revenue and had $${exp} in expenses. What was your profit?`, answer: correct.toString(), inputType: 'mc', options: [correct.toString(), (rev + exp).toString(), rev.toString(), exp.toString()] };
+                }
+            } else {
+                 if (index % 2 === 0) {
+                    const items = [{ n: "Flour", bc: 20.00, ba: 50, oz: 8, p: 4.00 }, { n: "Potatoes", bc: 30.00, ba: 20, oz: 10, p: 3.50 }];
+                    const item = items[rand(0,1)];
+                    const costPerLb = item.bc / item.ba;
+                    const costPerOz = costPerLb / 16;
+                    const servingCost = costPerOz * item.oz;
+                    const profit = item.p - servingCost;
+                    const margin = Math.round((profit / item.p) * 100);
+                    return { activityId: `l3-${index}`, prompt: `You buy a ${item.ba} lbs bag of ${item.n} for $${item.bc.toFixed(2)}. Your recipe uses ${item.oz} oz per serving, and you sell each serving for $${item.p.toFixed(2)}. What is your profit margin? (Round to the nearest whole percent).`, answer: margin.toString(), inputType: 'text', tolerance: 1 };
+                 } else {
+                     const items = [{n: "Ice Cream Cone", p: 1.75}, {n: "Cupcake", p: 2.15}];
+                     const investments = [550, 720];
+                     const periods = [30, 60, 90];
+                     const item = items[rand(0,1)];
+                     const invest = investments[rand(0,1)];
+                     const period = periods[rand(0,2)];
+                     const totalProfit = (item.p * 50 * period) - invest;
+                     return { activityId: `l3-${index}`, prompt: `You make $${item.p.toFixed(2)} profit on every ${item.n} sold. Assume you sell exactly 50 per day. After paying off your initial investment of $${invest}, what will your total profit be after ${period} days?`, answer: totalProfit.toFixed(2), inputType: 'text' };
+                 }
+            }
+        }
+        
+        function downloadHTML() {
+            saveProgress();
+            const currentData = JSON.parse(localStorage.getItem('foodTruckVentureProgress') || '{}');
+            const fileContent = new Blob([generateHTMLWithData(currentData)], { type: 'text/html' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(fileContent);
+            link.download = 'FoodTruckVenture_Progress.html';
+            link.click();
+        }
+
+        function generateHTMLWithData(data) {
+            let html = document.documentElement.outerHTML;
+            const dataString = JSON.stringify(data);
+            const scriptTag = `<script id="progress-data" type="application/json">${dataString}<\/script>`;
+            if (html.includes('<script id="progress-data"')) {
+                html = html.replace(/<script id="progress-data" type="application\/json">.*?<\/script>/, scriptTag);
+            } else {
+                html = html.replace('</body>', `${scriptTag}</body>`);
+            }
+            return html;
+        }
+
+        async function downloadPDF() {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            loadingOverlay.classList.remove('hidden');
+            const { jsPDF } = window.jspdf;
+            const printContainer = document.createElement('div');
+            printContainer.className = 'print-container';
+            document.querySelectorAll('#slides-container .slide').forEach(slideNode => {
+                const clone = slideNode.cloneNode(true);
+                clone.querySelectorAll('.question-container').forEach(qContainer => {
+                    const activityId = qContainer.dataset.activityId;
+                    const savedAnswer = studentData[`activity-${activityId}`];
+                    if (savedAnswer) {
+                        const answerEl = document.createElement('div');
+                        answerEl.className = 'p-2 mt-2 bg-yellow-100 border border-yellow-300 rounded';
+                        const radio = qContainer.querySelector(`input[type="radio"][value="${savedAnswer}"]`);
+                        if (radio) {
+                            answerEl.innerHTML = `<strong>Selected Answer:</strong> ${savedAnswer}`;
+                        } else {
+                            answerEl.innerHTML = `<strong>Student's Answer:</strong><p class="whitespace-pre-wrap">${savedAnswer}</p>`;
+                        }
+                        qContainer.appendChild(answerEl);
+                    }
+                    qContainer.querySelectorAll('button, input, textarea, label').forEach(el => el.style.display = 'none');
+                });
+                printContainer.appendChild(clone);
+            });
+            document.body.appendChild(printContainer);
+            try {
+                const canvas = await html2canvas(printContainer, { scale: 2 });
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const imgWidth = canvas.width;
+                const imgHeight = canvas.height;
+                const ratio = imgWidth / pdfWidth;
+                const canvasHeightInPdf = imgHeight / ratio;
+                let position = 0;
+                let pageCount = 1;
+                while (position < canvasHeightInPdf) {
+                    if (pageCount > 1) pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, -position, pdfWidth, canvasHeightInPdf, undefined, 'FAST');
+                    position += pdfHeight;
+                    pageCount++;
+                }
+                pdf.save('FoodTruckVenture_Work.pdf');
+            } catch(e) {
+                console.error("Error generating PDF:", e);
+                alert("Sorry, there was an error creating the PDF.");
+            } finally {
+                document.body.removeChild(printContainer);
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+        
+        function generatePracticeProblems() {
+             const levels = ['level1', 'level3'];
+             allPracticeProblems = [];
+             levels.forEach(level => {
+                 const container = document.getElementById(level);
+                 if (!container) return;
+                 container.innerHTML = '';
+                 for(let i=0; i<50; i++) {
+                     const problemData = getPracticeProblem(level, i);
+                     allPracticeProblems.push(problemData);
+                     container.innerHTML += createActivityHTML(problemData, true);
+                 }
+             });
+             rehydrateState();
+        }
+
+        function findPracticeProblemById(id) {
+            return allPracticeProblems.find(p => p.activityId === id);
+        }
+        
+        setupInit();
+    });
+    </script>
+</body>
+</html>
+
