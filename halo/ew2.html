@@ -7,6 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" xintegrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoVBL5gI9kLmbG4dGtoxpdaDAeSGHQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" xintegrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Slab:wght@700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #fffde7; }
@@ -42,17 +46,63 @@
             border: 1px solid #ccc;
             margin-bottom: 4px;
         }
+        /* Setup Modal Styles */
+        #setup-modal {
+            background-color: rgba(0,0,0,0.75);
+        }
     </style>
 </head>
 <body class="bg-cream-100 text-gray-800">
     <script id="progress-data" type="application/json"></script>
 
-    <div id="app-container" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+            <h2 class="text-3xl font-bold text-blue-900 mb-6 text-center">Join Session</h2>
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Your Role:</label>
+                    <div class="flex items-center space-x-4">
+                        <label for="role-student" class="flex items-center">
+                            <input type="radio" id="role-student" name="role" value="Student" class="h-4 w-4 text-blue-800 border-gray-300 focus:ring-blue-700" checked>
+                            <span class="ml-2 text-gray-700">Student</span>
+                        </label>
+                        <label for="role-teacher" class="flex items-center">
+                            <input type="radio" id="role-teacher" name="role" value="Teacher" class="h-4 w-4 text-blue-800 border-gray-300 focus:ring-blue-700">
+                            <span class="ml-2 text-gray-700">Teacher</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="teacher-password-container" class="hidden">
+                    <label for="teacher-password" class="block text-sm font-medium text-gray-700">Teacher Password</label>
+                    <input type="password" id="teacher-password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    <p id="password-error" class="text-red-500 text-sm mt-1 hidden">Incorrect password.</p>
+                </div>
+                <div>
+                    <label for="room-name" class="block text-sm font-medium text-gray-700">Room Name</label>
+                    <input type="text" id="room-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g., class-a">
+                </div>
+                <button id="start-lesson-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform hover:scale-105">Start Lesson</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="app-container" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 hidden">
         
         <!-- Header -->
         <header class="flex flex-wrap justify-between items-center mb-6 pb-4 border-b-2 border-d2b48c">
             <h1 class="text-2xl md:text-4xl text-blue-900 mb-2 md:mb-0">🕵️ Literary Detectives HQ</h1>
             <div class="flex items-center space-x-2">
+                 <div id="role-room-badge" class="font-bold bg-yellow-200 text-yellow-800 px-3 py-1 rounded-full text-sm"></div>
+                 <div id="teacher-sync-controls" class="hidden items-center space-x-2 bg-gray-200 p-1 rounded-lg">
+                     <span class="text-sm font-medium text-gray-700 pl-2">Sync:</span>
+                    <label for="sync-toggle" class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" value="" id="sync-toggle" class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-800"></div>
+                    </label>
+                 </div>
+                 <button id="change-role-room-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-all no-print">Change</button>
                 <button id="download-html-btn" class="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded transition-all no-print">Download Work</button>
                  <button id="download-pdf-btn" class="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded transition-all no-print">Download PDF</button>
             </div>
@@ -80,6 +130,20 @@
     <script>
     // Self-executing anonymous function to encapsulate the app
     (() => {
+        // --- FIREBASE CONFIG ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyCXS6CNUDQ323H002lxwjeiEEKwXP4tVLU",
+          authDomain: "lesson-sync-a223a.firebaseapp.com",
+          projectId: "lesson-sync-a223a",
+          storageBucket: "lesson-sync-a223a.firebasestorage.app",
+          messagingSenderId: "906128715071",
+          appId: "1:906128715071:web:347ea08f4d864fde02778a"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        let roomUnsubscribe = null;
+
         // --- DATA & STATE MANAGEMENT ---
         const lessonSlidesData = [
             {
@@ -165,6 +229,14 @@
         
         // --- APPLICATION STATE ---
         let appState = {
+            session: {
+                role: null,
+                roomName: null,
+            },
+            sync: {
+                allowFreeExplore: true,
+                _isApplyingRemote: false,
+            },
             lesson: {
                 currentSlide: 0,
                 answers: {}
@@ -176,15 +248,33 @@
         const prevBtn = document.getElementById('prev-slide-btn');
         const nextBtn = document.getElementById('next-slide-btn');
         const progressBar = document.getElementById('lesson-progress-bar');
+        const appContainer = document.getElementById('app-container');
+        const setupModal = document.getElementById('setup-modal');
         
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', init);
 
         function init() {
-            loadProgress();
             renderLesson();
             setupEventListeners();
-            updateUI();
+            checkSession();
+        }
+
+        function checkSession() {
+            const role = localStorage.getItem('lessonRole');
+            const roomName = localStorage.getItem('lessonRoom');
+            if (role && roomName) {
+                appState.session.role = role;
+                appState.session.roomName = roomName;
+                setupModal.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                loadProgress();
+                startFirebaseSync();
+                updateUI();
+            } else {
+                setupModal.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+            }
         }
 
         function renderLesson() {
@@ -206,22 +296,44 @@
                 slide.classList.toggle('active', index === appState.lesson.currentSlide);
             });
             
-            // Lesson navigation buttons
-            prevBtn.disabled = appState.lesson.currentSlide === 0;
-            nextBtn.disabled = appState.lesson.currentSlide === slides.length - 1;
+            // Student navigation lock
+            const isStudentAndSynced = appState.session.role === 'Student' && !appState.sync.allowFreeExplore;
+            prevBtn.disabled = appState.lesson.currentSlide === 0 || isStudentAndSynced;
+            nextBtn.disabled = appState.lesson.currentSlide === slides.length - 1 || isStudentAndSynced;
             
             // Progress bar
             const progressPercent = (appState.lesson.currentSlide / (slides.length - 1)) * 100;
             progressBar.style.width = `${progressPercent}%`;
+
+            // Header badge
+            if (appState.session.role && appState.session.roomName) {
+                document.getElementById('role-room-badge').textContent = `${appState.session.role} • room: ${appState.session.roomName}`;
+            }
+
+            // Teacher controls
+            const teacherControls = document.getElementById('teacher-sync-controls');
+            if (appState.session.role === 'Teacher') {
+                teacherControls.classList.remove('hidden');
+                teacherControls.classList.add('flex');
+                document.getElementById('sync-toggle').checked = !appState.sync.allowFreeExplore;
+            } else {
+                teacherControls.classList.add('hidden');
+                teacherControls.classList.remove('flex');
+            }
 
             restoreAnswers();
         }
 
         function changeSlide(direction) {
             const numSlides = lessonSlidesData.length;
-            appState.lesson.currentSlide = Math.max(0, Math.min(appState.lesson.currentSlide + direction, numSlides - 1));
-            updateUI();
-            saveProgress();
+            const newSlide = Math.max(0, Math.min(appState.lesson.currentSlide + direction, numSlides - 1));
+            
+            if (appState.lesson.currentSlide !== newSlide) {
+                appState.lesson.currentSlide = newSlide;
+                updateUI();
+                saveProgress();
+                syncPush();
+            }
         }
 
         // --- HTML GENERATION ---
@@ -288,7 +400,7 @@
                      activityHTML += `<div class="w-full md:w-2/3"><h4 class="font-semibold text-gray-500 mb-2">Categories</h4><div class="space-y-3">${targets.map(t => `<div class="flex items-center gap-2"><div class="font-semibold w-2/5 text-right">${t}:</div><div class="drop-zone target-list border rounded w-3/5 p-1" data-target-id="${t}" data-question-id="${questionId}"></div></div>`).join('')}</div></div>`;
                      activityHTML += `</div>`;
                     break;
-                case 'drag-drop-label': // This type was only in practice center, but keeping for robustness
+                case 'drag-drop-label':
                      activityHTML += `
                         <div class="text-center p-4 my-4 border-2 border-dashed rounded-lg bg-gray-100"><p class="text-xl italic">"${activity.sentence}"</p></div>
                         <div class="flex flex-col sm:flex-row gap-4 items-center justify-center">
@@ -299,7 +411,7 @@
                             <div class="drop-zone target-list rounded p-1 w-48" data-question-id="${questionId}"></div>
                         </div>`;
                     break;
-                case 'drawing-canvas': // This type was only in practice center, but keeping for robustness
+                case 'drawing-canvas':
                     activityHTML += `
                         <div class="flex flex-wrap items-center justify-center gap-2 my-2 border-t border-b py-2 no-print">
                             <label for="${questionId}-color">Color:</label>
@@ -324,39 +436,43 @@
 
         // --- EVENT LISTENERS ---
         function setupEventListeners() {
+            // Lesson Navigation
             prevBtn.addEventListener('click', () => changeSlide(-1));
             nextBtn.addEventListener('click', () => changeSlide(1));
+
+            // Header Controls
             document.getElementById('download-html-btn').addEventListener('click', handleDownloadHTML);
             document.getElementById('download-pdf-btn').addEventListener('click', handleDownloadPDF);
+            document.getElementById('change-role-room-btn').addEventListener('click', handleEndSession);
+            document.getElementById('sync-toggle').addEventListener('change', (e) => {
+                appState.sync.allowFreeExplore = !e.target.checked;
+                syncPush();
+            });
 
+            // Setup Modal
+            document.getElementById('start-lesson-btn').addEventListener('click', handleStartSession);
+            document.querySelectorAll('input[name="role"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const passwordContainer = document.getElementById('teacher-password-container');
+                    passwordContainer.classList.toggle('hidden', e.target.value !== 'Teacher');
+                });
+            });
+
+            // Dynamic Content Listeners
             document.body.addEventListener('click', e => {
                 if (e.target.classList.contains('check-answer-btn')) { handleCheckAnswer(e); }
-                if(e.target.classList.contains('canvas-clear')) {
-                    const container = e.target.closest('.question-container');
-                    const canvas = container.querySelector('canvas');
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    saveCanvasState(canvas);
-                }
-                if(e.target.classList.contains('canvas-eraser')) {
-                    const container = e.target.closest('.question-container');
-                    const colorInput = container.querySelector('.canvas-color');
-                    colorInput.value = '#FFFFFF';
-                }
             });
             
              document.body.addEventListener('input', e => {
                 const target = e.target;
-                if (target.tagName.toLowerCase() === 'textarea') {
+                if (target.tagName.toLowerCase() === 'textarea' || target.type === 'radio') {
                     const questionId = target.closest('.question-container').dataset.questionId;
                     appState.lesson.answers[questionId] = target.value;
                     saveProgress();
-                    target.style.height = 'auto';
-                    target.style.height = (target.scrollHeight) + 'px';
-                } else if (target.type === 'radio') {
-                     const questionId = target.closest('.question-container').dataset.questionId;
-                     appState.lesson.answers[questionId] = target.value;
-                     saveProgress();
+                    if(target.tagName.toLowerCase() === 'textarea') {
+                        target.style.height = 'auto';
+                        target.style.height = (target.scrollHeight) + 'px';
+                    }
                 }
              });
 
@@ -368,21 +484,9 @@
                     setTimeout(() => e.target.style.opacity = '0.5', 0);
                 }
             });
-            document.body.addEventListener('dragend', e => {
-                if(draggedItem) {
-                    setTimeout(() => draggedItem.style.opacity = '1', 0);
-                    draggedItem = null;
-                }
-            });
-            document.body.addEventListener('dragover', e => {
-                e.preventDefault();
-                const dropZone = e.target.closest('.drop-zone');
-                if (dropZone) { dropZone.classList.add('drag-over'); }
-            });
-            document.body.addEventListener('dragleave', e => {
-                const dropZone = e.target.closest('.drop-zone');
-                 if (dropZone) { dropZone.classList.remove('drag-over'); }
-            });
+            document.body.addEventListener('dragend', e => { if(draggedItem) { setTimeout(() => draggedItem.style.opacity = '1', 0); draggedItem = null; } });
+            document.body.addEventListener('dragover', e => { e.preventDefault(); const dropZone = e.target.closest('.drop-zone'); if (dropZone) { dropZone.classList.add('drag-over'); } });
+            document.body.addEventListener('dragleave', e => { const dropZone = e.target.closest('.drop-zone'); if (dropZone) { dropZone.classList.remove('drag-over'); } });
             document.body.addEventListener('drop', e => {
                 e.preventDefault();
                 const dropZone = e.target.closest('.drop-zone');
@@ -396,28 +500,92 @@
                     saveDragDropState(dropZone);
                 }
             });
-
-            // Canvas Logic (kept in case you add it back)
-            let isDrawing = false;
-            let currentCanvas = null;
-             const getPos = (canvas, evt) => {
-                const rect = canvas.getBoundingClientRect();
-                const touch = evt.touches ? evt.touches[0] : null;
-                const clientX = touch ? touch.clientX : evt.clientX;
-                const clientY = touch ? touch.clientY : evt.clientY;
-                return { x: clientX - rect.left, y: clientY - rect.top };
-            };
-            const startDrawing = (e) => { /* ... canvas logic ... */ };
-            const draw = (e) => { /* ... canvas logic ... */ };
-            const stopDrawing = (e) => { /* ... canvas logic ... */ };
-            document.body.addEventListener('mousedown', startDrawing);
-            document.body.addEventListener('mousemove', draw);
-            document.body.addEventListener('mouseup', stopDrawing);
-            document.body.addEventListener('touchstart', startDrawing, { passive: false });
-            document.body.addEventListener('touchmove', draw, { passive: false });
-            document.body.addEventListener('touchend', stopDrawing);
         }
         
+        // --- SESSION & SYNC MANAGEMENT ---
+
+        function handleStartSession() {
+            const role = document.querySelector('input[name="role"]:checked').value;
+            const roomName = document.getElementById('room-name').value.trim();
+            const passwordInput = document.getElementById('teacher-password');
+            const passwordError = document.getElementById('password-error');
+            
+            if (!roomName) { alert('Please enter a room name.'); return; }
+
+            if (role === 'Teacher') {
+                if (passwordInput.value === '2026') {
+                    passwordError.classList.add('hidden');
+                } else {
+                    passwordError.classList.remove('hidden');
+                    return;
+                }
+            }
+
+            appState.session.role = role;
+            appState.session.roomName = roomName;
+            localStorage.setItem('lessonRole', role);
+            localStorage.setItem('lessonRoom', roomName);
+            
+            setupModal.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            startFirebaseSync();
+            updateUI();
+        }
+
+        function handleEndSession() {
+            if (roomUnsubscribe) {
+                roomUnsubscribe();
+                roomUnsubscribe = null;
+            }
+            localStorage.removeItem('lessonRole');
+            localStorage.removeItem('lessonRoom');
+            appState.session.role = null;
+            appState.session.roomName = null;
+            checkSession();
+        }
+
+        function startFirebaseSync() {
+            if (!appState.session.roomName) return;
+
+            auth.signInAnonymously().then(() => {
+                console.log("Firebase anonymous sign-in successful.");
+                const roomRef = db.collection('rooms').doc(appState.session.roomName);
+
+                if (appState.session.role === 'Teacher') {
+                    syncPush(); // Initial push
+                } else { // Student
+                    roomUnsubscribe = roomRef.onSnapshot(doc => {
+                        if (doc.exists) {
+                            appState.sync._isApplyingRemote = true;
+                            const data = doc.data();
+                            appState.lesson.currentSlide = data.slide || 0;
+                            appState.sync.allowFreeExplore = data.allowFreeExplore === undefined ? true : data.allowFreeExplore;
+                            updateUI();
+                            appState.sync._isApplyingRemote = false;
+                        }
+                    });
+                }
+            }).catch(error => {
+                console.error("Firebase sign-in error:", error);
+                alert("Could not connect to the classroom session. Please check your connection and try again.");
+            });
+        }
+
+        function syncPush() {
+            if (appState.session.role !== 'Teacher' || appState.sync._isApplyingRemote || !appState.session.roomName) {
+                return;
+            }
+            
+            const syncData = {
+                slide: appState.lesson.currentSlide,
+                allowFreeExplore: appState.sync.allowFreeExplore,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            db.collection('rooms').doc(appState.session.roomName).set(syncData, { merge: true })
+                .catch(error => console.error("Error pushing state:", error));
+        }
+
         // --- ANSWER VALIDATION ---
         function handleCheckAnswer(e) {
             const button = e.target;
@@ -453,7 +621,6 @@
                         return droppedItem && droppedItem.textContent === correctSource;
                     });
                     break;
-                // other cases like drawing canvas removed
             }
             
             const affirmations = ["Excellent work, Detective!", "You've cracked the case!", "A key piece of evidence uncovered!"];
@@ -496,17 +663,11 @@
             saveProgress();
         }
         
-        function saveCanvasState(canvas) {
-            const questionId = canvas.closest('.question-container').dataset.questionId;
-            if (!questionId) return;
-            const dataURL = canvas.toDataURL();
-            appState.lesson.answers[questionId] = dataURL;
-            saveProgress();
-        }
-
         function saveProgress() {
             try {
-                localStorage.setItem('elaLessonProgress', JSON.stringify(appState));
+                // Save only lesson progress, not session/sync state
+                const progressToSave = { lesson: appState.lesson };
+                localStorage.setItem('elaLessonProgress', JSON.stringify(progressToSave));
             } catch (e) {
                 console.error("Could not save progress to localStorage", e);
             }
@@ -524,7 +685,7 @@
                     if (savedState) { dataToLoad = JSON.parse(savedState); }
                 } catch (e) { console.error("Failed to parse localStorage data.", e); }
             }
-            if(dataToLoad) { appState = dataToLoad; }
+            if(dataToLoad && dataToLoad.lesson) { appState.lesson = dataToLoad.lesson; }
         }
         
         function restoreAnswers() {
@@ -568,7 +729,7 @@
                 progressScript.type = 'application/json';
                 docClone.querySelector('body').appendChild(progressScript);
             }
-            progressScript.textContent = JSON.stringify(appState);
+            progressScript.textContent = JSON.stringify({ lesson: appState.lesson });
             const blob = new Blob([docClone.outerHTML], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -649,4 +810,6 @@
     </script>
 </body>
 </html>
+
+
 
