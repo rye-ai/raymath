@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Literary Detectives: Cracking the Code of Plot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" xintegrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoVBL5gI9kLmbG4dGtoxpdaDAeSGHQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" xintegrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Slab:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fffde7; }
+        h1, h2, h3 { font-family: 'Roboto Slab', serif; }
+        .slide { display: none; }
+        .slide.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        [draggable="true"] { cursor: grab; }
+        .drop-zone { min-height: 50px; background-color: #f9fafb; border: 2px dashed #d1d5db; border-radius: 0.5rem; }
+        .drop-zone.drag-over { background-color: #d1fae5; border-color: #10b981; }
+        .drag-item { transition: background-color 0.2s ease; }
+        .drag-item:hover { background-color: #f0f0f0; }
+        /* For PDF Generation */
+        .print-clone {
+            position: absolute;
+            left: -9999px; /* Position off-screen */
+            top: 0;
+            width: 8.5in;
+            background: white !important;
+            color: black !important;
+            font-size: 12pt;
+            padding: 20px;
+        }
+        .print-clone * {
+            background-color: transparent !important;
+            color: black !important;
+            border-color: #ccc !important;
+        }
+        .print-clone .no-print, .print-clone button, .print-clone input[type="radio"], .print-clone input[type="range"], .print-clone input[type="color"] {
+            display: none !important;
+        }
+         .print-clone .drag-item {
+            border: 1px solid #ccc;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body class="bg-cream-100 text-gray-800">
+    <script id="progress-data" type="application/json"></script>
+
+    <div id="app-container" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <!-- Header -->
+        <header class="flex flex-wrap justify-between items-center mb-6 pb-4 border-b-2 border-d2b48c">
+            <h1 class="text-2xl md:text-4xl text-blue-900 mb-2 md:mb-0">🕵️ Literary Detectives HQ</h1>
+            <div class="flex items-center space-x-2">
+                <button id="download-html-btn" class="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded transition-all no-print">Download Work</button>
+                 <button id="download-pdf-btn" class="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded transition-all no-print">Download PDF</button>
+            </div>
+        </header>
+        
+        <div id="lesson-progress-container" class="w-full bg-gray-200 rounded-full h-2.5 mb-4 no-print">
+             <div id="lesson-progress-bar" class="bg-blue-800 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+
+        <main id="content-area" class="bg-white rounded-lg shadow-xl p-6 min-h-[70vh]">
+            
+            <!-- Lesson View -->
+            <div id="lesson-view">
+                <div id="lesson-slides-container">
+                    <!-- Slides will be dynamically inserted here by JS -->
+                </div>
+                <div class="slide-nav mt-6 flex justify-between no-print">
+                    <button id="prev-slide-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed">&larr; Previous</button>
+                    <button id="next-slide-btn" class="bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-6 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed">Next &rarr;</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    // Self-executing anonymous function to encapsulate the app
+    (() => {
+        // --- DATA & STATE MANAGEMENT ---
+        const lessonSlidesData = [
+            {
+                type: 'content',
+                title: "Hook: The Case of the Missing Morsel",
+                content: `
+                    <p class="text-lg mb-4">Welcome, detectives! Your first case has just come in. Read the file carefully.</p>
+                    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
+                        <p class="font-bold">Case File #001</p>
+                        <p>An edible individual, recently constructed, has been reported missing after fleeing a series of pursuers. Key witnesses include an elderly couple, a cow, and a horse. The suspect is a cunning, red-furred mammal often found near rivers.</p>
+                    </div>
+                    <p class="text-lg mt-4">Based on these first few clues, where and when do you think this case takes place? (Setting)</p>
+                    <p class="text-lg mt-2">What does the main character want, and what is the big problem he faces? (Character Motivation & Conflict)</p>
+                `
+            },
+            {
+                type: 'content',
+                title: 'Demonstration: Assembling Your Detective Toolkit',
+                content: `
+                    <p class="mb-4">To solve any case, we need the right tools. In literature, our main tools are <strong>Setting</strong>, <strong>Character</strong>, and <strong>Conflict</strong>. We use a process called <strong>decomposition</strong> to break a story down into these parts.</p>
+                    <p class="mb-4">By looking at these parts across a story, we can recognize <strong>patterns</strong> in how the author builds the plot. Let's define our tools:</p>
+                    <ul class="list-disc list-inside space-y-2 mb-4">
+                        <li><strong>Setting:</strong> The "Where" and "When." It creates moods and obstacles.</li>
+                        <li><strong>Characters:</strong> The "Who." We analyze their traits and motivations.</li>
+                        <li><strong>Conflict:</strong> The "What's Wrong." The main problem or struggle. This is the engine of the story!</li>
+                    </ul>
+                    <p>Our <strong>algorithm</strong>—our step-by-step plan for solving literary cases—is simple:</p>
+                    <ol class="list-decimal list-inside font-bold">
+                        <li>Identify the elements.</li>
+                        <li>Find the connections.</li>
+                        <li>Explain the impact.</li>
+                    </ol>
+                `
+            },
+            {
+                type: 'i_do',
+                title: 'I Do: The Lead Detective Models the Way',
+                passage: `The old lighthouse stood on a jagged cliff overlooking a furious sea. For weeks, the fog had been so thick that 12-year-old Leo couldn't see the rocks below. His father, the lighthouse keeper, was sick, and the supply boat from the mainland was long overdue. Leo knew the lamp had to stay lit, but the oil was running dangerously low.`,
+                activities: [
+                    { id: 'ido1', type: 'multiple-choice', prompt: 'Based on the evidence in the passage, what is the setting of this story?', options: ["A calm beach on a sunny day", "A cliff overlooking a stormy sea, during a foggy period", "A modern city apartment", "A small village in the mountains"], answer: "A cliff overlooking a stormy sea, during a foggy period" },
+                    { id: 'ido2', type: 'drag-drop-sort', prompt: "Drag the words that best describe Leo into the 'Character Analysis' box.", items: ["Lazy", "Responsible", "Worried", "Joyful", "Determined", "Careless"], correct: ["Responsible", "Worried", "Determined"], incorrect: ["Lazy", "Joyful", "Careless"]},
+                    { id: 'ido3', type: 'text-box', prompt: 'What is the main conflict (problem), and how does it force Leo to act?', keywords: ["oil", "lamp", "crash", "father", "sick"] }
+                ]
+            },
+            {
+                type: 'we_do',
+                title: 'We Do: Partner Detectives on the Case',
+                passage: `The dust of the Martian desert swirled around Elara’s boots. Her helmet’s display flickered: OXYGEN-CRITICAL. The solar storm had knocked out communications with the main habitat, which was now a full day’s trek away. Worse, her co-pilot, Jax, lay unconscious, his suit’s power pack blinking a faint, failing red. Elara looked at the single emergency oxygen tank she carried. It was only enough for one person to make it back safely.`,
+                activities: [
+                    { id: 'wedo1', type: 'multiple-choice', prompt: 'How does the Martian desert setting make the conflict more dangerous?', options: ["It provides them with plenty of resources.", "It is a familiar and safe place for the characters.", "It isolates them and makes survival much harder.", "It allows for easy communication with the habitat."], answer: "It isolates them and makes survival much harder." },
+                    { id: 'wedo2', type: 'text-box', prompt: 'Describe the terrible choice (internal conflict) Elara must make.', keywords: ["oxygen", "save", "jax", "leave", "one", "survive"] },
+                    { id: 'wedo3', type: 'drag-drop-match', prompt: 'Match the story element to the problem it creates for the characters.', pairs: { "Solar Storm": "Cuts off communication", "Jax is Unconscious": "Forces Elara to act alone", "One Oxygen Tank": "Creates an impossible choice" } },
+                    { id: 'wedo4', type: 'multiple-choice', prompt: 'What is Elara’s primary motivation right now?', options: ["To find a new power source", "To explore the Martian desert", "To survive and save her co-pilot", "To wait for a rescue team"], answer: "To survive and save her co-pilot"},
+                    { id: 'wedo5', type: 'text-box', prompt: 'How does the "solar storm" detail specifically impact the plot?', keywords: ["communication", "isolated", "no help", "alone", "cut off"]},
+                    { id: 'wedo6', type: 'multiple-choice', prompt: 'Which character trait is Elara most clearly demonstrating in this situation?', options: ["Cruelty", "Patience", "Resourcefulness", "Fearlessness"], answer: "Resourcefulness"},
+                    { id: 'wedo7', type: 'drag-drop-sort', prompt: 'Elara must think logically. Drag these potential actions into the most sensible order.', items: ["Start walking toward the habitat immediately", "Check Jax’s suit for damage", "Assess her own oxygen supply", "Make a decision about the single oxygen tank"], correct: ["Assess her own oxygen supply", "Check Jax’s suit for damage", "Make a decision about the single oxygen tank", "Start walking toward the habitat immediately"]},
+                    { id: 'wedo8', type: 'text-box', prompt: 'What is the overall mood of the passage? Explain with one piece of evidence.', keywords: ["tense", "desperate", "dangerous", "critical", "flickered", "failing red"]},
+                    { id: 'wedo9', type: 'multiple-choice', prompt: 'Based on the conflict, what is the most likely immediate next event in the plot?', options: ["Elara discovers a hidden cave with supplies.", "The solar storm suddenly ends.", "Jax miraculously wakes up.", "Elara makes a difficult decision about the oxygen tank."], answer: "Elara makes a difficult decision about the oxygen tank."},
+                    { id: 'wedo10', type: 'text-box', prompt: 'If Jax suddenly woke up, what new conflict might arise between the two characters?', keywords: ["argue", "disagree", "fight", "both need oxygen", "share"]},
+                ]
+            },
+             {
+                type: 'you_do',
+                title: "You Do: Rookie's First Solo Case",
+                passage: `The final bell shrieked, but Maya didn't move. She clutched the crumpled note in her pocket. It was from her best friend, Chloe, and it said, "I know you cheated on the history test." Maya hadn't cheated. She had studied for weeks. She knew Chloe was just upset because Maya had won the lead role in the school play, a role Chloe had desperately wanted.`,
+                activities: [
+                    { id: 'youdo1', type: 'multiple-choice', prompt: 'What is the main type of conflict in this passage?', options: ["Character vs. Nature", "Character vs. Character", "Character vs. Self", "Character vs. Society"], answer: "Character vs. Character" },
+                    { id: 'youdo2', type: 'text-box', prompt: "Why does Chloe's motivation (wanting the lead role) create a problem for Maya?", keywords: ["jealous", "accuses", "friendship", "lying", "upset"] },
+                    { id: 'youdo3', type: 'drag-drop-match', prompt: 'Match the character to their main motivation in this scene.', pairs: { "Maya": "To understand the accusation and prove her innocence", "Chloe": "To express her jealousy and frustration" } },
+                    { id: 'youdo4', type: 'multiple-choice', prompt: 'What is the setting of this story?', options: ["A library during lunch", "A school classroom, just after the final bell", "The stage during play practice", "Maya’s home in the evening"], answer: "A school classroom, just after the final bell" },
+                    { id: 'youdo5', type: 'text-box', prompt: 'How might this conflict impact Maya and Chloe\'s friendship moving forward?', keywords: ["trust", "broken", "apologize", "forgive", "talk", "ruin"] },
+                ]
+            },
+            {
+                type: 'content',
+                title: 'Mission Debrief',
+                content: `
+                    <p class="text-lg mb-4">Excellent work, Detective! You've successfully analyzed all the preliminary case files. You've demonstrated your ability to use decomposition, find patterns, and apply your analytical algorithm.</p>
+                    <p class="text-xl font-bold mb-6 text-center">You have completed the lesson!</p>
+                `
+            }
+        ];
+        
+        // --- APPLICATION STATE ---
+        let appState = {
+            lesson: {
+                currentSlide: 0,
+                answers: {}
+            }
+        };
+
+        // DOM Elements
+        const slidesContainer = document.getElementById('lesson-slides-container');
+        const prevBtn = document.getElementById('prev-slide-btn');
+        const nextBtn = document.getElementById('next-slide-btn');
+        const progressBar = document.getElementById('lesson-progress-bar');
+        
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', init);
+
+        function init() {
+            loadProgress();
+            renderLesson();
+            setupEventListeners();
+            updateUI();
+        }
+
+        function renderLesson() {
+            slidesContainer.innerHTML = '';
+            lessonSlidesData.forEach((slideData, index) => {
+                const slideEl = document.createElement('div');
+                slideEl.className = 'slide';
+                slideEl.dataset.slideIndex = index;
+                slideEl.innerHTML = createSlideHTML(slideData);
+                slidesContainer.appendChild(slideEl);
+            });
+        }
+        
+        // --- UI & VIEW MANAGEMENT ---
+        function updateUI() {
+            // Lesson slides
+            const slides = document.querySelectorAll('#lesson-slides-container .slide');
+            slides.forEach((slide, index) => {
+                slide.classList.toggle('active', index === appState.lesson.currentSlide);
+            });
+            
+            // Lesson navigation buttons
+            prevBtn.disabled = appState.lesson.currentSlide === 0;
+            nextBtn.disabled = appState.lesson.currentSlide === slides.length - 1;
+            
+            // Progress bar
+            const progressPercent = (appState.lesson.currentSlide / (slides.length - 1)) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+
+            restoreAnswers();
+        }
+
+        function changeSlide(direction) {
+            const numSlides = lessonSlidesData.length;
+            appState.lesson.currentSlide = Math.max(0, Math.min(appState.lesson.currentSlide + direction, numSlides - 1));
+            updateUI();
+            saveProgress();
+        }
+
+        // --- HTML GENERATION ---
+        function createSlideHTML(slideData) {
+            let contentHTML = `
+                <div class="border-b-2 border-gray-200 pb-4 mb-4">
+                    <h2 class="text-3xl font-bold text-blue-900">${slideData.title}</h2>
+                </div>
+            `;
+            
+            if (slideData.content) { contentHTML += slideData.content; }
+            if (slideData.passage) { contentHTML += `<div class="bg-gray-100 p-4 rounded-lg mb-6 border border-gray-200"><p class="text-lg italic">${slideData.passage}</p></div>`; }
+            if (slideData.activities) {
+                slideData.activities.forEach(activity => {
+                    contentHTML += createActivityHTML(activity);
+                });
+            }
+            return contentHTML;
+        }
+
+        function createActivityHTML(activity) {
+            const questionId = `lesson-${activity.id}`;
+            let activityHTML = `<div class="question-container border-2 border-d2b48c rounded-lg p-4 mb-6" data-question-id="${questionId}">`;
+
+            activityHTML += `<p class="font-bold text-lg mb-2">${activity.prompt}</p>`;
+
+            switch (activity.type) {
+                case 'multiple-choice':
+                    activity.options.forEach((option, i) => {
+                        activityHTML += `
+                            <div class="flex items-center mb-2">
+                                <input id="${questionId}-${i}" name="${questionId}" type="radio" value="${option}" class="h-4 w-4 border-gray-300 text-blue-800 focus:ring-blue-700 interactive-element">
+                                <label for="${questionId}-${i}" class="ml-3 block text-md text-gray-700">${option}</label>
+                            </div>`;
+                    });
+                    break;
+                case 'text-box':
+                    activityHTML += `<textarea id="${questionId}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm interactive-element" rows="3" placeholder="Log your findings here..."></textarea>`;
+                    break;
+                case 'drag-drop-sort':
+                case 'drag-drop-sequence':
+                    const shuffledItems = [...activity.items].sort(() => Math.random() - 0.5);
+                    activityHTML += `
+                        <div class="flex flex-col md:flex-row gap-4 mt-4">
+                            <div class="w-full md:w-1/2 p-2 border rounded-lg bg-gray-50">
+                                <h4 class="font-semibold text-center text-gray-500 no-print">Available Items</h4>
+                                <div class="source-list space-y-2 mt-2" data-question-id="${questionId}-source">
+                                    ${shuffledItems.map(item => `<div class="drag-item p-2 bg-white border rounded shadow-sm" draggable="true" data-item-id="${item}">${item}</div>`).join('')}
+                                </div>
+                            </div>
+                            <div class="w-full md:w-1/2 p-2 border rounded-lg bg-gray-50">
+                                <h4 class="font-semibold text-center text-gray-500">Your Answer</h4>
+                                <div class="drop-zone target-list space-y-2 mt-2" data-question-id="${questionId}"></div>
+                            </div>
+                        </div>`;
+                    break;
+                case 'drag-drop-match':
+                     activityHTML += `<div class="flex flex-col md:flex-row gap-4 mt-4">`;
+                     const sources = Object.keys(activity.pairs);
+                     const targets = Object.values(activity.pairs);
+                     targets.sort(() => Math.random() - 0.5); // Shuffle targets
+
+                     activityHTML += `<div class="w-full md:w-1/3"><h4 class="font-semibold text-gray-500 mb-2 no-print">Items</h4><div class="source-list space-y-2" data-question-id="${questionId}-source">${sources.map(s => `<div class="drag-item p-2 bg-white border rounded shadow-sm" draggable="true" data-item-id="${s}">${s}</div>`).join('')}</div></div>`;
+                     activityHTML += `<div class="w-full md:w-2/3"><h4 class="font-semibold text-gray-500 mb-2">Categories</h4><div class="space-y-3">${targets.map(t => `<div class="flex items-center gap-2"><div class="font-semibold w-2/5 text-right">${t}:</div><div class="drop-zone target-list border rounded w-3/5 p-1" data-target-id="${t}" data-question-id="${questionId}"></div></div>`).join('')}</div></div>`;
+                     activityHTML += `</div>`;
+                    break;
+                case 'drag-drop-label': // This type was only in practice center, but keeping for robustness
+                     activityHTML += `
+                        <div class="text-center p-4 my-4 border-2 border-dashed rounded-lg bg-gray-100"><p class="text-xl italic">"${activity.sentence}"</p></div>
+                        <div class="flex flex-col sm:flex-row gap-4 items-center justify-center">
+                            <div class="source-list flex gap-2 flex-wrap justify-center" data-question-id="${questionId}-source">
+                                ${[...activity.correct, ...activity.distractors].sort(() => Math.random() - 0.5).map(item => `<div class="drag-item p-2 bg-white border rounded shadow-sm" draggable="true" data-item-id="${item}">${item}</div>`).join('')}
+                            </div>
+                             <div class="font-semibold">matches</div>
+                            <div class="drop-zone target-list rounded p-1 w-48" data-question-id="${questionId}"></div>
+                        </div>`;
+                    break;
+                case 'drawing-canvas': // This type was only in practice center, but keeping for robustness
+                    activityHTML += `
+                        <div class="flex flex-wrap items-center justify-center gap-2 my-2 border-t border-b py-2 no-print">
+                            <label for="${questionId}-color">Color:</label>
+                            <input type="color" id="${questionId}-color" class="canvas-color" value="#000000">
+                            <label for="${questionId}-size">Size:</label>
+                            <input type="range" id="${questionId}-size" class="canvas-size" min="1" max="20" value="5">
+                            <button class="canvas-eraser p-1 border rounded bg-gray-200">Eraser</button>
+                            <button class="canvas-clear p-1 border rounded bg-red-200">Clear</button>
+                        </div>
+                        <canvas id="${questionId}" class="border-2 border-gray-400 w-full h-64 md:h-96 rounded-lg bg-white interactive-element"></canvas>`;
+                    break;
+            }
+
+            activityHTML += `
+                <div class="mt-4 no-print">
+                    <button class="check-answer-btn bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded" data-activity-id="${activity.id}" data-activity-type="${activity.type}">Submit Evidence</button>
+                    <div class="feedback-message mt-2 text-md font-semibold"></div>
+                </div>`;
+            activityHTML += `</div>`;
+            return activityHTML;
+        }
+
+        // --- EVENT LISTENERS ---
+        function setupEventListeners() {
+            prevBtn.addEventListener('click', () => changeSlide(-1));
+            nextBtn.addEventListener('click', () => changeSlide(1));
+            document.getElementById('download-html-btn').addEventListener('click', handleDownloadHTML);
+            document.getElementById('download-pdf-btn').addEventListener('click', handleDownloadPDF);
+
+            document.body.addEventListener('click', e => {
+                if (e.target.classList.contains('check-answer-btn')) { handleCheckAnswer(e); }
+                if(e.target.classList.contains('canvas-clear')) {
+                    const container = e.target.closest('.question-container');
+                    const canvas = container.querySelector('canvas');
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    saveCanvasState(canvas);
+                }
+                if(e.target.classList.contains('canvas-eraser')) {
+                    const container = e.target.closest('.question-container');
+                    const colorInput = container.querySelector('.canvas-color');
+                    colorInput.value = '#FFFFFF';
+                }
+            });
+            
+             document.body.addEventListener('input', e => {
+                const target = e.target;
+                if (target.tagName.toLowerCase() === 'textarea') {
+                    const questionId = target.closest('.question-container').dataset.questionId;
+                    appState.lesson.answers[questionId] = target.value;
+                    saveProgress();
+                    target.style.height = 'auto';
+                    target.style.height = (target.scrollHeight) + 'px';
+                } else if (target.type === 'radio') {
+                     const questionId = target.closest('.question-container').dataset.questionId;
+                     appState.lesson.answers[questionId] = target.value;
+                     saveProgress();
+                }
+             });
+
+            // Drag and Drop
+            let draggedItem = null;
+            document.body.addEventListener('dragstart', e => {
+                if (e.target.classList.contains('drag-item')) {
+                    draggedItem = e.target;
+                    setTimeout(() => e.target.style.opacity = '0.5', 0);
+                }
+            });
+            document.body.addEventListener('dragend', e => {
+                if(draggedItem) {
+                    setTimeout(() => draggedItem.style.opacity = '1', 0);
+                    draggedItem = null;
+                }
+            });
+            document.body.addEventListener('dragover', e => {
+                e.preventDefault();
+                const dropZone = e.target.closest('.drop-zone');
+                if (dropZone) { dropZone.classList.add('drag-over'); }
+            });
+            document.body.addEventListener('dragleave', e => {
+                const dropZone = e.target.closest('.drop-zone');
+                 if (dropZone) { dropZone.classList.remove('drag-over'); }
+            });
+            document.body.addEventListener('drop', e => {
+                e.preventDefault();
+                const dropZone = e.target.closest('.drop-zone');
+                if (dropZone && draggedItem) {
+                    dropZone.classList.remove('drag-over');
+                    if (dropZone.children.length > 0 && dropZone.closest('.question-container').querySelector('[data-activity-type="drag-drop-match"]')) {
+                        const sourceList = draggedItem.closest('.question-container').querySelector('.source-list');
+                        sourceList.appendChild(dropZone.children[0]);
+                    }
+                    dropZone.appendChild(draggedItem);
+                    saveDragDropState(dropZone);
+                }
+            });
+
+            // Canvas Logic (kept in case you add it back)
+            let isDrawing = false;
+            let currentCanvas = null;
+             const getPos = (canvas, evt) => {
+                const rect = canvas.getBoundingClientRect();
+                const touch = evt.touches ? evt.touches[0] : null;
+                const clientX = touch ? touch.clientX : evt.clientX;
+                const clientY = touch ? touch.clientY : evt.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            };
+            const startDrawing = (e) => { /* ... canvas logic ... */ };
+            const draw = (e) => { /* ... canvas logic ... */ };
+            const stopDrawing = (e) => { /* ... canvas logic ... */ };
+            document.body.addEventListener('mousedown', startDrawing);
+            document.body.addEventListener('mousemove', draw);
+            document.body.addEventListener('mouseup', stopDrawing);
+            document.body.addEventListener('touchstart', startDrawing, { passive: false });
+            document.body.addEventListener('touchmove', draw, { passive: false });
+            document.body.addEventListener('touchend', stopDrawing);
+        }
+        
+        // --- ANSWER VALIDATION ---
+        function handleCheckAnswer(e) {
+            const button = e.target;
+            const container = button.closest('.question-container');
+            const feedbackEl = container.querySelector('.feedback-message');
+            const activityId = button.dataset.activityId;
+            
+            const activityData = findActivityData(activityId);
+            if (!activityData) return;
+            
+            let isCorrect = false;
+
+            switch(activityData.type) {
+                case 'multiple-choice':
+                    const selectedRadio = container.querySelector('input[type=radio]:checked');
+                    isCorrect = selectedRadio && selectedRadio.value === activityData.answer;
+                    break;
+                case 'text-box':
+                    const userAnswer = container.querySelector('textarea').value.toLowerCase();
+                    isCorrect = activityData.keywords.some(keyword => userAnswer.includes(keyword));
+                    break;
+                case 'drag-drop-sort':
+                case 'drag-drop-sequence':
+                    const sortedItems = Array.from(container.querySelectorAll('.drop-zone .drag-item')).map(item => item.textContent);
+                    isCorrect = JSON.stringify(sortedItems) === JSON.stringify(activityData.correct || activityData.answer);
+                    break;
+                case 'drag-drop-match':
+                    const dropZones = container.querySelectorAll('.drop-zone');
+                    isCorrect = Array.from(dropZones).every(zone => {
+                        const targetId = zone.dataset.targetId;
+                        const correctSource = Object.keys(activityData.pairs).find(key => activityData.pairs[key] === targetId);
+                        const droppedItem = zone.querySelector('.drag-item');
+                        return droppedItem && droppedItem.textContent === correctSource;
+                    });
+                    break;
+                // other cases like drawing canvas removed
+            }
+            
+            const affirmations = ["Excellent work, Detective!", "You've cracked the case!", "A key piece of evidence uncovered!"];
+            const nudges = ["Not quite. Re-examine the passage for more clues.", "A good attempt, but let's look at the evidence from another angle."];
+
+            if (isCorrect) {
+                feedbackEl.textContent = affirmations[Math.floor(Math.random() * affirmations.length)];
+                feedbackEl.className = 'feedback-message mt-2 text-md font-semibold text-green-600';
+                button.disabled = true;
+            } else {
+                feedbackEl.textContent = nudges[Math.floor(Math.random() * nudges.length)];
+                feedbackEl.className = 'feedback-message mt-2 text-md font-semibold text-red-600';
+            }
+        }
+        
+        function findActivityData(id) {
+            for (const item of lessonSlidesData) {
+                if (item.activities) {
+                    const activity = item.activities.find(a => a.id === id);
+                    if (activity) return activity;
+                }
+            }
+            return null;
+        }
+
+        // --- SAVE, LOAD, & EXPORT ---
+        function saveDragDropState(targetElement) {
+            const questionId = targetElement.dataset.questionId;
+            if (!questionId) return;
+            const container = document.querySelector(`.question-container[data-question-id="${questionId}"]`);
+            const answer = {};
+
+            const dropZones = container.querySelectorAll('.drop-zone');
+            dropZones.forEach((zone, index) => {
+                const zoneKey = zone.dataset.targetId || `zone${index}`;
+                answer[zoneKey] = Array.from(zone.querySelectorAll('.drag-item')).map(item => item.dataset.itemId);
+            });
+            
+            appState.lesson.answers[questionId] = answer;
+            saveProgress();
+        }
+        
+        function saveCanvasState(canvas) {
+            const questionId = canvas.closest('.question-container').dataset.questionId;
+            if (!questionId) return;
+            const dataURL = canvas.toDataURL();
+            appState.lesson.answers[questionId] = dataURL;
+            saveProgress();
+        }
+
+        function saveProgress() {
+            try {
+                localStorage.setItem('elaLessonProgress', JSON.stringify(appState));
+            } catch (e) {
+                console.error("Could not save progress to localStorage", e);
+            }
+        }
+
+        function loadProgress() {
+            const embeddedDataEl = document.getElementById('progress-data');
+            let dataToLoad = null;
+            if (embeddedDataEl && embeddedDataEl.textContent.trim().length > 2) {
+                try { dataToLoad = JSON.parse(embeddedDataEl.textContent); } 
+                catch (e) { console.error("Failed to parse embedded progress data.", e); }
+            } else {
+                 try {
+                    const savedState = localStorage.getItem('elaLessonProgress');
+                    if (savedState) { dataToLoad = JSON.parse(savedState); }
+                } catch (e) { console.error("Failed to parse localStorage data.", e); }
+            }
+            if(dataToLoad) { appState = dataToLoad; }
+        }
+        
+        function restoreAnswers() {
+            const allAnswers = appState.lesson.answers;
+            for (const questionId in allAnswers) {
+                const container = document.querySelector(`.question-container[data-question-id="${questionId}"]`);
+                if (!container) continue;
+
+                const answer = allAnswers[questionId];
+                
+                if (typeof answer === 'string') {
+                    const radio = container.querySelector(`input[type="radio"][value="${CSS.escape(answer)}"]`);
+                    const textarea = container.querySelector('textarea');
+                    if (radio) { radio.checked = true; } 
+                    else if (textarea) {
+                        textarea.value = answer;
+                        textarea.style.height = 'auto';
+                        textarea.style.height = (textarea.scrollHeight) + 'px';
+                    }
+                } else if (typeof answer === 'object' && answer !== null) { // Drag-drop
+                    for (const zoneKey in answer) {
+                        const zoneSelector = `[data-target-id="${zoneKey}"]` || `.drop-zone:nth-of-type(${parseInt(zoneKey.replace('zone', '')) + 1})`;
+                        const zone = container.querySelector(zoneSelector);
+                        if (zone) {
+                            answer[zoneKey].forEach(itemId => {
+                                const itemEl = document.querySelector(`[data-item-id="${CSS.escape(itemId)}"]`);
+                                if (itemEl) zone.appendChild(itemEl);
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        function handleDownloadHTML() {
+            const docClone = document.documentElement.cloneNode(true);
+            let progressScript = docClone.querySelector('#progress-data');
+            if (!progressScript) {
+                progressScript = document.createElement('script');
+                progressScript.id = 'progress-data';
+                progressScript.type = 'application/json';
+                docClone.querySelector('body').appendChild(progressScript);
+            }
+            progressScript.textContent = JSON.stringify(appState);
+            const blob = new Blob([docClone.outerHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'literary-detective-work.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        async function handleDownloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'pt', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const margin = 40;
+            const contentWidth = pdfWidth - (margin * 2);
+
+            const printContainer = document.createElement('div');
+            printContainer.className = 'print-clone';
+            document.body.appendChild(printContainer);
+
+            const contentToPrint = document.querySelector('#lesson-slides-container');
+            const contentClone = contentToPrint.cloneNode(true);
+            
+            contentClone.querySelectorAll('.question-container').forEach(qc => {
+                const questionId = qc.dataset.questionId;
+                const answer = appState.lesson.answers[questionId];
+
+                if (!answer) {
+                   qc.style.display = 'none';
+                   return;
+                }
+                
+                if (typeof answer === 'string') {
+                    const radioLabels = qc.querySelectorAll('label');
+                    radioLabels.forEach(label => {
+                        if(label.textContent === answer) { label.innerHTML += ' <strong>(Selected)</strong>'; }
+                    });
+                }
+                const textarea = qc.querySelector('textarea');
+                if (textarea) {
+                    const p = document.createElement('p');
+                    p.textContent = answer || '';
+                    p.className = 'p-2 bg-gray-100 border rounded whitespace-pre-wrap';
+                    textarea.replaceWith(p);
+                }
+                const dropZones = qc.querySelectorAll('.drop-zone');
+                if (dropZones.length > 0) {
+                    qc.querySelectorAll('.source-list').forEach(sl => sl.style.display = 'none');
+                }
+            });
+
+            printContainer.appendChild(contentClone);
+            
+            const canvas = await html2canvas(printContainer, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfImageHeight = (imgProps.height * contentWidth) / imgProps.width;
+            
+            let heightLeft = pdfImageHeight;
+            let position = 0;
+            const pageHeight = pdf.internal.pageSize.getHeight() - (margin * 2);
+
+            pdf.addImage(imgData, 'PNG', margin, position, contentWidth, pdfImageHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft > 0) {
+                position -= pageHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', margin, position, contentWidth, pdfImageHeight);
+                heightLeft -= pageHeight;
+            }
+            pdf.save('student-work.pdf');
+
+            document.body.removeChild(printContainer);
+        }
+
+    })();
+    </script>
+</body>
+</html>
+
