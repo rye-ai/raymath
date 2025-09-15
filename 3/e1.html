@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent M: The Cipher Mission</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <style>
+        /*
+        * Game: Agent M: The Cipher Mission
+        * Description: A single-file educational game for 4th graders on direct addition up to 1,000.
+        * Features: Spy-tech theme, avatar upload, localStorage persistence, secret code collection, randomized prizes, and a hint system.
+        *
+        * JSON SCHEMA DRIVING THE GAME:
+        * {
+        * player: { agentName, avatar, bypassKeys, deScramblers, solvedPuzzles, currentPuzzleIndex, codeJournal },
+        * gameConfig: { totalPuzzles, maxKeys },
+        * puzzles: [ { id, type, prompt, visual, data, correct, hint } ],
+        * prizes: [ "Prize 1", "Prize 2", ... ],
+        * sfx: { click, correct, incorrect, win }
+        * }
+        */
+
+        :root {
+            --font-display: 'Orbitron', sans-serif;
+            --font-mono: 'Roboto Mono', monospace;
+            --c-bg: #0a0f18; /* Deep space blue */
+            --c-primary: #00e5ff; /* Neon blue */
+            --c-secondary: #00ff95; /* Neon green */
+            --c-text: #e0f7ff;
+            --c-container: #101828;
+            --c-correct: #39ff14;
+            --c-incorrect: #ff1f1f;
+            --c-border: #00a2b3;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-mono);
+            background-color: var(--c-bg);
+            background-image:
+                linear-gradient(var(--c-primary) 1px, transparent 1px),
+                linear-gradient(90deg, var(--c-primary) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: -1px -1px;
+            color: var(--c-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            overflow: hidden;
+            text-shadow: 0 0 3px rgba(0, 229, 255, 0.3);
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 1200px;
+            height: 95vh;
+            max-height: 800px;
+            background-color: rgba(16, 24, 40, 0.95);
+            border: 3px solid var(--c-border);
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.4), inset 0 0 15px rgba(0, 229, 255, 0.2);
+            border-radius: 10px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* --- SCREEN MANAGEMENT & ANIMATIONS --- */
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            animation: flickerIn 0.7s ease;
+        }
+        .screen.active { display: flex; }
+        @keyframes flickerIn {
+            0% { opacity: 0.5; } 20% { opacity: 0.8; } 40% { opacity: 0.3; }
+            60% { opacity: 1; } 80% { opacity: 0.7; } 100% { opacity: 1; }
+        }
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+         @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        /* --- UI COMPONENTS --- */
+        .tech-button {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: 2px solid var(--c-primary);
+            background-color: transparent;
+            color: var(--c-primary);
+            text-shadow: 0 0 8px var(--c-primary);
+            box-shadow: 0 0 10px var(--c-primary), inset 0 0 8px rgba(0, 229, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .tech-button::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--c-primary);
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: -1;
+        }
+        .tech-button:hover {
+            color: var(--c-bg);
+            text-shadow: none;
+        }
+        .tech-button:hover::before { opacity: 1; }
+        .tech-button:disabled {
+            color: #555;
+            border-color: #555;
+            box-shadow: none;
+            cursor: not-allowed;
+            text-shadow: none;
+        }
+        .tech-button:disabled:hover::before { opacity: 0; }
+
+        input[type="text"], input[type="number"] {
+            font-family: var(--font-mono);
+            font-size: 1.2rem;
+            padding: 10px 15px;
+            border: 2px solid var(--c-border);
+            border-radius: 5px;
+            text-align: center;
+            width: 100%;
+            background-color: rgba(0,0,0,0.3);
+            color: var(--c-secondary);
+        }
+        input:focus { outline: 2px solid var(--c-secondary); }
+
+        .title {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 5vw, 3rem);
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--c-primary);
+            text-shadow: 0 0 10px var(--c-primary);
+            letter-spacing: 2px;
+        }
+
+        /* --- SCREENS --- */
+        #start-screen, #vault-screen, #win-screen {
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .content-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--c-border);
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        #avatar-preview, #player-avatar-display {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 3px solid var(--c-primary);
+            object-fit: cover;
+            align-self: center;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-bottom: 2px solid var(--c-border);
+            margin-bottom: 1rem;
+            flex-shrink: 0;
+        }
+        .player-info { display: flex; align-items: center; gap: 1rem; }
+        #player-avatar-display { width: 50px; height: 50px; }
+        #player-name-display { font-family: var(--font-display); font-size: 1.5rem; }
+        .stats-display { display: flex; align-items: center; gap: 1.5rem; }
+        .stat { display: flex; align-items: center; gap: 0.5rem; }
+        .stat svg { width: 28px; height: 28px; }
+        .stat-count { font-family: var(--font-mono); font-size: 1.5rem; font-weight: bold; color: var(--c-secondary); }
+        
+        #hint-btn { background: none; border: none; padding: 0; cursor: pointer; }
+        #hint-btn svg { transition: transform 0.2s ease; }
+        #hint-btn:hover svg { transform: scale(1.1); }
+        #hint-btn:disabled { cursor: not-allowed; }
+        #hint-btn:disabled svg { filter: grayscale(80%); opacity: 0.4; }
+
+        #mission-hub-container {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #briefcase-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1.5rem;
+            max-width: 800px;
+        }
+        .briefcase {
+            width: 100px; height: 100px;
+            border: 2px solid var(--c-border);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: not-allowed;
+            background-color: rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .briefcase.unlocked { 
+            border-color: var(--c-secondary);
+            box-shadow: 0 0 15px var(--c-secondary);
+            cursor: pointer;
+        }
+        .briefcase.completed { 
+            border-color: var(--c-primary);
+            background-color: rgba(0, 229, 255, 0.1);
+        }
+        .briefcase svg {
+            width: 50px; height: 50px;
+            transition: all 0.3s ease;
+        }
+
+        /* --- QUESTION MODAL --- */
+        #question-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(10, 15, 24, 0.8);
+            backdrop-filter: blur(5px);
+            display: none; justify-content: center; align-items: center; z-index: 100;
+        }
+        #question-modal {
+            background-color: var(--c-container);
+            padding: 2rem; border-radius: 8px;
+            border: 2px solid var(--c-border);
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+            width: 90%; max-width: 500px;
+            text-align: center;
+            animation: popIn 0.3s ease-out;
+        }
+        #question-modal h2 { font-family: var(--font-display); margin-bottom: 1rem; color: var(--c-primary); }
+        #question-prompt { font-size: 1.2rem; line-height: 1.6; margin-bottom: 1.5rem; }
+        #question-visual { margin: 1rem 0; }
+        #question-visual svg { font-family: var(--font-mono); font-size: 2rem; fill: var(--c-text); }
+        #answer-input { margin-bottom: 1.5rem; max-width: 200px; display: block; margin-left: auto; margin-right: auto; }
+        #question-feedback { min-height: 30px; margin-top: 1rem; font-size: 1.1rem; }
+        #question-feedback.correct { color: var(--c-correct); font-weight: bold; }
+        #question-feedback.incorrect { color: var(--c-incorrect); font-weight: bold; }
+        .feedback-code {
+            font-family: var(--font-display);
+            font-size: 4rem;
+            color: var(--c-secondary);
+            text-shadow: 0 0 15px var(--c-secondary);
+            display: block; margin: 1rem 0;
+        }
+
+        /* --- VAULT & WIN SCREEN --- */
+        .keypad-input-display {
+            font-family: var(--font-mono); font-size: 2rem;
+            letter-spacing: 0.5rem; padding: 1rem;
+            border: 2px solid var(--c-border); background-color: rgba(0,0,0,0.5);
+            margin: 1.5rem auto; min-height: 60px;
+            border-radius: 8px; width: 100%; max-width: 400px;
+            color: var(--c-secondary);
+        }
+        #keypad-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 10px; max-width: 250px; margin: 0 auto;
+        }
+        .keypad-btn { font-size: 1.2rem; }
+        #prize-display { display: none; animation: popIn 0.5s ease-out; }
+        #prize-text {
+            font-size: 1.8rem;
+            font-family: var(--font-display); padding: 1.5rem;
+            margin: 1rem 0;
+            background: linear-gradient(45deg, var(--c-secondary), var(--c-primary));
+            color: var(--c-bg);
+            text-shadow: 2px 2px 2px #000;
+            border: 4px solid var(--c-text);
+            border-radius: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .game-container { padding: 0.5rem; height: 100vh; max-height: none; }
+            .header { flex-direction: column; gap: 0.5rem; }
+            #briefcase-grid { grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+            .briefcase { width: 80px; height: 80px; }
+        }
+         @media (max-width: 480px) {
+            #briefcase-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+
+        <!-- ===== START SCREEN ===== -->
+        <div id="start-screen" class="screen active">
+            <div class="content-box">
+                <h1 class="title">Agent M: Cipher Mission</h1>
+                <p>Create your Agent ID to begin.</p>
+                <img id="avatar-preview" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzAwZTVmZiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MxLjY2IDAgMyAxLjM0IDMgM3MtMS4zNCAzLTMgMy0zLTEuMzQtMy0zIDEuMzQtMyAzLTN6bTAgMTRjLTIuMzMgMC00LjMxLTEuNDYtNS4xMS0zLjUgMS4zOS0yLjMzIDQuMTYtMy41IDUuMTItMy41czMuNzMgMS4xNyA1LjEyIDMuNWMtLjggMi4wNC0yLjc4IDMuNS01LjEyIDMuNXoiLz48L3N2Zz4=" alt="Avatar Preview">
+                <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+                <label for="avatar-upload" class="tech-button">Upload Agent Photo</label>
+                <input type="text" id="player-name-input" placeholder="Enter Agent Name">
+                <button id="start-game-btn" class="tech-button">Accept Mission</button>
+            </div>
+        </div>
+
+        <!-- ===== GAME SCREEN (MISSION HUB) ===== -->
+        <div id="game-screen" class="screen">
+            <header class="header">
+                <div class="player-info">
+                    <img id="player-avatar-display" alt="Player Avatar">
+                    <h2 id="player-name-display"></h2>
+                </div>
+                <div class="stats-display">
+                    <div class="stat" id="cipher-stat"></div>
+                    <div class="stat" id="keys-stat"></div>
+                    <div class="stat">
+                        <button id="hint-btn" aria-label="Use De-Scrambler"></button>
+                    </div>
+                </div>
+            </header>
+            <main id="mission-hub-container">
+                <div id="briefcase-grid">
+                    <!-- Briefcases generated here -->
+                </div>
+            </main>
+        </div>
+
+        <!-- ===== VAULT SCREEN ===== -->
+        <div id="vault-screen" class="screen">
+            <div class="content-box">
+                <h1 class="title">Data Vault</h1>
+                <p>Enter the 10-digit cipher to prevent the data leak. Good luck, Agent.</p>
+                <div id="keypad-input-display" class="keypad-input-display"></div>
+                <div id="keypad-grid"></div>
+                <button id="unlock-btn" class="tech-button" style="margin-top: 1rem;">Unlock Vault</button>
+            </div>
+        </div>
+        
+        <!-- ===== WIN SCREEN ===== -->
+        <div id="win-screen" class="screen">
+            <div class="content-box">
+                 <h1 class="title">Mission Complete!</h1>
+                 <p>Excellent work, Agent M. The vault is secure. The Puzzler has been foiled.</p>
+                 <div id="prize-display">
+                    <h2>Your Reward:</h2>
+                    <p id="prize-text"></p>
+                    <button id="play-again-btn" class="tech-button" style="margin-top: 1rem;">New Mission</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== QUESTION MODAL (TERMINAL) ===== -->
+    <div id="question-modal-overlay">
+        <div id="question-modal">
+            <h2 id="question-title">Challenge Terminal</h2>
+            <div id="question-prompt"></div>
+            <div id="question-visual"></div>
+            <div id="answer-container">
+                 <input type="number" id="answer-input" placeholder="Enter solution...">
+                 <button id="check-answer-btn" class="tech-button">Transmit</button>
+            </div>
+            <div id="question-feedback"></div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const SECRET_CODE = "9080980789"; // The 10-digit code to unlock the vault.
+        const GAME_DATA = JSON.parse(`{"player":{"agentName":"","avatar":"","bypassKeys":3,"deScramblers":1,"solvedPuzzles":[],"currentPuzzleIndex":0,"codeJournal":[null,null,null,null,null,null,null,null,null,null]},"gameConfig":{"totalPuzzles":10,"maxKeys":3},"puzzles":[{"id":"puzzle_0","type":"text-box","prompt":"Decrypt the transmission. Calculate the sum:","visual":"vertical_equation|123|456","data":{"size":4},"correct":"579","hint":"ones_column_sum:9"},{"id":"puzzle_1","type":"text-box","prompt":"Access code required. Calculate the sum:","visual":"vertical_equation|789|111","data":{"size":4},"correct":"900","hint":"ones_column_sum:0"},{"id":"puzzle_2","type":"text-box","prompt":"Firewall breach sequence. Calculate the sum:","visual":"vertical_equation|345|543","data":{"size":4},"correct":"888","hint":"ones_column_sum:8"},{"id":"puzzle_3","type":"text-box","prompt":"Authentication key needed. Calculate the sum:","visual":"vertical_equation|250|650","data":{"size":4},"correct":"900","hint":"ones_column_sum:0"},{"id":"puzzle_4","type":"text-box","prompt":"Unlock the encrypted file. Calculate the sum:","visual":"vertical_equation|812|187","data":{"size":4},"correct":"999","hint":"ones_column_sum:9"},{"id":"puzzle_5","type":"text-box","prompt":"Disable the security laser grid. Calculate the sum:","visual":"vertical_equation|475|325","data":{"size":4},"correct":"800","hint":"ones_column_sum:0"},{"id":"puzzle_6","type":"text-box","prompt":"Data packet requires verification. Calculate the sum:","visual":"vertical_equation|608|292","data":{"size":4},"correct":"900","hint":"ones_column_sum:0"},{"id":"puzzle_7","type":"text-box","prompt":"Override the system lockdown. Calculate the sum:","visual":"vertical_equation|555|222","data":{"size":4},"correct":"777","hint":"ones_column_sum:7"},{"id":"puzzle_8","type":"text-box","prompt":"Crack the next layer of encryption. Calculate the sum:","visual":"vertical_equation|199|799","data":{"size":4},"correct":"998","hint":"ones_column_sum:8"},{"id":"puzzle_9","type":"text-box","prompt":"Final security protocol. Calculate the sum:","visual":"vertical_equation|901|98","data":{"size":4},"correct":"999","hint":"ones_column_sum:9"}],"prizes":["Free 5 mins recess!","A delicious snack!","A piece of chocolate!","A refreshing drink!","5 minutes of free time!"],"sfx":{"click":"data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==","correct":"data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==","incorrect":"data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==","win":"data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w=="}}`);
+        let gameState = {};
+
+        // --- DOM Elements --- //
+        const screens = { start: document.getElementById('start-screen'), game: document.getElementById('game-screen'), vault: document.getElementById('vault-screen'), win: document.getElementById('win-screen') };
+        const playerNameInput = document.getElementById('player-name-input');
+        const avatarUpload = document.getElementById('avatar-upload');
+        const avatarPreview = document.getElementById('avatar-preview');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const playerNameDisplay = document.getElementById('player-name-display');
+        const playerAvatarDisplay = document.getElementById('player-avatar-display');
+        const cipherStat = document.getElementById('cipher-stat');
+        const keysStat = document.getElementById('keys-stat');
+        const hintBtn = document.getElementById('hint-btn');
+        const briefcaseGrid = document.getElementById('briefcase-grid');
+        const questionModalOverlay = document.getElementById('question-modal-overlay');
+        const questionModal = document.getElementById('question-modal');
+        const questionTitle = document.getElementById('question-title');
+        const questionPrompt = document.getElementById('question-prompt');
+        const questionVisual = document.getElementById('question-visual');
+        const answerContainer = document.getElementById('answer-container');
+        const questionFeedback = document.getElementById('question-feedback');
+        const keypadDisplay = document.getElementById('keypad-input-display');
+        const keypadGrid = document.getElementById('keypad-grid');
+        const unlockBtn = document.getElementById('unlock-btn');
+        const prizeDisplay = document.getElementById('prize-display');
+        const prizeText = document.getElementById('prize-text');
+        const playAgainBtn = document.getElementById('play-again-btn');
+
+        // --- SVG FACTORY --- //
+        const SVG = {
+            cipher: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="var(--c-secondary)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-2h2v2h-2zm0-4V7h2v6h-2z"/></svg>`,
+            bypassKey: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="var(--c-primary)"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 18V6h10v12H4zm12 0v-5h4v5h-4z"/></svg>`,
+            deScrambler: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="var(--c-secondary)"><path d="M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7zM12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>`,
+            briefcase: (state = 'locked') => {
+                let color = '#555';
+                if (state === 'unlocked') color = 'var(--c-secondary)';
+                if (state === 'completed') color = 'var(--c-primary)';
+                return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}"><path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 15H4V8h16v11z"/></svg>`;
+            }
+        };
+
+        // --- AUDIO --- //
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const sfx = {};
+        
+        async function setupAudio() {
+            for (const key in GAME_DATA.sfx) {
+                try {
+                    const response = await fetch(GAME_DATA.sfx[key]);
+                    const arrayBuffer = await response.arrayBuffer();
+                    sfx[key] = await audioCtx.decodeAudioData(arrayBuffer);
+                } catch (e) { console.error(`Failed to decode audio for ${key}:`, e); }
+            }
+        }
+        function playSound(name) {
+            if (sfx[name] && audioCtx.state === 'running') {
+                const source = audioCtx.createBufferSource();
+                source.buffer = sfx[name];
+                source.connect(audioCtx.destination);
+                source.start(0);
+            }
+        }
+        
+        // --- SVG Renderer --- //
+        function renderEquationSVG(visualString) {
+            const [type, num1, num2] = visualString.split('|');
+            if (type !== 'vertical_equation') return '';
+            
+            const paddedNum1 = num1.padStart(3, ' ');
+            const paddedNum2 = num2.padStart(3, ' ');
+            const width = 150;
+            const height = 110;
+            
+            return `
+                <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+                    <text x="95%" y="30" font-size="24" text-anchor="end">${paddedNum1}</text>
+                    <text x="25" y="65" font-size="24" text-anchor="end">+</text>
+                    <text x="95%" y="65" font-size="24" text-anchor="end">${paddedNum2}</text>
+                    <line x1="10" y1="80" x2="${width - 10}" y2="80" stroke="${'var(--c-border)'}" stroke-width="2"/>
+                </svg>
+            `;
+        }
+
+        // --- STATE & UI MANAGEMENT --- //
+        const GameStateManager = {
+            init() {
+                gameState = JSON.parse(JSON.stringify(GAME_DATA));
+                if (this.load()) {
+                    UIManager.showScreen('game');
+                    UIManager.renderGameUI();
+                } else {
+                    UIManager.showScreen('start');
+                }
+            },
+            save() { localStorage.setItem('agentMissionState', JSON.stringify(gameState.player)); },
+            load() {
+                const savedState = localStorage.getItem('agentMissionState');
+                if (savedState) {
+                    gameState.player = { ...GAME_DATA.player, ...JSON.parse(savedState) };
+                    return true;
+                }
+                return false;
+            },
+            reset() { localStorage.removeItem('agentMissionState'); location.reload(); },
+            getCurrentPuzzle() { return gameState.puzzles[gameState.player.currentPuzzleIndex]; },
+            getPuzzleById(id) { return gameState.puzzles.find(p => p.id === id); },
+        };
+
+        const UIManager = {
+            showScreen(screenName) {
+                Object.values(screens).forEach(s => s.classList.remove('active'));
+                screens[screenName].classList.add('active');
+            },
+            renderPlayerStats() {
+                playerNameDisplay.textContent = gameState.player.agentName;
+                playerAvatarDisplay.src = gameState.player.avatar || avatarPreview.src;
+                const digitsFound = gameState.player.codeJournal.filter(c => c !== null).length;
+                cipherStat.innerHTML = `${SVG.cipher} <span class="stat-count">${digitsFound}/${gameState.gameConfig.totalPuzzles}</span>`;
+                keysStat.innerHTML = `${SVG.bypassKey} <span class="stat-count">${gameState.player.bypassKeys}</span>`;
+                hintBtn.innerHTML = SVG.deScrambler;
+                hintBtn.disabled = gameState.player.deScramblers <= 0;
+            },
+            renderMissionHub() {
+                briefcaseGrid.innerHTML = '';
+                gameState.puzzles.forEach((puzzle, index) => {
+                    const briefcaseEl = document.createElement('div');
+                    briefcaseEl.classList.add('briefcase');
+                    briefcaseEl.dataset.index = index;
+                    let state = 'locked';
+                    if (gameState.player.solvedPuzzles.includes(puzzle.id)) {
+                        state = 'completed';
+                    } else if (index === gameState.player.currentPuzzleIndex) {
+                        state = 'unlocked';
+                    }
+                    briefcaseEl.classList.add(state);
+                    briefcaseEl.innerHTML = SVG.briefcase(state);
+                    briefcaseGrid.appendChild(briefcaseEl);
+                });
+            },
+            showQuestionModal(puzzle) {
+                questionTitle.textContent = `Briefcase #${gameState.player.currentPuzzleIndex + 1}`;
+                questionPrompt.textContent = puzzle.prompt;
+                questionVisual.innerHTML = renderEquationSVG(puzzle.visual);
+                questionFeedback.textContent = '';
+                questionFeedback.className = '';
+                
+                answerContainer.innerHTML = `
+                    <input type="number" id="answer-input" placeholder="Enter solution...">
+                    <button id="check-answer-btn" class="tech-button" data-puzzle-id="${puzzle.id}">Transmit</button>
+                `;
+                answerContainer.querySelector('#check-answer-btn').addEventListener('click', handleAnswerCheck);
+
+                questionModalOverlay.style.display = 'flex';
+                const inputEl = answerContainer.querySelector('#answer-input');
+                if(inputEl) inputEl.focus();
+            },
+            hideQuestionModal() { questionModalOverlay.style.display = 'none'; },
+            showVaultScreen() {
+                this.showScreen('vault');
+                this.renderFinalKeypad();
+            },
+            renderFinalKeypad() {
+                let keypadHTML = '';
+                const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'DEL', 0, ''];
+                numbers.forEach(num => {
+                    keypadHTML += `<button class="tech-button keypad-btn" ${num === '' ? 'style="visibility:hidden;"' : ''}>${num}</button>`;
+                });
+                keypadGrid.innerHTML = keypadHTML;
+
+                keypadGrid.querySelectorAll('.keypad-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        playSound('click');
+                        const value = btn.textContent;
+                        let currentCode = keypadDisplay.textContent;
+                        if (value === 'DEL') {
+                            keypadDisplay.textContent = currentCode.slice(0, -1);
+                        } else if (currentCode.length < 10) {
+                            keypadDisplay.textContent += value;
+                        }
+                    });
+                });
+                keypadDisplay.textContent = '';
+            },
+            renderGameUI() {
+                this.renderPlayerStats();
+                this.renderMissionHub();
+            }
+        };
+
+        // --- GAME LOGIC --- //
+        function handleStartGame() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const name = playerNameInput.value.trim();
+            if (!name) { alert("Agent Name is required for this mission!"); return; }
+            playSound('click');
+            gameState.player.agentName = name;
+            gameState.player.avatar = avatarPreview.src;
+            GameStateManager.save();
+            UIManager.showScreen('game');
+            UIManager.renderGameUI();
+        }
+
+        function handleBriefcaseClick(e) {
+            const briefcase = e.target.closest('.briefcase.unlocked');
+            if (briefcase) {
+                playSound('click');
+                const puzzleIndex = parseInt(briefcase.dataset.index);
+                if (puzzleIndex === gameState.player.currentPuzzleIndex) {
+                    const puzzle = gameState.puzzles[puzzleIndex];
+                    UIManager.showQuestionModal(puzzle);
+                }
+            }
+        }
+        
+        function handleAnswerCheck(e) {
+            const btn = e.target;
+            const puzzleId = btn.dataset.puzzleId;
+            const puzzle = GameStateManager.getPuzzleById(puzzleId);
+            const inputEl = btn.parentElement.querySelector('#answer-input');
+            const userAnswer = inputEl.value.trim();
+            
+            if (userAnswer === puzzle.correct) {
+                handleCorrectAnswer(puzzle);
+            } else {
+                handleIncorrectAnswer();
+            }
+        }
+        
+        function handleCorrectAnswer(puzzle) {
+            playSound('correct');
+            const puzzleIndex = gameState.player.currentPuzzleIndex;
+            const secretDigit = SECRET_CODE[puzzleIndex];
+
+            if (!gameState.player.solvedPuzzles.includes(puzzle.id)) {
+                gameState.player.solvedPuzzles.push(puzzle.id);
+            }
+            gameState.player.codeJournal[puzzleIndex] = secretDigit;
+            
+            answerContainer.innerHTML = `<button id="continue-btn" class="tech-button">Continue Mission</button>`;
+            answerContainer.querySelector('#continue-btn').addEventListener('click', () => {
+                playSound('click');
+                gameState.player.currentPuzzleIndex++;
+                GameStateManager.save();
+                UIManager.hideQuestionModal();
+                UIManager.renderGameUI();
+                if (gameState.player.solvedPuzzles.length === gameState.gameConfig.totalPuzzles) {
+                    UIManager.showVaultScreen();
+                }
+            });
+
+            questionFeedback.className = 'correct';
+            questionFeedback.innerHTML = `Transmission Received! Log this cipher digit: <span class="feedback-code">${secretDigit}</span>`;
+        }
+
+        function handleIncorrectAnswer() {
+            playSound('incorrect');
+            gameState.player.bypassKeys--;
+            UIManager.renderPlayerStats();
+            GameStateManager.save();
+
+            questionFeedback.className = 'incorrect';
+            questionModal.classList.add('shake');
+            setTimeout(() => questionModal.classList.remove('shake'), 500);
+
+            if (gameState.player.bypassKeys > 0) {
+                questionFeedback.textContent = 'Firewall Detected! Access Denied. Try again.';
+            } else {
+                questionFeedback.textContent = 'Bypass keys exhausted! System rebooting...';
+                answerContainer.querySelector('#check-answer-btn').disabled = true;
+                setTimeout(() => {
+                    gameState.player.bypassKeys = gameState.gameConfig.maxKeys;
+                    UIManager.hideQuestionModal();
+                    UIManager.renderPlayerStats();
+                    GameStateManager.save();
+                }, 2000);
+            }
+        }
+        
+        function handleHint() {
+            if (gameState.player.deScramblers > 0) {
+                playSound('correct');
+                const puzzle = GameStateManager.getCurrentPuzzle();
+                if (puzzle && puzzle.hint) {
+                    const hintValue = puzzle.hint.split(':')[1];
+                    const inputEl = answerContainer.querySelector('#answer-input');
+                    questionFeedback.className = 'correct';
+                    questionFeedback.textContent = `De-Scrambler activated! The value of the ones column is ${hintValue}.`;
+                    gameState.player.deScramblers--;
+                    UIManager.renderPlayerStats();
+                    GameStateManager.save();
+                }
+            }
+        }
+
+        function handleUnlockVault() {
+            playSound('click');
+            const enteredCode = keypadDisplay.textContent;
+            if (enteredCode === SECRET_CODE) {
+                playSound('win');
+                UIManager.showScreen('win');
+                const randomIndex = Math.floor(Math.random() * gameState.prizes.length);
+                prizeText.textContent = gameState.prizes[randomIndex];
+                prizeDisplay.style.display = 'block';
+                localStorage.removeItem('agentMissionState'); 
+            } else {
+                playSound('incorrect');
+                const vaultContent = keypadDisplay.parentElement;
+                keypadDisplay.textContent = 'ACCESS DENIED';
+                vaultContent.classList.add('shake');
+                setTimeout(() => {
+                    vaultContent.classList.remove('shake');
+                    keypadDisplay.textContent = '';
+                }, 1000);
+            }
+        }
+
+        function initEventListeners() {
+            startGameBtn.addEventListener('click', handleStartGame);
+            playAgainBtn.addEventListener('click', GameStateManager.reset);
+            briefcaseGrid.addEventListener('click', handleBriefcaseClick);
+            hintBtn.addEventListener('click', handleHint);
+            unlockBtn.addEventListener('click', handleUnlockVault);
+            avatarUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = e => avatarPreview.src = e.target.result;
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // --- Game Initialization --- //
+        GameStateManager.init();
+        setupAudio();
+        initEventListeners();
+    });
+    </script>
+</body>
+</html>
