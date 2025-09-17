@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Playground Pals</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Short+Stack&display=swap" rel="stylesheet">
+    <style>
+        /*
+        * Game: Pet Playground Pals
+        * Description: A single-file educational game for 2nd graders for comparing numbers up to 20.
+        * Features: Friendly pet theme, avatar upload, localStorage persistence, secret code collection, randomized prizes, and a visual hint system.
+        */
+
+        :root {
+            --font-display: 'Fredoka One', cursive;
+            --font-body: 'Short Stack', cursive;
+            --c-bg: #aee3f4; /* Sky blue */
+            --c-primary: #82d173; /* Grass green */
+            --c-secondary: #fcd55c; /* Sunny yellow */
+            --c-accent: #ff7878; /* Friendly red */
+            --c-text: #4a4a4a;
+            --c-container: #fffef5;
+            --c-correct: #3a8a4f;
+            --c-incorrect: #c94040;
+            --c-border: #aaaaaa;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--c-bg);
+            color: var(--c-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 1200px;
+            height: 100%;
+            max-height: 800px;
+            background-color: var(--c-container);
+            border: 6px solid #4a4a4a;
+            box-shadow: 0 8px 0 #4a4a4a;
+            border-radius: 20px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* --- SCREEN MANAGEMENT & ANIMATIONS --- */
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            animation: fadeIn 0.5s ease;
+        }
+        .screen.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            80% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        /* --- UI COMPONENTS --- */
+        .bubbly-button {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            padding: 10px 24px;
+            border-radius: 50px;
+            border: 3px solid #4a4a4a;
+            background-color: var(--c-secondary);
+            color: var(--c-text);
+            box-shadow: 0 5px 0 #4a4a4a;
+            cursor: pointer;
+            transition: all 0.1s ease-out;
+            text-align: center;
+        }
+        .bubbly-button:hover { transform: translateY(2px); box-shadow: 0 3px 0 #4a4a4a; }
+        .bubbly-button:active { transform: translateY(5px); box-shadow: 0 0 0 #4a4a4a; }
+        .bubbly-button:disabled { background-color: #ccc; cursor: not-allowed; transform: translateY(0); box-shadow: 0 5px 0 #4a4a4a; }
+
+        input[type="text"], input[type="number"] {
+            font-family: var(--font-body);
+            font-size: 1.2rem;
+            padding: 8px 12px;
+            border: 3px solid #4a4a4a;
+            border-radius: 8px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .title {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 5vw, 2.8rem);
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: var(--c-accent);
+            text-shadow: 2px 2px 0 #4a4a4a;
+        }
+
+        /* --- SCREENS --- */
+        #start-screen, #vault-screen, #win-screen {
+            justify-content: center; align-items: center; text-align: center;
+            overflow-y: auto;
+        }
+        .content-box {
+            background: rgba(255,255,255,0.7);
+            border: 3px solid #4a4a4a;
+            padding: 2rem; border-radius: 15px;
+            max-width: 450px; display: flex;
+            flex-direction: column; gap: 1rem;
+        }
+        #avatar-preview, #player-avatar-display {
+            width: 100px; height: 100px;
+            border-radius: 50%; border: 4px solid #4a4a4a;
+            object-fit: cover; align-self: center;
+            background-color: #fff;
+        }
+        
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.5rem 1rem; border-bottom: 4px dotted #4a4a4a;
+            margin-bottom: 1rem; flex-shrink: 0;
+        }
+        .player-info { display: flex; align-items: center; gap: 1rem; }
+        #player-avatar-display { width: 50px; height: 50px; }
+        #player-name-display { font-family: var(--font-display); font-size: 1.2rem; }
+        .stats-display { display: flex; align-items: center; gap: 1.5rem; }
+        .stat { display: flex; align-items: center; gap: 0.5rem; }
+        .stat svg { width: 32px; height: 32px; }
+        .stat-count { font-family: var(--font-display); font-size: 1.5rem; color: var(--c-accent); }
+        
+        #hint-btn { background: none; border: none; padding: 0; cursor: pointer; }
+        #hint-btn:disabled { cursor: not-allowed; opacity: 0.4; }
+
+        #playground-container {
+            flex-grow: 1; display: flex; flex-direction: column;
+            background-color: var(--c-primary);
+            border: 3px solid #4a4a4a; border-radius: 12px;
+            padding: 1rem; overflow-y: auto;
+        }
+        .scenario-visuals {
+            display: flex;
+            flex-direction: column; /* Stack rows vertically */
+            gap: 0.5rem; /* Space between rows */
+            margin-bottom: 1rem;
+            padding: 1rem; background-color: rgba(255,255,255,0.3); border-radius: 10px;
+        }
+        .character-group {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 10px;
+        }
+        .character-group h3 { 
+            font-family: var(--font-display); 
+            min-width: 150px;
+            text-align: right;
+            padding-right: 1rem;
+            flex-shrink: 0;
+        }
+        .item-display {
+            display: flex; flex-wrap: wrap; justify-content: flex-start;
+            flex-grow: 1;
+            gap: 5px; 
+            min-height: 40px;
+            font-size: 2rem; /* Make emojis bigger */
+            line-height: 1.2;
+        }
+
+        #challenge-box {
+            background-color: var(--c-container); padding: 1rem;
+            border: 3px solid #4a4a4a; border-radius: 10px;
+        }
+        .challenge-step { display: none; text-align: center; }
+        .challenge-step.active { display: block; animation: fadeIn 0.3s; }
+        .challenge-step h4 { font-size: 1.5rem; margin-bottom: 1rem; font-family: var(--font-display); }
+        .choice-buttons { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;}
+
+        /* Drag and Drop Sentence */
+        #sentence-builder { margin-top: 1rem; }
+        #drop-targets { display: flex; justify-content: center; gap: 0.5rem; min-height: 60px; padding: 1rem; background-color: #e9e9e9; border-radius: 10px; }
+        .drop-target { width: 50px; height: 50px; border: 2px dashed var(--c-border); border-radius: 5px; }
+        .drop-target.over { background-color: #d4edda; }
+        .drop-target .draggable-item { cursor: default; }
+        #draggable-items { display: flex; justify-content: center; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;}
+        .draggable-item {
+            width: 50px; height: 50px; border: 3px solid #4a4a4a; border-radius: 5px;
+            display: flex; justify-content: center; align-items: center;
+            font-family: var(--font-display); font-size: 1.5rem;
+            background-color: var(--c-secondary); cursor: grab;
+        }
+        .draggable-item:active { cursor: grabbing; }
+        .dragging { opacity: 0.5; }
+        
+        #feedback-area { min-height: 30px; margin-top: 1rem; font-size: 1.2rem; font-weight: bold; }
+        #feedback-area.correct { color: var(--c-correct); }
+        #feedback-area.incorrect { color: var(--c-incorrect); }
+        .feedback-code {
+            font-family: var(--font-display); font-size: 4rem;
+            color: var(--c-accent); display: block; margin: 1rem 0;
+        }
+
+        /* --- FINAL KEYPAD --- */
+        .keypad-input-display {
+            font-family: var(--font-display); font-size: 2rem;
+            letter-spacing: 0.5rem; padding: 1rem;
+            border: 3px solid #4a4a4a; background-color: white;
+            margin: 1.5rem auto; min-height: 60px;
+            border-radius: 8px; width: 100%; max-width: 400px;
+        }
+        #keypad-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 10px; max-width: 250px; margin: 0 auto;
+        }
+        .keypad-btn { font-size: 1.2rem; }
+        #prize-display { display: none; animation: popIn 0.5s ease-out; }
+        #prize-text {
+            font-size: 1.8rem; font-family: var(--font-display);
+            padding: 1.5rem; margin: 1rem 0;
+            background-color: var(--c-secondary); color: var(--c-text);
+            border: 4px solid #4a4a4a; border-radius: 10px;
+        }
+        #progress-bar-container { width: 100%; height: 25px; background-color: #ddd; border: 3px solid #4a4a4a; border-radius: 50px; margin-top: 1rem; }
+        #progress-bar { width: 0%; height: 100%; background-color: var(--c-primary); border-radius: 50px; transition: width 0.5s ease; }
+
+        @media (max-width: 768px) {
+            .game-container { padding: 0.5rem; height: auto; max-height: none; }
+            body { overflow: auto; padding: 0.5rem; }
+            .header { flex-direction: column; gap: 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+
+        <!-- ===== START SCREEN ===== -->
+        <div id="start-screen" class="screen active">
+            <div class="content-box">
+                <h1 class="title">Pet Playground Pals</h1>
+                <p>Enter your name to become a Playground Helper!</p>
+                <img id="avatar-preview" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzRhNGE0YSI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MxLjY2IDAgMyAxLjM0IDMgM3MtMS4zNCAzLTMgMy0zLTEuMzQtMy0zIDEuMzQtMyAzLTN6bTAgMTRjLTIuMzMgMC00LjMxLTEuNDYtNS4xMS0zLjUgMS4zOS0yLjMzIDQuMTYtMy41IDUuMTItMy41czMuNzMgMS4xNyA1LjEyIDMuNWMtLjggMi4wNC0yLjc4IDMuNS01LjEyIDMuNXoiLz48L3N2Zz4=" alt="Avatar Preview">
+                <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+                <label for="avatar-upload" class="bubbly-button">Choose Photo</label>
+                <input type="text" id="player-name-input" placeholder="Enter Your Name">
+                <button id="start-game-btn" class="bubbly-button">Let's Play!</button>
+            </div>
+        </div>
+
+        <!-- ===== GAME SCREEN ===== -->
+        <div id="game-screen" class="screen">
+            <header class="header">
+                <div class="player-info">
+                    <img id="player-avatar-display" alt="Player Avatar">
+                    <h2 id="player-name-display"></h2>
+                </div>
+                <div class="stats-display">
+                    <div class="stat" id="codes-stat"></div>
+                    <div class="stat" id="hearts-stat"></div>
+                    <div class="stat">
+                        <button id="hint-btn" aria-label="Use Hint"></button>
+                    </div>
+                </div>
+            </header>
+            <main id="playground-container">
+                <h3 id="scenario-text" style="text-align: center; margin-bottom: 1rem; font-size: 1.4rem;"></h3>
+                <div id="scenario-visuals" class="scenario-visuals"></div>
+                <div id="challenge-box">
+                    <!-- Steps will be injected here -->
+                </div>
+            </main>
+            <div id="progress-bar-container"><div id="progress-bar"></div></div>
+        </div>
+
+        <!-- ===== TREAT BOX SCREEN ===== -->
+        <div id="vault-screen" class="screen">
+            <div class="content-box">
+                <h1 class="title">The Treat Box!</h1>
+                <p>You collected all the Paw Prints! Enter the 10-digit code to open the box.</p>
+                <div id="keypad-input-display" class="keypad-input-display"></div>
+                <div id="keypad-grid"></div>
+                <button id="unlock-btn" class="bubbly-button" style="margin-top: 1rem;">Open!</button>
+            </div>
+        </div>
+        
+        <!-- ===== WIN SCREEN ===== -->
+        <div id="win-screen" class="screen">
+            <div class="content-box">
+                 <h1 class="title">Hooray!</h1>
+                 <p>The Treat Box is open! All the pets are so happy. Thanks for your help!</p>
+                 <div id="prize-display">
+                    <h2>Your "Thank You" Prize:</h2>
+                    <p id="prize-text"></p>
+                    <button id="play-again-btn" class="bubbly-button" style="margin-top: 1rem;">Play Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const SECRET_CODE = "4651785799";
+        const GAME_DATA = JSON.parse(document.getElementById('pet_playground_data_json').textContent);
+        let gameState = {};
+        let currentChallengeStep = 0;
+
+        // --- DOM Elements --- //
+        const screens = { start: document.getElementById('start-screen'), game: document.getElementById('game-screen'), vault: document.getElementById('vault-screen'), win: document.getElementById('win-screen') };
+        const playerNameInput = document.getElementById('player-name-input');
+        const avatarUpload = document.getElementById('avatar-upload');
+        const avatarPreview = document.getElementById('avatar-preview');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const playerNameDisplay = document.getElementById('player-name-display');
+        const playerAvatarDisplay = document.getElementById('player-avatar-display');
+        const codesStat = document.getElementById('codes-stat');
+        const heartsStat = document.getElementById('hearts-stat');
+        const hintBtn = document.getElementById('hint-btn');
+        const scenarioText = document.getElementById('scenario-text');
+        const scenarioVisuals = document.getElementById('scenario-visuals');
+        const challengeBox = document.getElementById('challenge-box');
+        const progressBar = document.getElementById('progress-bar');
+        const keypadDisplay = document.getElementById('keypad-input-display');
+        const keypadGrid = document.getElementById('keypad-grid');
+        const unlockBtn = document.getElementById('unlock-btn');
+        const prizeDisplay = document.getElementById('prize-display');
+        const prizeText = document.getElementById('prize-text');
+        const playAgainBtn = document.getElementById('play-again-btn');
+
+        // --- SVG/Emoji FACTORY --- //
+        const SVG = {
+            pawPrint: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#a17c6b"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm3.5 12c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zm-7 0c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zm3.5-6c-1.38 0-2.5-1.12-2.5-2.5S10.62 3 12 3s2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`,
+            happyHeart: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ff7878" stroke="#4a4a4a" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>`,
+            magnifyingGlass: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#fcd55c" stroke="#4a4a4a" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>`,
+        };
+
+        // --- AUDIO --- //
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const sfx = {};
+        async function setupAudio() {
+            for (const key in GAME_DATA.sfx) {
+                try {
+                    const response = await fetch(GAME_DATA.sfx[key]);
+                    const arrayBuffer = await response.arrayBuffer();
+                    sfx[key] = await audioCtx.decodeAudioData(arrayBuffer);
+                } catch (e) { console.error(`Failed to decode audio for ${key}:`, e); }
+            }
+        }
+        function playSound(name) {
+            if (sfx[name] && audioCtx.state === 'running') {
+                const source = audioCtx.createBufferSource();
+                source.buffer = sfx[name];
+                source.connect(audioCtx.destination);
+                source.start(0);
+            }
+        }
+        
+        // --- STATE & UI MANAGEMENT --- //
+        const GameStateManager = {
+            init() {
+                gameState = JSON.parse(JSON.stringify(GAME_DATA));
+                if (this.load()) {
+                    UIManager.showScreen('game');
+                    UIManager.renderCurrentPuzzle();
+                } else {
+                    UIManager.showScreen('start');
+                }
+            },
+            save() { localStorage.setItem('petPlaygroundState', JSON.stringify(gameState.player)); },
+            load() {
+                const savedState = localStorage.getItem('petPlaygroundState');
+                if (savedState) {
+                    gameState.player = { ...GAME_DATA.player, ...JSON.parse(savedState) };
+                    return true;
+                }
+                return false;
+            },
+            reset() { localStorage.removeItem('petPlaygroundState'); location.reload(); },
+            getCurrentPuzzle() { return gameState.puzzles[gameState.player.currentPuzzleIndex]; },
+        };
+
+        const UIManager = {
+            showScreen(screenName) {
+                Object.values(screens).forEach(s => s.classList.remove('active'));
+                screens[screenName].classList.add('active');
+            },
+            renderPlayerStats() {
+                playerNameDisplay.textContent = gameState.player.helperName;
+                playerAvatarDisplay.src = gameState.player.avatar || avatarPreview.src;
+                const codesFound = gameState.player.codeJournal.filter(c => c !== null).length;
+                codesStat.innerHTML = `${SVG.pawPrint} <span class="stat-count">${codesFound}/${gameState.gameConfig.totalPuzzles}</span>`;
+                heartsStat.innerHTML = `${SVG.happyHeart} <span class="stat-count">${gameState.player.happyHearts}</span>`;
+                hintBtn.innerHTML = SVG.magnifyingGlass;
+                hintBtn.disabled = gameState.player.countHints <= 0;
+            },
+            renderCurrentPuzzle() {
+                this.renderPlayerStats();
+                const puzzle = GameStateManager.getCurrentPuzzle();
+                if (!puzzle) {
+                    this.showVaultScreen();
+                    return;
+                }
+                currentChallengeStep = 0;
+                
+                scenarioText.textContent = puzzle.scenario;
+                
+                // Render Visuals using Emojis
+                scenarioVisuals.innerHTML = '';
+                const visualParts = puzzle.visual.split(';');
+                visualParts.forEach((part, index) => {
+                    const [emoji, count] = part.split('|');
+                    const characterGroup = document.createElement('div');
+                    characterGroup.className = 'character-group';
+                    let itemsHTML = '';
+                    for(let i=0; i < count; i++) {
+                        itemsHTML += `<span>${emoji}</span>`; // Use emoji directly
+                    }
+                    characterGroup.innerHTML = `<h3>${puzzle.characters[index]}</h3><div class="item-display">${itemsHTML}</div>`;
+                    scenarioVisuals.appendChild(characterGroup);
+                });
+
+                this.renderChallengeStep();
+                this.updateProgressBar();
+            },
+            renderChallengeStep() {
+                const puzzle = GameStateManager.getCurrentPuzzle();
+                let html = '';
+                let stepFunctionality;
+
+                switch(currentChallengeStep) {
+                    case 0: // Who has more?
+                        html = `
+                            <div class="challenge-step active">
+                                <h4>Who has MORE?</h4>
+                                <div class="choice-buttons">
+                                    <button class="bubbly-button" data-answer="${puzzle.characters[0]}">${puzzle.characters[0]}</button>
+                                    <button class="bubbly-button" data-answer="${puzzle.characters[1]}">${puzzle.characters[1]}</button>
+                                </div>
+                            </div>`;
+                        stepFunctionality = () => {
+                            challengeBox.querySelectorAll('.choice-buttons button').forEach(btn => {
+                                btn.onclick = () => this.checkAnswer(btn.dataset.answer, puzzle.answers.more);
+                            });
+                        };
+                        break;
+                    case 1: // Who has fewer?
+                         html = `
+                            <div class="challenge-step active">
+                                <h4>Who has FEWER?</h4>
+                                <div class="choice-buttons">
+                                    <button class="bubbly-button" data-answer="${puzzle.characters[0]}">${puzzle.characters[0]}</button>
+                                    <button class="bubbly-button" data-answer="${puzzle.characters[1]}">${puzzle.characters[1]}</button>
+                                </div>
+                            </div>`;
+                        stepFunctionality = () => {
+                            challengeBox.querySelectorAll('.choice-buttons button').forEach(btn => {
+                                btn.onclick = () => this.checkAnswer(btn.dataset.answer, puzzle.answers.fewer);
+                            });
+                        };
+                        break;
+                    case 2: // How many more/fewer?
+                        html = `
+                            <div class="challenge-step active">
+                                <h4>How many more does ${puzzle.answers.more} have?</h4>
+                                <input type="number" id="diff-input" style="width: 100px; margin: 0 auto 1rem;">
+                                <button id="check-diff-btn" class="bubbly-button">Check</button>
+                            </div>`;
+                        stepFunctionality = () => {
+                            challengeBox.querySelector('#check-diff-btn').onclick = () => {
+                                const answer = challengeBox.querySelector('#diff-input').value;
+                                this.checkAnswer(answer, puzzle.answers.difference);
+                            };
+                        };
+                        break;
+                    case 3: // Build the sentence
+                        const sentenceParts = [...puzzle.answers.sentence.slice(0,3), ...puzzle.answers.sentence.slice(4)];
+                        sentenceParts.sort(() => Math.random() - 0.5); // Shuffle
+                        html = `
+                            <div class="challenge-step active">
+                                <h4>Build the Number Sentence</h4>
+                                <div id="sentence-builder">
+                                    <div id="drop-targets">
+                                        <div class="drop-target"></div><div class="drop-target"></div><div class="drop-target"></div>
+                                        <div class="draggable-item" style="cursor:default;">=</div>
+                                        <div class="drop-target"></div>
+                                    </div>
+                                    <div id="draggable-items">
+                                        ${sentenceParts.map(p => `<div class="draggable-item" draggable="true">${p}</div>`).join('')}
+                                    </div>
+                                </div>
+                                <button id="check-sentence-btn" class="bubbly-button" style="margin-top: 1rem;">Check</button>
+                            </div>`;
+                        stepFunctionality = () => {
+                            this.setupDragAndDrop();
+                            challengeBox.querySelector('#check-sentence-btn').onclick = () => {
+                                const dropTargets = challengeBox.querySelectorAll('#drop-targets .drop-target');
+                                let builtSentence = [];
+                                dropTargets.forEach(t => {
+                                    if(t.firstChild) builtSentence.push(t.firstChild.textContent);
+                                });
+                                // Correct answer needs to be reassembled in order
+                                const correct = [puzzle.answers.sentence[0], puzzle.answers.sentence[1], puzzle.answers.sentence[2], puzzle.answers.sentence[4]];
+                                this.checkAnswer(JSON.stringify(builtSentence), JSON.stringify(correct));
+                            };
+                        };
+                        break;
+                     case 4: // Show code and continue
+                        const secretDigit = SECRET_CODE[gameState.player.currentPuzzleIndex];
+                        html = `
+                            <div class="challenge-step active">
+                                <h4>Great Helper!</h4>
+                                <p>Write this Paw Print code number down:</p>
+                                <div class="feedback-code">${secretDigit}</div>
+                                <button id="next-puzzle-btn" class="bubbly-button">Next Friend</button>
+                            </div>`;
+                        stepFunctionality = () => {
+                            challengeBox.querySelector('#next-puzzle-btn').onclick = () => {
+                                playSound('click');
+                                gameState.player.solvedPuzzles.push(puzzle.id);
+                                gameState.player.codeJournal[gameState.player.currentPuzzleIndex] = secretDigit;
+                                gameState.player.currentPuzzleIndex++;
+                                GameStateManager.save();
+                                this.renderCurrentPuzzle();
+                            };
+                        };
+                        break;
+                }
+                challengeBox.innerHTML = html + `<div id="feedback-area"></div>`;
+                if(stepFunctionality) stepFunctionality();
+            },
+            checkAnswer(userAnswer, correctAnswer) {
+                playSound('click');
+                const feedbackEl = challengeBox.querySelector('#feedback-area');
+                if (userAnswer === correctAnswer) {
+                    playSound('correct');
+                    feedbackEl.className = 'correct';
+                    feedbackEl.textContent = 'Correct!';
+                    setTimeout(() => {
+                        currentChallengeStep++;
+                        this.renderChallengeStep();
+                    }, 1000);
+                } else {
+                    playSound('incorrect');
+                    gameState.player.happyHearts--;
+                    this.renderPlayerStats();
+                    GameStateManager.save();
+                    
+                    feedbackEl.className = 'incorrect';
+                    challengeBox.classList.add('shake');
+                    setTimeout(() => challengeBox.classList.remove('shake'), 500);
+
+                    if (gameState.player.happyHearts > 0) {
+                        feedbackEl.textContent = 'Oops! Let\'s try that part again.';
+                    } else {
+                        feedbackEl.textContent = 'Out of hearts! Let\'s start this puzzle over.';
+                        setTimeout(() => {
+                            gameState.player.happyHearts = gameState.gameConfig.maxHearts;
+                            this.renderCurrentPuzzle();
+                        }, 2000);
+                    }
+                }
+            },
+            setupDragAndDrop() {
+                const draggables = document.querySelectorAll('.draggable-item[draggable="true"]');
+                const dropTargets = document.querySelectorAll('.drop-target');
+                const sourceContainer = document.getElementById('draggable-items');
+                let draggedItem = null;
+
+                draggables.forEach(item => {
+                    item.addEventListener('dragstart', e => {
+                        draggedItem = e.target;
+                        setTimeout(() => e.target.classList.add('dragging'), 0);
+                    });
+                    item.addEventListener('dragend', e => {
+                        e.target.classList.remove('dragging');
+                    });
+                });
+                
+                const handleDrop = (target) => {
+                     if (!draggedItem) return;
+                     // If target has a child, swap it with the source container
+                     if (target.children.length > 0) {
+                         sourceContainer.appendChild(target.children[0]);
+                     }
+                     target.appendChild(draggedItem);
+                     draggedItem = null;
+                }
+
+                dropTargets.forEach(target => {
+                    target.addEventListener('dragover', e => { e.preventDefault(); target.classList.add('over'); });
+                    target.addEventListener('dragleave', () => target.classList.remove('over'));
+                    target.addEventListener('drop', e => {
+                        e.preventDefault();
+                        target.classList.remove('over');
+                        handleDrop(target);
+                    });
+                });
+                
+                sourceContainer.addEventListener('dragover', e => { e.preventDefault(); });
+                sourceContainer.addEventListener('drop', e => {
+                    if (draggedItem && e.target === sourceContainer) {
+                         sourceContainer.appendChild(draggedItem);
+                    }
+                });
+
+            },
+            updateProgressBar() {
+                const progress = (gameState.player.currentPuzzleIndex / gameState.gameConfig.totalPuzzles) * 100;
+                progressBar.style.width = `${progress}%`;
+            },
+            showVaultScreen() {
+                this.showScreen('vault');
+                this.renderFinalKeypad();
+            },
+            renderFinalKeypad() {
+                let keypadHTML = '';
+                const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'DEL', 0, ''];
+                numbers.forEach(num => {
+                    keypadHTML += `<button class="bubbly-button keypad-btn" ${num === '' ? 'style="visibility:hidden;"' : ''}>${num}</button>`;
+                });
+                keypadGrid.innerHTML = keypadHTML;
+
+                keypadGrid.querySelectorAll('.keypad-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        playSound('click');
+                        const value = btn.textContent;
+                        let currentCode = keypadDisplay.textContent;
+                        if (value === 'DEL') {
+                            keypadDisplay.textContent = currentCode.slice(0, -1);
+                        } else if (currentCode.length < 10) {
+                            keypadDisplay.textContent += value;
+                        }
+                    });
+                });
+                keypadDisplay.textContent = '';
+            }
+        };
+
+        // --- GAME LOGIC --- //
+        function handleStartGame() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const name = playerNameInput.value.trim();
+            if (!name) { alert("Please enter your name!"); return; }
+            playSound('click');
+            gameState.player.helperName = name;
+            gameState.player.avatar = avatarPreview.src;
+            GameStateManager.save();
+            UIManager.showScreen('game');
+            UIManager.renderCurrentPuzzle();
+        }
+
+        function handleHint() {
+            if (gameState.player.countHints > 0 && !document.querySelector('#hint-canvas')) {
+                playSound('correct');
+                const puzzle = GameStateManager.getCurrentPuzzle();
+                if (puzzle && puzzle.hint) {
+                    const [_, total, change] = puzzle.hint.split('|');
+                    const min = Math.min(parseInt(total), parseInt(change));
+                    const itemDisplays = scenarioVisuals.querySelectorAll('.item-display');
+
+                    const canvas = document.createElement('canvas');
+                    canvas.id = 'hint-canvas';
+                    const containerRect = scenarioVisuals.getBoundingClientRect();
+                    canvas.width = containerRect.width;
+                    canvas.height = containerRect.height;
+                    canvas.style.position = 'absolute';
+                    canvas.style.left = '0';
+                    canvas.style.top = '0';
+                    canvas.style.pointerEvents = 'none';
+                    scenarioVisuals.style.position = 'relative';
+                    scenarioVisuals.appendChild(canvas);
+                    const ctx = canvas.getContext('2d');
+                    
+                    for(let i=0; i < min; i++) {
+                        const item1 = itemDisplays[0].children[i].getBoundingClientRect();
+                        const item2 = itemDisplays[1].children[i].getBoundingClientRect();
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(item1.left - containerRect.left + item1.width / 2, item1.top - containerRect.top + item1.height);
+                        ctx.lineTo(item2.left - containerRect.left + item2.width / 2, item2.top - containerRect.top);
+                        ctx.strokeStyle = 'rgba(255, 120, 120, 0.9)';
+                        ctx.lineWidth = 3;
+                        ctx.setLineDash([5, 5]);
+                        ctx.stroke();
+                    }
+
+                    gameState.player.countHints--;
+                    UIManager.renderPlayerStats();
+                    GameStateManager.save();
+                }
+            }
+        }
+        
+        function handleUnlockVault() {
+            playSound('click');
+            const enteredCode = keypadDisplay.textContent;
+            if (enteredCode === SECRET_CODE) {
+                playSound('win');
+                UIManager.showScreen('win');
+                const randomIndex = Math.floor(Math.random() * GAME_DATA.prizes.length);
+                prizeText.textContent = GAME_DATA.prizes[randomIndex];
+                prizeDisplay.style.display = 'block';
+                localStorage.removeItem('petPlaygroundState'); 
+            } else {
+                playSound('incorrect');
+                const vaultContent = keypadDisplay.parentElement;
+                keypadDisplay.textContent = 'TRY AGAIN';
+                vaultContent.classList.add('shake');
+                setTimeout(() => {
+                    vaultContent.classList.remove('shake');
+                    keypadDisplay.textContent = '';
+                }, 1000);
+            }
+        }
+
+        // --- Event Listeners & Init --- //
+        function initEventListeners() {
+            startGameBtn.addEventListener('click', handleStartGame);
+            playAgainBtn.addEventListener('click', GameStateManager.reset);
+            hintBtn.addEventListener('click', handleHint);
+            unlockBtn.addEventListener('click', handleUnlockVault);
+            avatarUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = e => avatarPreview.src = e.target.result;
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        GameStateManager.init();
+        setupAudio();
+        initEventListeners();
+    });
+    </script>
+    <script id="pet_playground_data_json" type="application/json">
+        {
+          "player": { "helperName": "", "avatar": "", "happyHearts": 3, "countHints": 1, "solvedPuzzles": [], "currentPuzzleIndex": 0, "codeJournal": [null, null, null, null, null, null, null, null, null, null] },
+          "gameConfig": { "totalPuzzles": 10, "maxHearts": 3 },
+          "puzzles": [
+            { "id": "q0", "type": "comparison-set", "scenario": "Mia has 12 pizza slices. Leo has 8 pizza slices.", "characters": ["Mia", "Leo"], "visual": "🍕|12;🍕|8", "answers": { "more": "Mia", "fewer": "Leo", "difference": "4", "sentence": ["12", "-", "8", "=", "4"] }, "hint": "pair|12|8" },
+            { "id": "q1", "type": "comparison-set", "scenario": "Sam has 9 donuts. Ava has 15 donuts.", "characters": ["Sam", "Ava"], "visual": "🍩|9;🍩|15", "answers": { "more": "Ava", "fewer": "Sam", "difference": "6", "sentence": ["15", "-", "9", "=", "6"] }, "hint": "pair|15|9" },
+            { "id": "q2", "type": "comparison-set", "scenario": "A farmer has 11 pigs. A baker has 16 cookies.", "characters": ["Farmer", "Baker"], "visual": "🐷|11;🍪|16", "answers": { "more": "Baker", "fewer": "Farmer", "difference": "5", "sentence": ["16", "-", "11", "=", "5"] }, "hint": "pair|16|11" },
+            { "id": "q3", "type": "comparison-set", "scenario": "An astronaut saw 18 rocket ships. A pilot saw 7 airplanes.", "characters": ["Astronaut", "Pilot"], "visual": "🚀|18;✈️|7", "answers": { "more": "Astronaut", "fewer": "Pilot", "difference": "11", "sentence": ["18", "-", "7", "=", "11"] }, "hint": "pair|18|7" },
+            { "id": "q4", "type": "comparison-set", "scenario": "There are 6 frogs in a pond. There are 13 fish in the pond.", "characters": ["Frogs", "Fish"], "visual": "🐸|6;🐟|13", "answers": { "more": "Fish", "fewer": "Frogs", "difference": "7", "sentence": ["13", "-", "6", "=", "7"] }, "hint": "pair|13|6" },
+            { "id": "q5", "type": "comparison-set", "scenario": "A monkey has 20 bananas. A bear has 12 honey pots.", "characters": ["Monkey", "Bear"], "visual": "🍌|20;🍯|12", "answers": { "more": "Monkey", "fewer": "Bear", "difference": "8", "sentence": ["20", "-", "12", "=", "8"] }, "hint": "pair|20|12" },
+            { "id": "q6", "type": "comparison-set", "scenario": "A girl read 14 books. Her brother read 9 books.", "characters": ["Girl", "Brother"], "visual": "📚|14;📚|9", "answers": { "more": "Girl", "fewer": "Brother", "difference": "5", "sentence": ["14", "-", "9", "=", "5"] }, "hint": "pair|14|9" },
+            { "id": "q7", "type": "comparison-set", "scenario": "There are 4 big dogs and 11 small cats at the park.", "characters": ["Dogs", "Cats"], "visual": "🐶|4;🐱|11", "answers": { "more": "Cats", "fewer": "Dogs", "difference": "7", "sentence": ["11", "-", "4", "=", "7"] }, "hint": "pair|11|4" },
+            { "id": "q8", "type": "comparison-set", "scenario": "A rabbit has 19 carrots. A squirrel has 10 acorns.", "characters": ["Rabbit", "Squirrel"], "visual": "🥕|19;🌰|10", "answers": { "more": "Rabbit", "fewer": "Squirrel", "difference": "9", "sentence": ["19", "-", "10", "=", "9"] }, "hint": "pair|19|10" },
+            { "id": "q9", "type": "comparison-set", "scenario": "A gardener planted 17 sunflowers. A bee visited 8 flowers.", "characters": ["Gardener", "Bee"], "visual": "🌻|17;🐝|8", "answers": { "more": "Gardener", "fewer": "Bee", "difference": "9", "sentence": ["17", "-", "8", "=", "9"] }, "hint": "pair|17|8" }
+          ],
+          "prizes": [ "Free 5 mins recess!", "A delicious snack!", "A piece of chocolate!", "A refreshing drink!", "5 minutes of free time!" ],
+          "sfx": { "click": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==", "correct": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==", "incorrect": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==", "win": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==" }
+        }
+    </script>
+</body>
+</html>
+
+
