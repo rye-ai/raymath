@@ -3,1034 +3,832 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Literary Detective Agency - ELA 6.1.1</title>
+    <title>Two Myths: An Analysis of Plot and Character</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* Custom Styles */
         body {
-            font-family: 'Georgia', serif;
+            font-family: 'Lato', sans-serif;
+            background-color: #F8F0E3; /* Papyrus Cream */
+            color: #333;
         }
-        .theme-bg-primary { background-color: #1a237e; }
-        .theme-bg-secondary { background-color: #fffde7; }
-        .theme-text-primary { color: #1a237e; }
-        .theme-text-secondary { color: #fffde7; }
-        .theme-accent { background-color: #f9a825; }
-        .theme-accent-hover:hover { background-color: #fbc02d; }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Merriweather', serif;
+        }
+        .theme-bg { background-color: #F8F0E3; }
+        .theme-primary { color: #003366; } /* Deep Blue */
+        .theme-secondary { color: #CD7F32; } /* Bronze */
+        .theme-accent { background-color: #003366; }
+        .theme-accent-text { color: white; }
         .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            transform: scale(1);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
         }
         .btn:hover {
             transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
-        .slide-container {
-            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        .view {
+            display: none;
+            animation: fadeIn 0.5s;
         }
-        .slide-hidden {
-            opacity: 0;
-            transform: translateX(20px);
-            position: absolute;
-            pointer-events: none;
+        .view.active {
+            display: block;
         }
-        .slide-visible {
-            opacity: 1;
-            transform: translateX(0);
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
-        .option-btn {
-            border: 2px solid #1a237e;
-            transition: all 0.2s;
+        /* Styles for selected answers */
+        .selected-option {
+            background-color: #D1E7FD !important;
+            border-color: #003366 !important;
         }
-        .option-btn.selected {
-            background-color: #c5cae9;
-            border-color: #3f51b5;
-        }
-        .hot-text {
+        .hot-text-selected {
+            background-color: #ffeb3b;
+            border-radius: 4px;
+            padding: 2px;
             cursor: pointer;
-            border-bottom: 2px dotted #f9a825;
+        }
+         .hot-text-clickable {
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 4px;
             transition: background-color 0.2s;
         }
-        .hot-text.selected {
-            background-color: #f9a825;
-            color: #1a237e;
-            border-radius: 4px;
+        .hot-text-clickable:hover {
+            background-color: #fff2a8;
         }
-        .drop-zone {
-            border: 2px dashed #1a237e;
-            min-height: 50px;
+        /* Print styles for PDF generation */
+        .print-container {
+            font-family: 'Times New Roman', serif;
+            background-color: white;
+            color: black;
+            padding: 20px;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
         }
-        .drag-item {
-            cursor: grab;
-            border: 2px solid #1a237e;
+        .print-container h3 {
+            font-size: 16pt;
+            font-weight: bold;
         }
-        .correct-answer {
-            background-color: #c8e6c9 !important;
+        .print-container p, .print-container li {
+            font-size: 12pt;
         }
-        .incorrect-answer {
-            background-color: #ffcdd2 !important;
+        .print-passage {
+            background-color: #f5f5f5;
+            border-left: 3px solid #ccc;
+            padding: 10px;
+            margin-bottom: 15px;
         }
-        /* Print-specific styles for PDF generation */
-        @media print {
-            body, .printable-container {
-                background-color: white !important;
-                color: black !important;
-            }
-            .no-print {
-                display: none !important;
-            }
+        .print-answer-selected {
+            background-color: #e0e0e0;
+            font-weight: bold;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .print-hot-text-selected {
+             background-color: #e0e0e0;
+             font-weight: bold;
         }
     </style>
 </head>
-<body class="theme-bg-secondary theme-text-primary">
+<body class="theme-bg">
 
     <!-- Header -->
-    <header id="header" class="theme-bg-primary theme-text-secondary p-4 shadow-md flex justify-between items-center no-print">
-        <h1 class="text-2xl font-bold">The Literary Detective Agency</h1>
-        <div>
-            <button id="home-btn" class="theme-accent text-gray-800 btn">Home</button>
-            <button id="download-work-btn" class="ml-2 theme-accent text-gray-800 btn">Download Work</button>
-            <button id="download-pdf-btn" class="ml-2 theme-accent text-gray-800 btn hidden">Download as PDF</button>
+    <header class="theme-accent text-white p-4 shadow-md sticky top-0 z-50 flex justify-between items-center">
+        <h1 class="text-xl md:text-2xl font-bold">Two Myths: An Analysis</h1>
+        <div id="header-buttons">
+            <button id="home-btn" class="theme-accent-text font-bold py-2 px-4 rounded hover:bg-white hover:text-gray-800">Home</button>
         </div>
     </header>
 
-    <!-- Main Application Container -->
-    <main id="app" class="p-4 md:p-8">
-
+    <main id="app-container" class="p-4 md:p-8 max-w-7xl mx-auto">
         <!-- Home View -->
-        <div id="home-view">
-            <div class="text-center bg-white p-8 rounded-lg shadow-lg">
-                <h2 class="text-4xl font-bold mb-2">Case File: "The Gift of the Magi"</h2>
-                <p class="text-lg text-gray-600 mb-6">Standard: ELA.6.AOR.1.1 - Analyze how events and details develop plot and characters.</p>
-                <div class="flex justify-center gap-4">
-                    <button id="start-test-btn" class="theme-accent text-gray-800 btn text-xl">Begin Investigation</button>
-                    <button id="start-practice-btn" class="theme-accent text-gray-800 btn text-xl">Hone Your Skills</button>
+        <div id="home-view" class="view active text-center">
+            <div class="bg-white/80 p-8 rounded-lg shadow-xl backdrop-blur-sm">
+                <h2 class="text-4xl font-bold theme-primary mb-2">Analysis of Two Myths</h2>
+                <p class="text-lg text-gray-700 mb-8">An interactive lesson on setting, character, and plot.</p>
+                <div class="space-y-4 md:space-y-0 md:space-x-4">
+                    <button id="start-test-btn" class="btn theme-accent theme-accent-text text-xl font-bold py-4 px-8 rounded-lg shadow-lg w-full md:w-auto">Take the Test</button>
+                    <button id="start-practice-btn" class="btn bg-white border-2 border-stone-400 text-stone-600 text-xl font-bold py-4 px-8 rounded-lg shadow-lg w-full md:w-auto">Go to Practice Center</button>
                 </div>
             </div>
         </div>
 
         <!-- Test View -->
-        <div id="test-view" class="hidden">
-            <div id="progress-bar-container" class="w-full bg-gray-200 rounded-full h-2.5 mb-4 no-print">
-                <div id="progress-bar" class="bg-yellow-400 h-2.5 rounded-full" style="width: 0%"></div>
+        <div id="test-view" class="view">
+            <div id="test-progress-bar-container" class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                <div id="test-progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 md:gap-8">
-                <!-- Story Panel -->
-                <div id="story-panel" class="bg-white p-6 rounded-lg shadow-md md:h-[75vh] md:overflow-y-auto">
-                    <h3 class="text-2xl font-bold mb-4 border-b-2 border-gray-200 pb-2">The Gift of the Magi</h3>
-                    <p class="text-sm italic text-gray-500 mb-4">by O. Henry</p>
-                    <div id="story-content" class="space-y-4 text-base">
-                        <p>One dollar and eighty-seven cents. That was all. And sixty cents of it was in pennies. Pennies saved one and two at a time by bulldozing the grocer and the vegetable man and the butcher until one’s cheeks burned with the silent imputation of parsimony that such close dealing implied. Three times Della counted it. One dollar and eighty-seven cents. And the next day would be Christmas.</p>
-                        <p>There was clearly nothing to do but flop down on the shabby little couch and howl. So Della did it. Which instigates the moral reflection that life is made up of sobs, sniffles, and smiles, with sniffles predominating.</p>
-                        <p>While the mistress of the home is gradually subsiding from the first stage to the second, take a look at the home. A furnished flat at $8 per week. It did not exactly beggar description, but it certainly had that word on the lookout for the mendicancy squad.</p>
-                        <p>In the vestibule below was a letter-box into which no letter would go, and an electric button from which no mortal finger could coax a ring. Also appertaining thereunto was a card bearing the name “Mr. James Dillingham Young.”</p>
-                        <p>The “Dillingham” had been flung to the breeze during a former period of prosperity when its possessor was being paid $30 per week. Now, when the income was shrunk to $20, though, they were thinking seriously of contracting to a modest and unassuming D. But whenever Mr. James Dillingham Young came home and reached his flat above he was called “Jim” and greatly hugged by Mrs. James Dillingham Young, already introduced to you as Della. Which is all very good.</p>
-                        <p>Della finished her cry and attended to her cheeks with the powder rag. She stood by the window and looked out dully at a gray cat walking a gray fence in a gray backyard. To-morrow would be Christmas Day, and she had only $1.87 with which to buy Jim a present. She had been saving every penny she could for months, with this result. Twenty dollars a week doesn’t go far. Expenses had been greater than she had calculated. They always are. Only $1.87 to buy a present for her Jim. Her Jim. Many a happy hour she had spent planning for something nice for him. Something fine and rare and sterling—something just a little bit near to being worthy of the honor of being owned by Jim.</p>
-                        <p>There was a pier-glass between the windows of the room. Suddenly she whirled from the window and stood before the glass. Her eyes were shining brilliantly, but her face had lost its color within twenty seconds. Rapidly she pulled down her hair and let it fall to its full length.</p>
-                        <p>Now, there were two possessions of the James Dillingham Youngs in which they both took a mighty pride. One was Jim’s gold watch that had been his father’s and his grandfather’s. The other was Della’s hair. Had the queen of Sheba lived in the flat across the airshaft, Della would have let her hair hang out the window some day to dry just to depreciate Her Majesty’s jewels and gifts. Had King Solomon been the janitor, with all his treasures piled up in the basement, Jim would have pulled out his watch every time he passed, just to see him pluck at his beard from envy.</p>
-                        <p>So now Della’s beautiful hair fell about her, rippling and shining like a cascade of brown waters. It reached below her knee and made itself almost a garment for her. And then she did it up again nervously and quickly. Once she faltered for a minute and stood still while a tear or two splashed on the worn red carpet.</p>
-                        <p>On went her old brown jacket; on went her old brown hat. With a whirl of skirts and with the brilliant sparkle still in her eyes, she fluttered out the door and down the stairs to the street. Where she stopped the sign read: “Mme. Sofronie. Hair Goods of All Kinds.” One flight up Della ran, and collected herself, panting. Madame, large, too white, chilly, hardly looked the “Sofronie.”</p>
-                        <p>“Will you buy my hair?” asked Della. “I buy hair,” said Madame. “Take yer hat off and let’s have a sight at the looks of it.” Down rippled the brown cascade. “Twenty dollars,” said Madame, lifting the mass with a practised hand.</p>
-                        <p>“Give it to me quick,” said Della. Oh, and the next two hours tripped by on rosy wings. Forget the hashed metaphor. She was ransacking the stores for Jim’s present.</p>
-                        <p>She found it at last. It surely had been made for Jim and no one else. There was no other like it in any of the stores, and she had turned all of them inside out. It was a platinum fob chain, simple and chaste in design, properly proclaiming its value by substance alone and not by meretricious ornamentation—as all good things should do. It was even worthy of The Watch. As soon as she saw it she knew that it must be Jim’s. It was like him. Quietness and value—the description applied to both. Twenty-one dollars they took from her for it, and she hurried home with the 87 cents. With that chain on his watch Jim might be properly anxious about the time in any company. Grand as the watch was, he sometimes looked at it on the sly on account of the old leather strap that he used in place of a chain.</p>
-                        <p>When Della reached home her intoxication gave way a little to prudence and reason. She got out her curling irons and went to work repairing the ravages made by generosity added to love. Which is always a tremendous task, dear friends—a mammoth task.</p>
-                        <p>At 7 o’clock the coffee was made and the frying-pan was on the back of the stove hot and ready to cook the chops. Jim was never late. Della doubled the fob chain in her hand and sat on the corner of the table near the door that he always entered. Then she heard his step on the stair away down on the first flight, and she turned white for just a moment. She had a habit for saying little silent prayers about the simplest everyday things, and now she whispered: “Please God, make him think I am still pretty.”</p>
-                        <p>The door opened and Jim stepped in and closed it. He looked thin and very serious. Poor fellow, he was only twenty-two—and to be burdened with a family! He needed a new overcoat and he was without gloves.</p>
-                        <p>Jim stopped inside the door, as immovable as a setter at the scent of quail. His eyes were fixed upon Della, and there was an expression in them that she could not read, and it terrified her. It was not anger, nor surprise, nor disapproval, nor horror, nor any of the sentiments that she had been prepared for. He simply stared at her fixedly with that peculiar expression on his face.</p>
-                        <p>“Jim, darling,” she cried, “don’t look at me that way. I had my hair cut off and sold because I couldn’t have lived through Christmas without giving you a present. It’ll grow out again—you won’t mind, will you? I just had to do it. My hair grows awfully fast. Say ‘Merry Christmas!’ Jim, and let’s be happy. You don’t know what a nice— what a beautiful, nice gift I’ve got for you.”</p>
-                        <p>“You’ve cut off your hair?” asked Jim, laboriously, as if he had not arrived at that patent fact yet even after the hardest mental labor.</p>
-                        <p>“Cut it off and sold it,” said Della. “Don’t you like me just as well, anyhow? I’m me without my hair, ain’t I?”</p>
-                        <p>Jim looked about the room curiously. “You say your hair is gone?” he said, with an air almost of idiocy. “You needn’t look for it,” said Della. “It’s sold, I tell you—sold and gone, too. It’s Christmas Eve, boy. Be good to me, for it went for you. Maybe the hairs of my head were numbered,” she went on with a sudden serious sweetness, “but nobody could ever count my love for you. Shall I put the chops on, Jim?”</p>
-                        <p>Out of his trance Jim seemed quickly to wake. He enfolded his Della. For ten seconds let us regard with discreet scrutiny some inconsequential object in the other direction. Eight dollars a week or a million a year—what is the difference? A mathematician or a wit would give you the wrong answer. The magi brought valuable gifts, but that was not among them. This dark assertion will be illuminated later on.</p>
-                        <p>Jim drew a package from his overcoat pocket and threw it upon the table. “Don’t make any mistake, Dell,” he said, “about me. I don’t think there’s anything in the way of a haircut or a shave or a shampoo that could make me like my girl any less. But if you’ll unwrap that package you may see why you had me going a while at first.”</p>
-                        <p>White fingers and nimble tore at the string and paper. And then an ecstatic scream of joy; and then, alas! a quick feminine change to hysterical tears and wails, necessitating the immediate employment of the lord of the flat with all his comforting powers.</p>
-                        <p>For there lay The Combs—the set of combs, side and back, that Della had worshipped for long in a Broadway window. Beautiful combs, pure tortoise shell, with jewelled rims—just the shade to wear in the beautiful vanished hair. They were expensive combs, she knew, and her heart had simply craved and yearned over them without the least hope of possession. And now, they were hers, but the tresses that should have adorned the coveted adornments were gone.</p>
-                        <p>But she hugged them to her bosom, and at length she was able to look up with dim eyes and a smile and say: “My hair grows so fast, Jim!”</p>
-                        <p>And then Della leaped up like a little singed cat and cried, “Oh, oh!” Jim had not yet seen his beautiful present. She held it out to him eagerly upon her open palm. The dull precious metal seemed to flash with a reflection of her bright and ardent spirit. “Isn’t it a dandy, Jim? I hunted all over town to find it. You’ll have to look at the time a hundred times a day now. Give me your watch. I want to see how it looks on it.”</p>
-                        <p>Instead of obeying, Jim tumbled down on the couch and put his hands under the back of his head and smiled. “Dell,” said he, “let’s put our Christmas presents away and keep ’em a while. They’re too nice to use just at present. I sold the watch to get the money to buy your combs. And now suppose you put the chops on.”</p>
-                        <p>The magi, as you know, were wise men—wonderfully wise men—who brought gifts to the Babe in the manger. They invented the art of giving Christmas presents. Being wise, their gifts were no doubt wise ones, possibly bearing the privilege of exchange in case of duplication. And here I have lamely related to you the uneventful chronicle of two foolish children in a flat who most unwisely sacrificed for each other the greatest treasures of their house. But in a last word to the wise of these days let it be said that of all who give gifts these two were the wisest. O all who give and receive gifts, such as they are wisest. Everywhere they are wisest. They are the magi.</p>
-                    </div>
-                </div>
-
-                <!-- Question Panel -->
-                <div id="question-panel" class="relative mt-8 md:mt-0">
-                    <!-- This div will be populated with question slides -->
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="test-question-counter" class="text-xl font-bold theme-primary">Question 1 of 10</h2>
+                <div>
+                     <button id="download-work-btn" class="btn bg-gray-500 text-white text-sm font-bold py-1 px-3 rounded-md">Download Work</button>
+                     <button id="export-pdf-btn" class="btn bg-red-700 text-white text-sm font-bold py-1 px-3 rounded-md">Download as PDF</button>
                 </div>
             </div>
+            <div id="test-content" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Source Text Column -->
+                <div id="source-text-container" class="bg-white/80 p-6 rounded-lg shadow-lg overflow-y-auto max-h-[75vh]">
+                    <!-- Passage text will be injected here -->
+                </div>
 
-            <!-- Test Navigation -->
-            <div id="test-nav" class="flex justify-between items-center mt-6 no-print">
-                <button id="prev-btn" class="theme-accent text-gray-800 btn">Previous</button>
-                <span id="question-counter" class="font-bold text-lg"></span>
-                <button id="next-btn" class="theme-accent text-gray-800 btn">Next</button>
+                <!-- Question Column -->
+                <div id="question-container" class="bg-white/80 p-6 rounded-lg shadow-lg">
+                    <!-- Question content will be injected here -->
+                </div>
+            </div>
+            <div id="test-navigation" class="mt-6 flex justify-between">
+                <button id="test-prev-btn" class="btn bg-gray-300 text-gray-700 font-bold py-2 px-6 rounded-lg">Previous</button>
+                <button id="test-next-btn" class="btn theme-accent theme-accent-text font-bold py-2 px-6 rounded-lg">Next</button>
             </div>
         </div>
-
-        <!-- Practice View -->
-        <div id="practice-view" class="hidden">
-             <div id="practice-progress-bar-container" class="w-full bg-gray-200 rounded-full h-2.5 mb-4 no-print">
-                <div id="practice-progress-bar" class="bg-yellow-400 h-2.5 rounded-full" style="width: 0%"></div>
-            </div>
-            <div id="practice-slide-container" class="bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
-                <!-- Practice slides will be injected here -->
-            </div>
-            <div id="practice-feedback" class="mt-4 text-center font-bold text-xl"></div>
-            <div class="flex justify-center gap-4 mt-6">
-                <button id="check-answer-btn" class="theme-accent text-gray-800 btn">Check Answer</button>
-                <button id="try-again-btn" class="theme-bg-primary theme-text-secondary btn hidden">Try Again</button>
-                <button id="next-practice-btn" class="theme-accent text-gray-800 btn hidden">Next</button>
+        
+        <!-- Practice Center View -->
+        <div id="practice-view" class="view">
+             <div class="bg-white/80 p-8 rounded-lg shadow-xl backdrop-blur-sm max-w-3xl mx-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold theme-primary">Practice Center</h2>
+                    <p id="practice-counter" class="text-lg font-semibold text-gray-600">1 / 20</p>
+                </div>
+                <div id="practice-content" class="min-h-[200px]">
+                    <!-- Practice activity content will be injected here -->
+                </div>
+                <div id="practice-feedback" class="mt-4 text-center text-xl font-bold h-8"></div>
+                <div class="mt-4 flex justify-center items-center space-x-4">
+                    <button id="practice-check-btn" class="btn theme-accent theme-accent-text font-bold py-3 px-8 rounded-lg">Check Answer</button>
+                    <button id="practice-try-again-btn" class="btn bg-yellow-500 text-white font-bold py-3 px-8 rounded-lg hidden">Try Again</button>
+                    <button id="practice-next-btn" class="btn bg-green-600 text-white font-bold py-3 px-8 rounded-lg hidden">Next</button>
+                </div>
             </div>
         </div>
 
         <!-- Confirmation View -->
-        <div id="confirmation-view" class="hidden">
-            <div class="text-center bg-white p-8 rounded-lg shadow-lg max-w-lg mx-auto">
-                <h2 class="text-3xl font-bold mb-4">Ready to file your report?</h2>
-                <p class="text-gray-600 mb-6">You can review your evidence or submit your final analysis now. This action is final.</p>
-                <div class="flex justify-center gap-4">
-                    <button id="review-answers-btn" class="theme-bg-primary theme-text-secondary btn">Review the Evidence</button>
-                    <button id="submit-final-btn" class="theme-accent text-gray-800 btn">Submit Final Report</button>
+        <div id="confirmation-view" class="view text-center">
+            <div class="bg-white/80 p-8 rounded-lg shadow-xl backdrop-blur-sm max-w-lg mx-auto">
+                <h2 class="text-3xl font-bold theme-primary mb-4">Ready to submit your findings?</h2>
+                <p class="text-gray-700 mb-8">Once you submit, your test will be graded and you will not be able to change your answers.</p>
+                <div class="flex justify-center space-x-4">
+                    <button id="review-answers-btn" class="btn bg-gray-300 text-gray-700 font-bold py-3 px-6 rounded-lg">Review Answers</button>
+                    <button id="submit-grading-btn" class="btn theme-accent theme-accent-text font-bold py-3 px-6 rounded-lg">Submit for Grading</button>
                 </div>
             </div>
         </div>
 
         <!-- Score View -->
-        <div id="score-view" class="hidden">
-             <div class="text-center bg-white p-12 rounded-lg shadow-lg max-w-lg mx-auto">
-                <h2 class="text-3xl font-bold mb-4">Case Closed!</h2>
-                <p class="text-2xl text-gray-700 mb-6">Your Final Score:</p>
-                <p id="final-score" class="text-6xl font-bold theme-text-primary mb-8"></p>
-                <div id="admin-reset-container">
-                    <a href="#" id="admin-reset-link" class="text-xs text-gray-400 hover:underline">Admin Reset</a>
-                </div>
+        <div id="score-view" class="view text-center">
+            <div class="bg-white/80 p-8 rounded-lg shadow-xl backdrop-blur-sm max-w-lg mx-auto">
+                <h2 class="text-2xl font-bold theme-primary mb-2">Test Complete!</h2>
+                <p class="text-lg text-gray-600 mb-4">Here is your final score:</p>
+                <p id="final-score" class="text-7xl font-bold theme-secondary my-6">0 / 10</p>
+                <p class="text-gray-700">All test navigation is now locked.</p>
+                <button id="admin-reset-btn" class="text-xs text-gray-400 hover:text-gray-600 mt-8">Admin Reset</button>
             </div>
         </div>
 
+        <!-- PDF Staging Area (Hidden) -->
+        <div id="pdf-staging-area" class="absolute -left-[9999px] top-auto w-[800px] overflow-auto"></div>
+
     </main>
 
-    <!-- This script tag is used for saving/loading progress from a downloaded HTML file -->
-    <!-- <script id="progress-data" type="application/json">{}</script> -->
+    <script id="progress-data" type="application/json"></script>
     
-    <div id="pdf-render-container" class="hidden"></div>
-
     <script>
+    // --- DATA & STATE MANAGEMENT ---
+
+    const sourceTexts = {
+        icarus: {
+            title: "The Flight of Icarus",
+            paragraphs: [
+                "<strong>Paragraph 1:</strong> Daedalus, a brilliant inventor, found himself a prisoner on the island of Crete. King Minos, the island's ruler, had tasked him with building a great Labyrinth, a maze so complex that none could escape. After the work was done, the king, fearing Daedalus would share its secrets, imprisoned the inventor and his young son, Icarus, within a tall tower overlooking the sea. The tower was secure, and the shores were heavily guarded. For Daedalus, the land and sea were barred, but the sky remained open.",
+                "<strong>Paragraph 2:</strong> Day after day, Daedalus watched the gulls dip and soar on the ocean winds. An idea, as bold as it was brilliant, took root in his mind. 'We may not walk or sail away,' he told Icarus, 'but we can fly.' He began to gather feathers dropped by the seabirds, tying them together with thread and molding them with warm wax. He crafted two pairs of magnificent wings, curving them just like a bird's.",
+                "<strong>Paragraph 3:</strong> When the wings were complete, Daedalus fastened one pair to his son's shoulders. 'Listen closely, Icarus,' he warned, his voice firm but full of concern. 'Follow me, and do not stray. If you fly too low, the damp sea spray will weigh down your wings. If you fly too high, the sun's heat will melt the wax.' Icarus, filled with a thrilling sense of freedom, nodded eagerly, his heart pounding with excitement for the journey ahead.",
+                "<strong>Paragraph 4:</strong> Daedalus leaped from the tower window, his great wings catching the air. Icarus followed, laughing with delight as he felt himself lifted from the earth. Below them, the island of Crete shrank to a speck. Farmers in their fields and fishermen in their boats looked up in astonishment, mistaking the pair for gods. The feeling was intoxicating, and Icarus, forgetting his father's solemn warning, began to feel a surge of reckless pride.",
+                "<strong>Paragraph 5:</strong> He wanted to soar higher, to touch the heavens. He left his father's safe path and began to climb, up, up, toward the blazing sun. The warm air felt wonderful on his face. But soon, the nearness of the sun began to soften the wax that held his feathers. One by one, the feathers loosened and drifted away. Icarus flapped his arms frantically, but there was nothing to catch the wind. With a cry of terror, he plunged downward, into the vast, unforgiving sea below. Daedalus, heartbroken, could only watch as his son disappeared into the waves. He named the sea where his son fell the Icarian Sea, a sad monument to a boy who flew too close to the sun."
+            ]
+        },
+        arachne: {
+            title: "The Weaver's Challenge",
+            paragraphs: [
+                 "<strong>Paragraph 1:</strong> In a small village in ancient Greece lived a young woman named Arachne, who was famous for her incredible skill in weaving. The tapestries she created were so beautiful and lifelike that people would travel from miles around just to see them. Arachne was proud of her work, and rightly so. However, her pride grew into arrogance. She began to boast that her skill was even greater than that of Athena, the goddess of wisdom and craft, who was said to have invented the loom.",
+                 "<strong>Paragraph 2:</strong> Word of Arachne's boasting reached Mount Olympus, and Athena was displeased. The goddess decided to visit Arachne in disguise, appearing as an old woman leaning on a staff. 'You have a great gift,' the old woman said softly, 'but it is unwise to compare yourself to the gods. You should ask the goddess Athena for forgiveness.' Arachne scoffed. 'I do not need her forgiveness! If Athena thinks she is so skilled, let her come and challenge me herself!'",
+                 "<strong>Paragraph 3:</strong> With those words, the old woman’s disguise fell away, revealing the powerful goddess Athena in her full glory. Her eyes flashed with anger. 'You have your challenge!' she declared. The villagers gasped, but Arachne’s pride would not let her back down. A weaving contest was arranged. Two looms were set up, and the contest began. Athena wove a magnificent tapestry showing the power of the gods and the fates of mortals who dared to defy them. It was a masterpiece, but it was also a warning.",
+                 "<strong>Paragraph 4:</strong> Arachne, in her defiance, wove a tapestry that showed the gods in a negative light, highlighting their mistakes and follies. Her work was technically flawless, every thread perfect, every image breathtakingly real. But the subject was a direct insult to Athena. When she was finished, Athena could find no fault with the skill of the weaving, which only enraged her further. The goddess tore Arachne's tapestry to shreds and struck the girl on the forehead.",
+                 "<strong>Paragraph 5:</strong> Overcome with shame and despair, Arachne fled. But Athena was not finished. 'You want to weave forever?' the goddess said, her voice echoing with power. 'Then you shall!' She touched Arachne, and the girl's body began to shrink and change. Her arms and legs grew long and spindly, and she was transformed into the world's first spider. And from that day on, Arachne and her descendants were doomed to spend all their days weaving webs, a constant reminder of the price of pride."
+            ]
+        }
+    };
+
+    const assessmentQuestions = [
+        // Passage 1: The Flight of Icarus
+        {
+            id: 'q1',
+            type: 'mc',
+            dok: 2,
+            stem: "Which statement best describes the main conflict for Daedalus in paragraph 1?",
+            options: [
+                "He dislikes King Minos and wants to leave the island.",
+                "He is a brilliant inventor but cannot figure out how to build the Labyrinth.",
+                "He and his son are physically trapped, but he sees a potential escape route.",
+                "He is worried that his son Icarus will not be able to fly."
+            ],
+            correctAnswer: "He and his son are physically trapped, but he sees a potential escape route."
+        },
+        {
+            id: 'q2',
+            type: 'mc',
+            dok: 1,
+            stem: "According to paragraph 3, what specific warning does Daedalus give Icarus about flying too high?",
+            options: [
+                "The winds will be too strong.",
+                "He will get lost in the clouds.",
+                "The sun's heat will melt the wax.",
+                "The gods will become angry."
+            ],
+            correctAnswer: "The sun's heat will melt the wax."
+        },
+        {
+            id: 'q3',
+            type: 'mc',
+            dok: 2,
+            stem: "How does the setting of the 'tall tower overlooking the sea' in paragraph 1 impact the plot?",
+            options: [
+                "It proves that King Minos is a kind ruler.",
+                "It allows Daedalus to observe the birds and develop his plan of escape.",
+                "It makes it easy for Daedalus and Icarus to gather feathers.",
+                "It provides a safe place for them to live happily."
+            ],
+            correctAnswer: "It allows Daedalus to observe the birds and develop his plan of escape."
+        },
+        {
+            id: 'q4',
+            type: 'mc',
+            dok: 3,
+            stem: "Which statement best analyzes how Icarus's character development moves the plot toward its climax?",
+            options: [
+                "Icarus changes from excited to cautious, which is shown when he tries to fly lower to avoid the sun.",
+                "Icarus becomes angry at his father, which is shown when he decides to fly on his own path.",
+                "Icarus changes from obedient to reckless, which is shown when he forgets his father's warning and feels 'a surge of reckless pride.'",
+                "Icarus grows more skillful, which is shown by the fact that the farmers and fishermen mistake him for a god."
+            ],
+            correctAnswer: "Icarus changes from obedient to reckless, which is shown when he forgets his father's warning and feels 'a surge of reckless pride.'"
+        },
+        {
+            id: 'q5',
+            type: 'mc',
+            dok: 3,
+            stem: "Which sentence best analyzes how the conflict leads to the story's tragic conclusion in paragraph 5?",
+            options: [
+                "Daedalus's external conflict with King Minos causes him to build wings that are faulty.",
+                "The beautiful setting of the sky makes Icarus forget that he is in danger.",
+                "Icarus's internal conflict between obedience and pride leads him to ignore a warning that results in his doom.",
+                "The fishermen's conflict with their daily work prevents them from helping Icarus."
+            ],
+            correctAnswer: "Icarus's internal conflict between obedience and pride leads him to ignore a warning that results in his doom."
+        },
+        // Passage 2: The Weaver's Challenge
+        {
+            id: 'q6',
+            type: 'mc',
+            dok: 2,
+            stem: "In paragraph 1, what does Arachne's boasting reveal about her primary character trait?",
+            options: [
+                "She is shy and does not like attention.",
+                "She is arrogant and overly proud of her abilities.",
+                "She is a kind teacher to other weavers.",
+                "She is secretly afraid of the goddess Athena."
+            ],
+            correctAnswer: "She is arrogant and overly proud of her abilities."
+        },
+        {
+            id: 'q7',
+            type: 'mc',
+            dok: 2,
+            stem: "Which event from the story creates the main conflict between Arachne and Athena?",
+            options: [
+                "Villagers travel from miles around to see Arachne's work.",
+                "Athena visits Arachne disguised as an old woman.",
+                "Arachne refuses to ask for forgiveness and challenges Athena to a contest.",
+                "Athena weaves a tapestry showing the power of the gods."
+            ],
+            correctAnswer: "Arachne refuses to ask for forgiveness and challenges Athena to a contest."
+        },
+        {
+            id: 'q8',
+            type: 'hot-text',
+            dok: 2,
+            stem: "Click on the sentence in paragraph 4 that shows the specific detail that turns Athena's displeasure into rage.",
+            sentence: "Arachne, in her defiance, wove a tapestry that showed the gods in a negative light, highlighting their mistakes and follies. Her work was technically flawless, every thread perfect, every image breathtakingly real. But the subject was a direct insult to Athena. When she was finished, Athena could find no fault with the skill of the weaving, which only enraged her further. The goddess tore Arachne's tapestry to shreds and struck the girl on the forehead.",
+            correctAnswer: "When she was finished, Athena could find no fault with the skill of the weaving, which only enraged her further."
+        },
+        {
+            id: 'q9',
+            type: 'mc',
+            dok: 3,
+            stem: "How do the descriptions of the two tapestries in paragraphs 3 and 4 help develop the plot?",
+            options: [
+                "They show that both weavers are equally good, so the contest is a tie.",
+                "They reveal the different perspectives of the characters, with Athena's being a warning and Arachne's an insult, escalating the conflict.",
+                "They describe beautiful works of art that make the villagers happy.",
+                "They prove that the gods make many mistakes and that Arachne is right."
+            ],
+            correctAnswer: "They reveal the different perspectives of the characters, with Athena's being a warning and Arachne's an insult, escalating the conflict."
+        },
+        {
+            id: 'q10',
+            type: 'mc',
+            dok: 3,
+            stem: "How does Arachne's central character trait lead to her transformation at the end of the story?",
+            options: [
+                "Her creativity allows her to imagine herself as a spider.",
+                "Her kindness impresses Athena, who gives her a new form.",
+                "Her ambition to be the best weaver is granted in a twisted, literal way.",
+                "Her pride prevents her from backing down or showing respect, which results in a divine punishment."
+            ],
+            correctAnswer: "Her pride prevents her from backing down or showing respect, which results in a divine punishment."
+        }
+    ];
+
+    const practiceActivities = [
+        { type: 'mc', question: 'A story takes place in a dark, spooky forest. This primarily describes the story\'s...', options: ['Character', 'Setting', 'Conflict'], answer: 'Setting' },
+        { type: 'mc', question: 'A character is trying to decide whether to tell the truth or lie. This is an example of...', options: ['Internal Conflict', 'External Conflict', 'Plot Development'], answer: 'Internal Conflict' },
+        { type: 'hot-text', sentence: 'Maria felt a shiver of dread creep up her spine as she opened the mysterious door.', instruction: 'Click the phrase that reveals the character\'s feeling.', answer: 'a shiver of dread' },
+        { type: 'mc', question: 'The main problem that a character faces is the...', options: ['Setting', 'Theme', 'Conflict'], answer: 'Conflict' },
+        { type: 'mc', question: 'The rising action of a story leads up to the...', options: ['Exposition', 'Climax', 'Resolution'], answer: 'Climax' },
+        { type: 'mc', question: 'A story set on a desert island would most likely feature a conflict of...', options: ['Character vs. Society', 'Character vs. Nature', 'Character vs. Technology'], answer: 'Character vs. Nature' },
+        { type: 'mc', question: 'A character\'s reason for doing something is called their...', options: ['Trait', 'Motivation', 'Action'], answer: 'Motivation' },
+        { type: 'hot-text', sentence: 'The blistering sun beat down on the cracked, dry earth.', instruction: 'Click the phrase that describes the setting.', answer: 'blistering sun' },
+        { type: 'mc', question: 'How a character feels or acts can influence the story\'s...', options: ['Punctuation', 'Plot', 'Author'], answer: 'Plot' },
+        { type: 'mc', question: 'Which of these is a character trait?', options: ['Running', 'Brave', 'Shouting'], answer: 'Brave' },
+        { type: 'mc', question: 'A struggle between two characters is an example of...', options: ['Internal Conflict', 'External Conflict', 'Setting'], answer: 'External Conflict' },
+        { type: 'hot-text', sentence: 'Even though he was terrified, Leo knew he had to face the dragon to save his village.', instruction: 'Click the phrase that shows an internal conflict.', answer: 'he was terrified' },
+        { type: 'mc', question: 'The sequence of events in a story is called the...', options: ['Plot', 'Theme', 'Setting'], answer: 'Plot' },
+        { type: 'mc', question: 'If a story takes place in the future on Mars, the setting directly impacts the...', options: ['Character names', 'Types of problems characters face', 'Story\'s font'], answer: 'Types of problems characters face' },
+        { type: 'mc', question: 'Which is an example of a setting?', options: ['A haunted house at midnight', 'A girl who is very clever', 'A dangerous journey'], answer: 'A haunted house at midnight' },
+        { type: 'hot-text', sentence: 'Her ambition was a fire that could not be quenched.', instruction: 'Click the word that is a character trait.', answer: 'ambition' },
+        { type: 'mc', question: 'A character being shipwrecked by a storm is an example of how setting can create...', options: ['Character', 'Conflict', 'Theme'], answer: 'Conflict' },
+        { type: 'mc', question: 'The final outcome of the story\'s conflict is the...', options: ['Rising Action', 'Exposition', 'Resolution'], answer: 'Resolution' },
+    ];
+
+    // --- APPLICATION STATE ---
+    let currentTestQuestionIndex = 0;
+    let currentPracticeItemIndex = 0;
+    let studentAnswers = {};
+    let testState = {
+        isLocked: false,
+        score: null
+    };
+
+    // --- DOM ELEMENTS ---
+    const views = {
+        home: document.getElementById('home-view'),
+        test: document.getElementById('test-view'),
+        practice: document.getElementById('practice-view'),
+        confirmation: document.getElementById('confirmation-view'),
+        score: document.getElementById('score-view')
+    };
+    const questionContainer = document.getElementById('question-container');
+    const sourceTextContainer = document.getElementById('source-text-container');
+    const testProgressBar = document.getElementById('test-progress-bar');
+    const testQuestionCounter = document.getElementById('test-question-counter');
+
+    // --- APPLICATION LOGIC ---
+    
     document.addEventListener('DOMContentLoaded', () => {
+        // Hydration Logic
+        const progressDataEl = document.getElementById('progress-data');
+        let loadedData = null;
 
-        // --- DATA ---
-        const assessmentQuestions = [
-            {
-                id: 1,
-                type: 'multiple-choice',
-                dok: 1,
-                question: "Which of the following best describes the setting at the beginning of the story?",
-                options: [
-                    "A wealthy mansion during a holiday.",
-                    "A small, run-down apartment before Christmas.",
-                    "A busy marketplace in a large city.",
-                    "A quiet suburban home in the winter."
-                ],
-                answer: "A small, run-down apartment before Christmas."
-            },
-            {
-                id: 2,
-                type: 'multiple-choice',
-                dok: 1,
-                question: "What are the two most prized possessions of Jim and Della?",
-                options: [
-                    "Their apartment and their furniture.",
-                    "Della's hair and Jim's gold watch.",
-                    "A set of combs and a platinum chain.",
-                    "Their savings and their jobs."
-                ],
-                answer: "Della's hair and Jim's gold watch."
-            },
-            {
-                id: 3,
-                type: 'multiple-choice',
-                dok: 2,
-                question: "How does the couple's financial situation (their poverty) affect the plot?",
-                options: [
-                    "It causes them to argue about money constantly.",
-                    "It has no real impact on the story's events.",
-                    "It forces them to sell their most treasured items to buy gifts.",
-                    "It makes them decide not to celebrate Christmas."
-                ],
-                answer: "It forces them to sell their most treasured items to buy gifts."
-            },
-            {
-                id: 4,
-                type: 'ebsr',
-                dok: 3,
-                partA: {
-                    question: "Which statement best describes Della's main internal conflict in the first half of the story?",
-                    options: [
-                        "She struggles with her desire for luxury items versus her need to be practical.",
-                        "She is conflicted between her love for Jim and her pride in her beautiful hair.",
-                        "She battles feelings of despair over her poverty against her deep desire to buy Jim a worthy gift.",
-                        "She is afraid that Jim will stop loving her if she is no longer beautiful."
-                    ],
-                    answer: "She battles feelings of despair over her poverty against her deep desire to buy Jim a worthy gift."
-                },
-                partB: {
-                    question: "Which sentence from the text best supports the answer to Part A?",
-                    options: [
-                        "There was clearly nothing to do but flop down on the shabby little couch and howl.",
-                        "To-morrow would be Christmas Day, and she had only $1.87 with which to buy Jim a present.",
-                        "Suddenly she whirled from the window and stood before the glass. Her eyes were shining brilliantly, but her face had lost its color within twenty seconds.",
-                        "It was a platinum fob chain, simple and chaste in design, properly proclaiming its value by substance alone..."
-                    ],
-                    answer: "To-morrow would be Christmas Day, and she had only $1.87 with which to buy Jim a present."
-                }
-            },
-            {
-                id: 5,
-                type: 'multiple-choice',
-                dok: 2,
-                question: "Jim's reaction to seeing Della's short hair is described as a 'peculiar expression' that terrifies her. What does this reaction reveal about his character at that moment?",
-                options: [
-                    "He is secretly angry that she cut her hair without asking him.",
-                    "He is shocked because he has just bought a gift that is now useless.",
-                    "He is disappointed because he no longer finds her attractive.",
-                    "He is confused and doesn't recognize her at first."
-                ],
-                answer: "He is shocked because he has just bought a gift that is now useless."
-            },
-            {
-                id: 6,
-                type: 'multi-select',
-                dok: 2,
-                question: "Which TWO of the following details from the text help establish the mood of poverty and struggle?",
-                options: [
-                    "A card bearing the name 'Mr. James Dillingham Young.'",
-                    "A letter-box into which no letter would go.",
-                    "Her eyes were shining brilliantly.",
-                    "A gray cat walking a gray fence in a gray backyard.",
-                    "Beautiful combs, pure tortoise shell, with jewelled rims."
-                ],
-                answer: ["A letter-box into which no letter would go.", "A gray cat walking a gray fence in a gray backyard."]
-            },
-            {
-                id: 7,
-                type: 'drag-and-drop',
-                dok: 3,
-                question: "The plot unfolds through a series of cause-and-effect events. Drag the 'Cause' to the correct 'Effect' it produces in the story.",
-                prompt: "Match the cause with its effect:",
-                items: [
-                    { id: 'item-1', text: "Della only has $1.87 for a present." },
-                    { id: 'item-2', text: "Jim needs a proper chain for his watch." },
-                    { id: 'item-3', text: "Jim sells his watch." }
-                ],
-                zones: [
-                    { id: 'zone-1', label: "Effect: She sells her hair to get more money." },
-                    { id: 'zone-2', label: "Effect: Della buys him a platinum fob chain." },
-                    { id: 'zone-3', label: "Effect: He buys Della a set of expensive combs." }
-                ],
-                answer: { 'item-1': 'zone-1', 'item-2': 'zone-2', 'item-3': 'zone-3' }
-            },
-            {
-                id: 8,
-                type: 'multiple-choice',
-                dok: 2,
-                question: "How does the author use the setting of Christmas Eve to increase the conflict and tension in the plot?",
-                options: [
-                    "The cold weather makes the characters feel isolated and alone.",
-                    "It creates a deadline, making Della's need for money more urgent.",
-                    "It introduces a religious element that judges the characters' actions.",
-                    "It suggests that a miracle is about to happen."
-                ],
-                answer: "It creates a deadline, making Della's need for money more urgent."
-            },
-            {
-                id: 9,
-                type: 'hot-text',
-                dok: 3,
-                question: "Click on the sentence in the paragraph below that best reveals the story's central theme about the nature of true wisdom and giving.",
-                text: "The magi, as you know, were wise men—wonderfully wise men—who brought gifts to the Babe in the manger. They invented the art of giving Christmas presents. Being wise, their gifts were no doubt wise ones, possibly bearing the privilege of exchange in case of duplication. And here I have lamely related to you the uneventful chronicle of two foolish children in a flat who most unwisely sacrificed for each other the greatest treasures of their house. But in a last word to the wise of these days let it be said that of all who give gifts these two were the wisest.",
-                answer: "But in a last word to the wise of these days let it be said that of all who give gifts these two were the wisest."
-            },
-            {
-                id: 10,
-                type: 'constructed-response',
-                dok: 3,
-                question: "In your own words, explain how the conflict of the story (the characters' poverty vs. their love for each other) is resolved. How does this resolution show what is truly important to Jim and Della?"
+        if (progressDataEl && progressDataEl.textContent.trim().length > 2) {
+            try {
+                loadedData = JSON.parse(progressDataEl.textContent);
+            } catch (e) { console.error("Could not parse progress data from script tag.", e); }
+        } else {
+            const lsAnswers = localStorage.getItem('studentAnswers');
+            const lsState = localStorage.getItem('testState');
+            if (lsAnswers && lsState) {
+                loadedData = {
+                    answers: JSON.parse(lsAnswers),
+                    state: JSON.parse(lsState)
+                };
             }
-        ];
+        }
 
-        const practiceActivities = [
-            { type: 'mc', prompt: "The icy wind rattled the windowpane. This detail primarily develops the:", options: ["Setting", "Character", "Conflict"], answer: "Setting" },
-            { type: 'mc', prompt: "Even though he was terrified, Leo knew he had to enter the cave to find his lost dog. This shows an internal conflict of:", options: ["Character vs. Nature", "Character vs. Character", "Character vs. Self"], answer: "Character vs. Self" },
-            { type: 'mc', prompt: "The king's greed for gold caused him to lose his family. The king's character flaw directly impacted the:", options: ["Setting", "Plot", "Theme"], answer: "Plot" },
-            { type: 'mc', prompt: "The story takes place on a futuristic, abandoned space station. This setting likely contributes to a mood of:", options: ["Joy and celebration", "Isolation and mystery", "Peace and tranquility"], answer: "Isolation and mystery" },
-            { type: 'mc', prompt: "A character who always puts others' needs before their own is best described as:", options: ["Selfish", "Altruistic", "Cowardly"], answer: "Altruistic" },
-            { type: 'mc', prompt: "A massive hurricane is heading for the town, and the main character must find a way to save her family. This is an example of:", options: ["Character vs. Society", "Character vs. Nature", "Character vs. Self"], answer: "Character vs. Nature" },
-            { type: 'mc', prompt: "A detail like 'the paint was peeling from the walls of the once-grand mansion' helps to show a change in the:", options: ["Conflict", "Plot", "Setting"], answer: "Setting" },
-            { type: 'mc', prompt: "The sentence, 'The two friends argued, their angry words echoing in the silent library,' primarily shows:", options: ["Character development", "Conflict", "Setting"], answer: "Conflict" },
-            { type: 'mc', prompt: "An unexpected event that complicates the story and makes it harder for the character to reach their goal is called a:", options: ["Resolution", "Complication", "Climax"], answer: "Complication" },
-            { type: 'mc', prompt: "The way a character speaks, acts, and thinks reveals their:", options: ["Setting", "Plot", "Traits"], answer: "Traits" },
-            { type: 'mc', prompt: "A character is forbidden from reading books by the ruling government. This is a conflict of:", options: ["Character vs. Self", "Character vs. Nature", "Character vs. Society"], answer: "Character vs. Society" },
-            { type: 'mc', prompt: "Describing a room as 'filled with sunlight and bright flowers' helps create a mood that is:", options: ["Gloomy", "Cheerful", "Tense"], answer: "Cheerful" },
-            { type: 'mc', prompt: "The turning point of the story, where the main conflict comes to a head, is the:", options: ["Exposition", "Rising Action", "Climax"], answer: "Climax" },
-            { type: 'mc', prompt: "A character's decision to forgive someone who wronged them is a key moment in:", options: ["Plot development", "Setting description", "Conflict introduction"], answer: "Plot development" },
-            { type: 'mc', prompt: "The time and place where a story occurs is its:", options: ["Plot", "Setting", "Theme"], answer: "Setting" },
-            { type: 'mc', prompt: "When a character faces a difficult choice, it creates:", options: ["A boring plot", "Internal conflict", "A resolution"], answer: "Internal conflict" },
-            { type: 'mc', prompt: "How does a character's motivation (what they want) affect the plot?", options: ["It has no effect.", "It drives their actions and moves the story forward.", "It only affects the setting."], answer: "It drives their actions and moves the story forward." },
-            { type: 'mc', prompt: "If a story is set during a historical war, the setting directly contributes to the:", options: ["Theme", "Conflict", "Characters' names"], answer: "Conflict" },
-            { type: 'mc', prompt: "The final outcome of the story, where the conflicts are settled, is the:", options: ["Introduction", "Climax", "Resolution"], answer: "Resolution" },
-            { type: 'mc', prompt: "An author describing a character's 'nervous fidgeting and sweaty palms' is revealing their feelings through:", options: ["Dialogue", "Actions", "Setting"], answer: "Actions" }
-        ];
+        if (loadedData) {
+            studentAnswers = loadedData.answers || {};
+            testState = loadedData.state || { isLocked: false, score: null };
+        }
 
-        // --- STATE ---
-        let currentView = 'home';
-        let currentQuestionIndex = 0;
-        let currentPracticeIndex = 0;
-        let studentAnswers = {}; // { 1: "answer", 2: "answer", ... }
-        let isTestLocked = false;
-        
-        // --- DOM ELEMENTS ---
-        const views = {
-            home: document.getElementById('home-view'),
-            test: document.getElementById('test-view'),
-            practice: document.getElementById('practice-view'),
-            confirmation: document.getElementById('confirmation-view'),
-            score: document.getElementById('score-view')
-        };
-        const questionPanel = document.getElementById('question-panel');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const questionCounter = document.getElementById('question-counter');
-        const progressBar = document.getElementById('progress-bar');
-        const homeBtn = document.getElementById('home-btn');
-        const downloadWorkBtn = document.getElementById('download-work-btn');
-        const downloadPdfBtn = document.getElementById('download-pdf-btn');
-
-        // Practice View Elements
-        const practiceContainer = document.getElementById('practice-slide-container');
-        const practiceFeedback = document.getElementById('practice-feedback');
-        const checkAnswerBtn = document.getElementById('check-answer-btn');
-        const tryAgainBtn = document.getElementById('try-again-btn');
-        const nextPracticeBtn = document.getElementById('next-practice-btn');
-        const practiceProgressBar = document.getElementById('practice-progress-bar');
-        
-        // --- VIEW MANAGEMENT ---
-        const showView = (viewName) => {
-            Object.values(views).forEach(view => view.classList.add('hidden'));
-            if (views[viewName]) {
-                views[viewName].classList.remove('hidden');
-                currentView = viewName;
-                downloadPdfBtn.classList.toggle('hidden', viewName !== 'test' && viewName !== 'score');
-            }
-        };
-
-        // --- INITIALIZATION ---
-        const init = () => {
-            // Check for saved data in HTML script tag first
-            const progressDataElement = document.getElementById('progress-data');
-            if (progressDataElement && progressDataElement.textContent.trim().length > 2) {
-                try {
-                    const savedData = JSON.parse(progressDataElement.textContent);
-                    studentAnswers = savedData.answers || {};
-                    if (savedData.lockedState) {
-                         isTestLocked = true;
-                         showLockedScore(savedData.score);
-                         return;
-                    }
-                } catch (e) {
-                    console.error("Could not parse progress data from HTML:", e);
-                    loadFromLocalStorage(); // Fallback to localStorage
-                }
-            } else {
-                 loadFromLocalStorage();
-            }
-
-            if (isTestLocked) {
-                const score = localStorage.getItem('finalScore');
-                showLockedScore(score || 'N/A');
-                return;
-            }
-
-            setupEventListeners();
-            buildQuestionSlides();
+        if (testState.isLocked) {
+            displayScore();
+            showView('score');
+        } else {
             showView('home');
-        };
+        }
 
-        const loadFromLocalStorage = () => {
-            const savedAnswers = localStorage.getItem('studentAnswers');
-            if (savedAnswers) {
-                studentAnswers = JSON.parse(savedAnswers);
-            }
-            if (localStorage.getItem('testLocked') === 'true') {
-                isTestLocked = true;
-            }
-        };
-        
-        const showLockedScore = (score) => {
-             showView('score');
-             document.getElementById('final-score').textContent = score;
-             const header = document.getElementById('header');
-             if(header) {
-                const buttons = header.querySelectorAll('button');
-                buttons.forEach(btn => {
-                    if (btn.id !== 'download-pdf-btn') {
-                         btn.style.display = 'none';
-                    }
-                });
-             }
-        };
-
-        // --- EVENT LISTENERS ---
-        const setupEventListeners = () => {
-            document.getElementById('start-test-btn').addEventListener('click', startTest);
-            document.getElementById('start-practice-btn').addEventListener('click', startPractice);
-            homeBtn.addEventListener('click', () => showView('home'));
-            prevBtn.addEventListener('click', navigateTest);
-            nextBtn.addEventListener('click', navigateTest);
-            document.getElementById('review-answers-btn').addEventListener('click', () => {
-                currentQuestionIndex = 0;
-                renderQuestion();
-                showView('test');
-            });
-            document.getElementById('submit-final-btn').addEventListener('click', submitAndGrade);
-            document.getElementById('admin-reset-link').addEventListener('click', handleAdminReset);
-            downloadWorkBtn.addEventListener('click', downloadWork);
-            downloadPdfBtn.addEventListener('click', downloadPDF);
-
-            // Practice listeners
-            checkAnswerBtn.addEventListener('click', checkPracticeAnswer);
-            tryAgainBtn.addEventListener('click', resetPracticeSlide);
-            nextPracticeBtn.addEventListener('click', nextPracticeQuestion);
-        };
-        
-        // --- TEST LOGIC ---
-        const startTest = () => {
-            currentQuestionIndex = 0;
-            renderQuestion();
-            showView('test');
-        };
-
-        const buildQuestionSlides = () => {
-            questionPanel.innerHTML = ''; // Clear previous
-            assessmentQuestions.forEach((q, index) => {
-                const slide = document.createElement('div');
-                slide.id = `question-${q.id}`;
-                slide.className = 'slide-container slide-hidden';
-                slide.innerHTML = generateQuestionHTML(q);
-                questionPanel.appendChild(slide);
-            });
-            // Add event listeners after creation
-            addDynamicEventListeners();
-        };
-
-        const generateQuestionHTML = (q) => {
-            let optionsHTML = '';
-            switch (q.type) {
-                case 'multiple-choice':
-                    optionsHTML = q.options.map(opt => `
-                        <button data-qid="${q.id}" data-type="mc" class="option-btn w-full text-left p-3 my-2 rounded-lg theme-text-primary hover:bg-gray-100">${opt}</button>
-                    `).join('');
-                    return `<h3 class="text-xl font-semibold mb-4">${q.id}. ${q.question}</h3><div>${optionsHTML}</div>`;
-                case 'ebsr':
-                    const partAOptions = q.partA.options.map(opt => `
-                        <button data-qid="${q.id}" data-part="A" data-type="ebsr" class="option-btn w-full text-left p-3 my-2 rounded-lg theme-text-primary hover:bg-gray-100">${opt}</button>
-                    `).join('');
-                     const partBOptions = q.partB.options.map(opt => `
-                        <button data-qid="${q.id}" data-part="B" data-type="ebsr" class="option-btn w-full text-left p-3 my-2 rounded-lg theme-text-primary hover:bg-gray-100">${opt}</button>
-                    `).join('');
-                    return `
-                        <h3 class="text-xl font-semibold mb-2">${q.id}. Part A: ${q.partA.question}</h3>
-                        <div>${partAOptions}</div>
-                        <h3 class="text-xl font-semibold mt-6 mb-2">Part B: ${q.partB.question}</h3>
-                        <div>${partBOptions}</div>`;
-                case 'multi-select':
-                     optionsHTML = q.options.map(opt => `
-                        <button data-qid="${q.id}" data-type="ms" class="option-btn w-full text-left p-3 my-2 rounded-lg theme-text-primary hover:bg-gray-100">${opt}</button>
-                    `).join('');
-                    return `<h3 class="text-xl font-semibold mb-4">${q.id}. ${q.question}</h3><p class="text-sm text-gray-500 mb-2">Select TWO correct answers.</p><div>${optionsHTML}</div>`;
-                case 'drag-and-drop':
-                    const items = q.items.map(item => `<div id="${item.id}" class="drag-item bg-white p-3 my-2 rounded-lg shadow" draggable="true">${item.text}</div>`).join('');
-                    const zones = q.zones.map(zone => `
-                        <div class="my-2 flex items-center">
-                            <div class="flex-grow p-4 bg-gray-100 rounded-lg drop-zone" data-zone-id="${zone.id}"></div>
-                            <p class="ml-4 font-semibold">${zone.label}</p>
-                        </div>
-                    `).join('');
-                    return `<h3 class="text-xl font-semibold mb-4">${q.id}. ${q.question}</h3><p class="text-sm text-gray-500 mb-2">${q.prompt}</p><div class="flex flex-col md:flex-row gap-4"><div class="w-full md:w-1/3 p-2 bg-blue-50 rounded-lg">${items}</div><div class="flex-grow">${zones}</div></div>`;
-                case 'hot-text':
-                     const sentences = q.text.match(/[^.!?]+[.!?]+/g) || [q.text];
-                     const hotTextHTML = sentences.map((sentence, i) => `<span class="hot-text p-1" data-qid="${q.id}" data-index="${i}">${sentence}</span>`).join('');
-                     return `<h3 class="text-xl font-semibold mb-4">${q.id}. ${q.question}</h3><div class="p-4 bg-gray-100 rounded-lg">${hotTextHTML}</div>`;
-                case 'constructed-response':
-                    return `<h3 class="text-xl font-semibold mb-4">${q.id}. ${q.question}</h3><textarea data-qid="${q.id}" class="w-full h-48 p-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" placeholder="Type your answer here..."></textarea>`;
-                default: return '';
-            }
-        };
-
-        const addDynamicEventListeners = () => {
-            // Option buttons
-            document.querySelectorAll('.option-btn').forEach(btn => {
-                btn.addEventListener('click', handleOptionClick);
-            });
-            // Textareas
-            document.querySelectorAll('textarea').forEach(area => {
-                area.addEventListener('input', (e) => saveAnswer(e.target.dataset.qid, e.target.value, 'cr'));
-            });
-            // Hot Text
-            document.querySelectorAll('.hot-text').forEach(span => {
-                span.addEventListener('click', handleHotTextClick);
-            });
-            // Drag and Drop
-            document.querySelectorAll('.drag-item').forEach(item => {
-                item.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('text/plain', e.target.id);
-                });
-            });
-            document.querySelectorAll('.drop-zone').forEach(zone => {
-                zone.addEventListener('dragover', (e) => e.preventDefault());
-                zone.addEventListener('drop', handleDrop);
-            });
-        };
-        
-        const handleOptionClick = (e) => {
-            const btn = e.target;
-            const qid = btn.dataset.qid;
-            const type = btn.dataset.type;
-            const part = btn.dataset.part; // for EBSR
-            const value = btn.textContent;
-            
-            if (type === 'mc') {
-                document.querySelectorAll(`.option-btn[data-qid="${qid}"]`).forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                saveAnswer(qid, value, type);
-            } else if (type === 'ms') {
-                btn.classList.toggle('selected');
-                const selectedOptions = Array.from(document.querySelectorAll(`.option-btn[data-qid="${qid}"].selected`)).map(b => b.textContent);
-                saveAnswer(qid, selectedOptions, type);
-            } else if (type === 'ebsr') {
-                 document.querySelectorAll(`.option-btn[data-qid="${qid}"][data-part="${part}"]`).forEach(b => b.classList.remove('selected'));
-                 btn.classList.add('selected');
-                 saveAnswer(qid, value, type, part);
-            }
-        };
-
-        const handleHotTextClick = (e) => {
-            const span = e.target;
-            const qid = span.dataset.qid;
-            document.querySelectorAll(`.hot-text[data-qid="${qid}"]`).forEach(s => s.classList.remove('selected'));
-            span.classList.add('selected');
-            saveAnswer(qid, span.textContent, 'hot-text');
-        };
-
-        const handleDrop = (e) => {
-            e.preventDefault();
-            const itemId = e.dataTransfer.getData('text/plain');
-            const item = document.getElementById(itemId);
-            const zone = e.target.closest('.drop-zone');
-            if (zone) {
-                 // If zone already has an item, move it back to the source list
-                if (zone.firstChild) {
-                    const oldItem = zone.firstChild;
-                    const sourceList = document.querySelector('.drag-item').parentElement; // find the original container
-                    sourceList.appendChild(oldItem);
-                }
-                zone.appendChild(item);
-                const qid = assessmentQuestions.find(q => q.type === 'drag-and-drop').id; // Assuming only one D&D
-                
-                const answer = {};
-                document.querySelectorAll('.drop-zone').forEach(z => {
-                    if (z.firstChild) {
-                        answer[z.firstChild.id] = z.dataset.zoneId;
-                    }
-                });
-                saveAnswer(qid, answer, 'drag-and-drop');
-            }
-        };
-        
-        const saveAnswer = (qid, answer, type, part = null) => {
-            if (type === 'ebsr') {
-                if (!studentAnswers[qid]) studentAnswers[qid] = {};
-                studentAnswers[qid][part] = answer;
-            } else {
-                studentAnswers[qid] = answer;
-            }
-            localStorage.setItem('studentAnswers', JSON.stringify(studentAnswers));
-            updateProgressBar();
-        };
-        
-        const renderQuestion = () => {
-            document.querySelectorAll('.slide-container').forEach((slide, index) => {
-                slide.classList.toggle('slide-visible', index === currentQuestionIndex);
-                slide.classList.toggle('slide-hidden', index !== currentQuestionIndex);
-            });
-            updateNavButtons();
-            updateQuestionCounter();
-            updateProgressBar();
-            loadSavedAnswerForQuestion(assessmentQuestions[currentQuestionIndex].id);
-        };
-
-        const loadSavedAnswerForQuestion = (qid) => {
-            const q = assessmentQuestions.find(q => q.id === qid);
-            const answer = studentAnswers[qid];
-            if (!answer) return;
-            
-            switch (q.type) {
-                case 'multiple-choice':
-                    document.querySelectorAll(`.option-btn[data-qid="${qid}"]`).forEach(btn => {
-                        btn.classList.toggle('selected', btn.textContent === answer);
-                    });
-                    break;
-                case 'ebsr':
-                    if(answer.A) {
-                         document.querySelectorAll(`.option-btn[data-qid="${qid}"][data-part="A"]`).forEach(btn => {
-                            btn.classList.toggle('selected', btn.textContent === answer.A);
-                        });
-                    }
-                     if(answer.B) {
-                         document.querySelectorAll(`.option-btn[data-qid="${qid}"][data-part="B"]`).forEach(btn => {
-                            btn.classList.toggle('selected', btn.textContent === answer.B);
-                        });
-                    }
-                    break;
-                case 'multi-select':
-                     document.querySelectorAll(`.option-btn[data-qid="${qid}"]`).forEach(btn => {
-                        btn.classList.toggle('selected', answer.includes(btn.textContent));
-                    });
-                    break;
-                case 'constructed-response':
-                     const textarea = document.querySelector(`textarea[data-qid="${qid}"]`);
-                     if(textarea) textarea.value = answer;
-                     break;
-                case 'hot-text':
-                    document.querySelectorAll(`.hot-text[data-qid="${qid}"]`).forEach(span => {
-                        span.classList.toggle('selected', span.textContent === answer);
-                    });
-                    break;
-                case 'drag-and-drop':
-                    Object.entries(answer).forEach(([itemId, zoneId]) => {
-                        const item = document.getElementById(itemId);
-                        const zone = document.querySelector(`.drop-zone[data-zone-id="${zoneId}"]`);
-                        if (item && zone) {
-                            zone.appendChild(item);
-                        }
-                    });
-                    break;
-            }
-        };
-
-        const navigateTest = (e) => {
-            const direction = e.target.id === 'next-btn' ? 1 : -1;
-            currentQuestionIndex += direction;
-            
-            if (currentQuestionIndex < 0) currentQuestionIndex = 0;
-            if (currentQuestionIndex >= assessmentQuestions.length) {
-                currentQuestionIndex = assessmentQuestions.length;
-                showView('confirmation');
-                return;
-            }
-            renderQuestion();
-        };
-
-        const updateNavButtons = () => {
-            prevBtn.disabled = currentQuestionIndex === 0;
-            prevBtn.classList.toggle('opacity-50', prevBtn.disabled);
-            nextBtn.textContent = (currentQuestionIndex === assessmentQuestions.length - 1) ? 'Finish' : 'Next';
-        };
-
-        const updateQuestionCounter = () => {
-            questionCounter.textContent = `Question ${currentQuestionIndex + 1} of ${assessmentQuestions.length}`;
-        };
-
-        const updateProgressBar = () => {
-            const answeredCount = Object.keys(studentAnswers).length;
-            const progress = (answeredCount / assessmentQuestions.length) * 100;
-            progressBar.style.width = `${progress}%`;
-        };
-        
-        const submitAndGrade = () => {
-            let score = 0;
-            assessmentQuestions.forEach(q => {
-                const userAnswer = studentAnswers[q.id];
-                let isCorrect = false;
-                if(userAnswer) {
-                    switch (q.type) {
-                        case 'multiple-choice':
-                        case 'hot-text':
-                            isCorrect = userAnswer === q.answer;
-                            break;
-                        case 'ebsr':
-                            isCorrect = userAnswer.A === q.partA.answer && userAnswer.B === q.partB.answer;
-                            break;
-                        case 'multi-select':
-                            isCorrect = userAnswer.length === q.answer.length && userAnswer.every(val => q.answer.includes(val));
-                            break;
-                        case 'drag-and-drop':
-                            isCorrect = Object.keys(q.answer).every(key => userAnswer[key] === q.answer[key]);
-                            break;
-                        case 'constructed-response':
-                            isCorrect = true; // Manual grading needed
-                            break;
-                    }
-                }
-                if (isCorrect) score++;
-            });
-            const finalScoreText = `${score} / ${assessmentQuestions.length}`;
-            document.getElementById('final-score').textContent = finalScoreText;
-            isTestLocked = true;
-            localStorage.setItem('testLocked', 'true');
-            localStorage.setItem('finalScore', finalScoreText);
-            showLockedScore(finalScoreText);
-        };
-        
-        const handleAdminReset = (e) => {
-            e.preventDefault();
-            const password = prompt("Enter admin password to reset:");
-            if (password === "2026") {
-                localStorage.clear();
-                studentAnswers = {};
-                isTestLocked = false;
-                location.reload();
-            } else {
-                alert("Incorrect password.");
-            }
-        };
-
-        // --- PRACTICE LOGIC ---
-        const startPractice = () => {
-            currentPracticeIndex = 0;
-            renderPracticeQuestion();
-            showView('practice');
-        };
-
-        const renderPracticeQuestion = () => {
-            practiceContainer.innerHTML = '';
-            practiceFeedback.innerHTML = '';
-            const activity = practiceActivities[currentPracticeIndex];
-            if (!activity) {
-                 practiceContainer.innerHTML = `<h3 class="text-xl font-semibold mb-4 text-center">Practice Complete!</h3><p class="text-center">Great job honing your skills!</p>`;
-                 checkAnswerBtn.classList.add('hidden');
-                 return;
-            }
-
-            let html = `<h3 class="text-xl font-semibold mb-4 text-center">${activity.prompt}</h3>`;
-            html += '<div class="flex flex-col items-center">';
-            html += activity.options.map(opt => `
-                <button data-answer="${opt}" class="practice-option-btn w-full max-w-md text-center p-3 my-2 rounded-lg theme-text-primary hover:bg-gray-100 border-2 border-gray-300">${opt}</button>
-            `).join('');
-            html += '</div>';
-            practiceContainer.innerHTML = html;
-
-            document.querySelectorAll('.practice-option-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('.practice-option-btn').forEach(b => b.classList.remove('selected'));
-                    e.target.classList.add('selected');
-                });
-            });
-            
-            practiceProgressBar.style.width = `${(currentPracticeIndex / practiceActivities.length) * 100}%`;
-
-            checkAnswerBtn.classList.remove('hidden');
-            checkAnswerBtn.disabled = false;
-            tryAgainBtn.classList.add('hidden');
-            nextPracticeBtn.classList.add('hidden');
-        };
-
-        const checkPracticeAnswer = () => {
-            const selectedBtn = document.querySelector('.practice-option-btn.selected');
-            if (!selectedBtn) {
-                practiceFeedback.textContent = "Please select an answer.";
-                practiceFeedback.className = 'mt-4 text-center font-bold text-xl text-yellow-600';
-                return;
-            }
-
-            const userAnswer = selectedBtn.dataset.answer;
-            const correctAnswer = practiceActivities[currentPracticeIndex].answer;
-            
-            checkAnswerBtn.disabled = true;
-            document.querySelectorAll('.practice-option-btn').forEach(btn => btn.disabled = true);
-
-            if (userAnswer === correctAnswer) {
-                practiceFeedback.textContent = "Correct!";
-                practiceFeedback.className = 'mt-4 text-center font-bold text-xl text-green-600';
-                selectedBtn.classList.add('correct-answer');
-                nextPracticeBtn.classList.remove('hidden');
-            } else {
-                practiceFeedback.textContent = "Not quite, please try again.";
-                practiceFeedback.className = 'mt-4 text-center font-bold text-xl text-red-600';
-                selectedBtn.classList.add('incorrect-answer');
-                tryAgainBtn.classList.remove('hidden');
-            }
-        };
-
-        const resetPracticeSlide = () => {
-            document.querySelectorAll('.practice-option-btn').forEach(btn => {
-                btn.disabled = false;
-                btn.classList.remove('selected', 'incorrect-answer');
-            });
-            practiceFeedback.textContent = '';
-            tryAgainBtn.classList.add('hidden');
-            checkAnswerBtn.disabled = false;
-        };
-
-        const nextPracticeQuestion = () => {
-            currentPracticeIndex++;
-            renderPracticeQuestion();
-        };
-        
-        // --- SAVING AND EXPORTING ---
-        const downloadWork = () => {
-            const currentHTML = document.documentElement.outerHTML;
-            
-            const progressData = {
-                answers: studentAnswers,
-                lockedState: isTestLocked,
-                score: localStorage.getItem('finalScore')
-            };
-
-            const jsonString = JSON.stringify(progressData);
-            
-            const scriptTag = `<script id="progress-data" type="application/json">${jsonString}<\/script>`;
-            
-            let newHTML;
-            const scriptTagRegex = /<script id="progress-data" type="application\/json">.*?<\/script>/s;
-
-            if (scriptTagRegex.test(currentHTML)) {
-                newHTML = currentHTML.replace(scriptTagRegex, scriptTag);
-            } else {
-                newHTML = currentHTML.replace('</body>', `${scriptTag}\n</body>`);
-            }
-            
-            const blob = new Blob([newHTML], { type: 'text/html' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `ela_lesson_progress_${new Date().toISOString().split('T')[0]}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        };
-        
-        const downloadPDF = async () => {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({
-                orientation: 'p',
-                unit: 'px',
-                format: 'a4'
-            });
-
-            const pdfRenderContainer = document.getElementById('pdf-render-container');
-            pdfRenderContainer.classList.remove('hidden');
-            
-            const spinner = document.createElement('div');
-            spinner.innerHTML = '<p class="text-center font-bold p-8">Generating PDF, please wait...</p>';
-            document.body.appendChild(spinner);
-
-            for (let i = 0; i < assessmentQuestions.length; i++) {
-                const q = assessmentQuestions[i];
-                const staticClone = document.createElement('div');
-                staticClone.className = 'p-8 bg-white printable-container';
-                staticClone.style.width = '600px';
-
-                // Generate static HTML for the question
-                let questionHTML = generateQuestionHTML(q);
-                
-                staticClone.innerHTML = questionHTML;
-
-                // Mark the student's answer
-                const userAnswer = studentAnswers[q.id];
-                if (userAnswer) {
-                     markAnswerInClone(staticClone, q, userAnswer);
-                }
-
-                pdfRenderContainer.innerHTML = '';
-                pdfRenderContainer.appendChild(staticClone);
-
-                // Use html2canvas to capture
-                const canvas = await html2canvas(staticClone, { scale: 2 });
-                const imgData = canvas.toDataURL('image/png');
-
-                const imgProps = doc.getImageProperties(imgData);
-                const pdfWidth = doc.internal.pageSize.getWidth();
-                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-                if (i > 0) {
-                    doc.addPage();
-                }
-                doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            }
-            
-            doc.save(`ela_report_${new Date().toISOString().split('T')[0]}.pdf`);
-            pdfRenderContainer.classList.add('hidden');
-            pdfRenderContainer.innerHTML = '';
-            document.body.removeChild(spinner);
-        };
-
-        const markAnswerInClone = (clone, question, answer) => {
-            // This function modifies the static clone to visually show the answer.
-            switch (question.type) {
-                case 'multiple-choice':
-                    clone.querySelectorAll('.option-btn').forEach(btn => {
-                        if (btn.textContent === answer) {
-                            btn.style.backgroundColor = '#c5cae9';
-                            btn.style.border = '2px solid #3f51b5';
-                            btn.innerHTML += ' <strong>(Selected)</strong>';
-                        }
-                        btn.outerHTML = `<div style="border: 1px solid #ccc; padding: 10px; margin: 5px 0; border-radius: 5px; ${btn.style.cssText}">${btn.innerHTML}</div>`;
-                    });
-                    break;
-                case 'ebsr':
-                     clone.querySelectorAll('button[data-part="A"]').forEach(btn => {
-                        if (answer.A && btn.textContent === answer.A) {
-                             btn.style.backgroundColor = '#c5cae9';
-                             btn.innerHTML += ' <strong>(Selected)</strong>';
-                        }
-                         btn.outerHTML = `<div style="border: 1px solid #ccc; padding: 10px; margin: 5px 0; border-radius: 5px; ${btn.style.cssText}">${btn.innerHTML}</div>`;
-                    });
-                     clone.querySelectorAll('button[data-part="B"]').forEach(btn => {
-                        if (answer.B && btn.textContent === answer.B) {
-                             btn.style.backgroundColor = '#c5cae9';
-                             btn.innerHTML += ' <strong>(Selected)</strong>';
-                        }
-                         btn.outerHTML = `<div style="border: 1px solid #ccc; padding: 10px; margin: 5px 0; border-radius: 5px; ${btn.style.cssText}">${btn.innerHTML}</div>`;
-                    });
-                    break;
-                case 'multi-select':
-                    clone.querySelectorAll('.option-btn').forEach(btn => {
-                        if (answer.includes(btn.textContent)) {
-                             btn.style.backgroundColor = '#c5cae9';
-                             btn.innerHTML += ' <strong>(Selected)</strong>';
-                        }
-                         btn.outerHTML = `<div style="border: 1px solid #ccc; padding: 10px; margin: 5px 0; border-radius: 5px; ${btn.style.cssText}">${btn.innerHTML}</div>`;
-                    });
-                    break;
-                case 'constructed-response':
-                    clone.querySelector('textarea').outerHTML = `<div style="border: 1px solid #ccc; padding: 10px; min-height: 100px; background-color: #f9f9f9; border-radius: 5px;"><p><strong>Student's Response:</strong></p><p>${answer}</p></div>`;
-                    break;
-                case 'hot-text':
-                    clone.querySelectorAll('.hot-text').forEach(span => {
-                        if (span.textContent === answer) {
-                             span.style.backgroundColor = '#f9a825';
-                             span.style.color = '#1a237e';
-                             span.style.fontWeight = 'bold';
-                        }
-                    });
-                    break;
-                case 'drag-and-drop':
-                    const container = clone.querySelector('.flex-col');
-                    container.innerHTML = '<h4>Student\'s Matches:</h4>';
-                    Object.entries(answer).forEach(([itemId, zoneId]) => {
-                        const itemText = question.items.find(i => i.id === itemId).text;
-                        const zoneLabel = question.zones.find(z => z.id === zoneId).label;
-                        container.innerHTML += `<div style="border: 1px solid #ccc; padding: 10px; margin: 5px 0; border-radius: 5px;"><strong>${itemText}</strong> -> ${zoneLabel}</div>`;
-                    });
-                    break;
-            }
-        };
-
-        // --- STARTUP ---
-        init();
-
+        setupEventListeners();
     });
+
+    function setupEventListeners() {
+        document.getElementById('home-btn').addEventListener('click', () => {
+             if (!testState.isLocked) showView('home');
+        });
+        document.getElementById('start-test-btn').addEventListener('click', startTest);
+        document.getElementById('start-practice-btn').addEventListener('click', startPractice);
+        document.getElementById('test-next-btn').addEventListener('click', nextTestQuestion);
+        document.getElementById('test-prev-btn').addEventListener('click', prevTestQuestion);
+        document.getElementById('review-answers-btn').addEventListener('click', reviewAnswers);
+        document.getElementById('submit-grading-btn').addEventListener('click', submitForGrading);
+        document.getElementById('admin-reset-btn').addEventListener('click', adminReset);
+        document.getElementById('download-work-btn').addEventListener('click', downloadWork);
+        document.getElementById('export-pdf-btn').addEventListener('click', downloadPDF);
+        document.getElementById('practice-check-btn').addEventListener('click', checkPracticeAnswer);
+        document.getElementById('practice-try-again-btn').addEventListener('click', tryPracticeAgain);
+        document.getElementById('practice-next-btn').addEventListener('click', nextPracticeItem);
+    }
+    
+    function showView(viewId) {
+        Object.values(views).forEach(view => view.classList.remove('active'));
+        if (views[viewId]) {
+            views[viewId].classList.add('active');
+        } else {
+            console.error(`View with id ${viewId} not found.`);
+        }
+    }
+
+    // --- TEST LOGIC ---
+
+    function startTest() {
+        currentTestQuestionIndex = 0;
+        renderTestQuestion();
+        showView('test');
+    }
+
+    function renderPassage() {
+        const passageKey = currentTestQuestionIndex < 5 ? 'icarus' : 'arachne';
+        const passage = sourceTexts[passageKey];
+        let html = `<h3 class="text-2xl font-bold theme-primary mb-4">${passage.title}</h3>
+                    <div class="space-y-4 text-gray-800 leading-relaxed">`;
+        passage.paragraphs.forEach(p => {
+            html += `<p>${p}</p>`;
+        });
+        html += `</div>`;
+        sourceTextContainer.innerHTML = html;
+        sourceTextContainer.scrollTop = 0;
+    }
+
+    function renderTestQuestion() {
+        if (testState.isLocked) return;
+
+        renderPassage();
+        
+        const question = assessmentQuestions[currentTestQuestionIndex];
+        let html = `<h3 class="text-xl font-bold theme-primary mb-4">Question ${currentTestQuestionIndex + 1}${question.part ? `, Part ${question.part}` : ''}</h3>`;
+        html += `<p class="text-gray-800 mb-6">${question.stem}</p>`;
+        
+        const savedAnswer = studentAnswers[question.id];
+
+        switch (question.type) {
+            case 'mc':
+                html += '<div class="space-y-3">';
+                question.options.forEach(option => {
+                    const isChecked = savedAnswer === option;
+                    html += `
+                        <label class="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-100 ${isChecked ? 'selected-option' : 'border-gray-200'}">
+                            <input type="radio" name="q_${question.id}" value="${escapeHTML(option)}" class="mr-3" ${isChecked ? 'checked' : ''}>
+                            <span>${escapeHTML(option)}</span>
+                        </label>`;
+                });
+                html += '</div>';
+                break;
+            case 'hot-text':
+                const sentences = question.sentence.split(/(?<=[.?!])\s+/);
+                html += `<div class="p-4 bg-gray-100 rounded-lg space-y-2">`;
+                sentences.forEach(s => {
+                    const isSelected = savedAnswer === s;
+                    html += `<span class="hot-text-clickable ${isSelected ? 'hot-text-selected' : ''}" data-sentence="${escapeHTML(s)}">${escapeHTML(s)} </span>`;
+                });
+                html += `</div>`;
+                break;
+        }
+
+        questionContainer.innerHTML = html;
+        addQuestionSpecificListeners();
+        updateTestNavigation();
+    }
+
+    function addQuestionSpecificListeners() {
+        const question = assessmentQuestions[currentTestQuestionIndex];
+        switch (question.type) {
+            case 'mc':
+                document.querySelectorAll(`input[name="q_${question.id}"]`).forEach(input => {
+                    input.addEventListener('change', (e) => saveAnswer(question.id, e.target.value));
+                });
+                break;
+            case 'hot-text':
+                 document.querySelectorAll('.hot-text-clickable').forEach(span => {
+                    span.addEventListener('click', (e) => {
+                        document.querySelectorAll('.hot-text-clickable').forEach(el => el.classList.remove('hot-text-selected'));
+                        e.target.classList.add('hot-text-selected');
+                        saveAnswer(question.id, e.target.dataset.sentence);
+                    });
+                 });
+                break;
+        }
+    }
+
+    function saveAnswer(questionId, answer) {
+        studentAnswers[questionId] = answer;
+        localStorage.setItem('studentAnswers', JSON.stringify(studentAnswers));
+        
+        if (document.querySelector(`input[name="q_${questionId}"]`)) {
+            document.querySelectorAll(`label:has(input[name="q_${questionId}"])`).forEach(label => {
+                label.classList.remove('selected-option');
+            });
+            const selectedInput = document.querySelector(`input[name="q_${questionId}"]:checked`);
+            if (selectedInput) {
+                selectedInput.closest('label').classList.add('selected-option');
+            }
+        }
+    }
+    
+    function updateTestNavigation() {
+        document.getElementById('test-prev-btn').style.visibility = (currentTestQuestionIndex === 0) ? 'hidden' : 'visible';
+        
+        const nextBtn = document.getElementById('test-next-btn');
+        nextBtn.textContent = (currentTestQuestionIndex === assessmentQuestions.length - 1) ? 'Finish' : 'Next';
+        
+        const progress = ((currentTestQuestionIndex + 1) / assessmentQuestions.length) * 100;
+        testProgressBar.style.width = `${progress}%`;
+        testQuestionCounter.textContent = `Question ${currentTestQuestionIndex + 1} of ${assessmentQuestions.length}`;
+    }
+
+    function nextTestQuestion() {
+        if (currentTestQuestionIndex < assessmentQuestions.length - 1) {
+            currentTestQuestionIndex++;
+            renderTestQuestion();
+        } else {
+            showView('confirmation');
+        }
+    }
+
+    function prevTestQuestion() {
+        if (currentTestQuestionIndex > 0) {
+            currentTestQuestionIndex--;
+            renderTestQuestion();
+        }
+    }
+
+    function reviewAnswers() {
+        currentTestQuestionIndex = 0;
+        renderTestQuestion();
+        showView('test');
+    }
+
+    function submitForGrading() {
+        let score = 0;
+        assessmentQuestions.forEach(q => {
+            const userAnswer = studentAnswers[q.id];
+            if (userAnswer && userAnswer === q.correctAnswer) {
+                score++;
+            }
+        });
+        testState.score = score;
+        testState.isLocked = true;
+        localStorage.setItem('testState', JSON.stringify(testState));
+        displayScore();
+        showView('score');
+    }
+
+    function displayScore() {
+        document.getElementById('final-score').textContent = `${testState.score} / ${assessmentQuestions.length}`;
+    }
+
+    function adminReset() {
+        const password = prompt("Please enter admin password to reset:");
+        if (password === "2026") {
+            localStorage.removeItem('studentAnswers');
+            localStorage.removeItem('testState');
+            studentAnswers = {};
+            testState = { isLocked: false, score: null };
+            alert("Test has been reset.");
+            window.location.reload();
+        } else if (password) {
+            alert("Incorrect password.");
+        }
+    }
+
+    // --- PRACTICE CENTER LOGIC ---
+    function startPractice() {
+        currentPracticeItemIndex = 0;
+        renderPracticeItem();
+        showView('practice');
+    }
+
+    function renderPracticeItem() {
+        const item = practiceActivities[currentPracticeItemIndex];
+        const contentEl = document.getElementById('practice-content');
+        let html = '';
+
+        if (item.type === 'mc') {
+            html = `<p class="text-xl mb-4">${item.question}</p><div class="space-y-2">`;
+            item.options.forEach(opt => {
+                html += `<label class="block p-3 border-2 rounded-lg cursor-pointer hover:bg-gray-100 border-gray-200">
+                    <input type="radio" name="practice-radio" value="${escapeHTML(opt)}" class="mr-2"> ${escapeHTML(opt)}
+                </label>`;
+            });
+            html += `</div>`;
+        } else if (item.type === 'hot-text') {
+            const parts = item.sentence.split(new RegExp(`(${escapeRegExp(item.answer)})`, 'i'));
+            html = `<p class="text-xl mb-4">${item.instruction}</p>`;
+            html += `<p class="text-2xl p-4 bg-gray-100 rounded-lg">${escapeHTML(parts[0])}<span class="hot-text-clickable p-1 hover:bg-yellow-200 rounded">${escapeHTML(parts[1])}</span>${escapeHTML(parts[2] || '')}</p>`;
+        }
+        
+        contentEl.innerHTML = html;
+        document.getElementById('practice-counter').textContent = `${currentPracticeItemIndex + 1} / ${practiceActivities.length}`;
+        addPracticeListeners();
+        resetPracticeButtons();
+    }
+    
+    function addPracticeListeners() {
+        const item = practiceActivities[currentPracticeItemIndex];
+        if (item.type === 'hot-text') {
+            document.querySelector('.hot-text-clickable').addEventListener('click', e => {
+                document.querySelectorAll('.hot-text-clickable').forEach(el => el.classList.remove('hot-text-selected'));
+                e.target.classList.add('hot-text-selected');
+            });
+        }
+    }
+
+    function checkPracticeAnswer() {
+        const item = practiceActivities[currentPracticeItemIndex];
+        let isCorrect = false;
+
+        if (item.type === 'mc') {
+            const selected = document.querySelector('input[name="practice-radio"]:checked');
+            if (selected && selected.value === item.answer) {
+                isCorrect = true;
+            }
+        } else if (item.type === 'hot-text') {
+            const selected = document.querySelector('.hot-text-selected');
+            if (selected) {
+                isCorrect = true;
+            }
+        }
+
+        const feedbackEl = document.getElementById('practice-feedback');
+        if (isCorrect) {
+            feedbackEl.textContent = 'Correct!';
+            feedbackEl.className = 'mt-4 text-center text-xl font-bold h-8 text-green-600';
+            document.getElementById('practice-check-btn').classList.add('hidden');
+            document.getElementById('practice-next-btn').classList.remove('hidden');
+            document.getElementById('practice-try-again-btn').classList.add('hidden');
+            document.querySelectorAll('#practice-content input, #practice-content .hot-text-clickable').forEach(el => {
+                el.style.pointerEvents = 'none';
+            });
+        } else {
+            feedbackEl.textContent = 'Not quite, please try again.';
+            feedbackEl.className = 'mt-4 text-center text-xl font-bold h-8 text-red-600';
+            document.getElementById('practice-check-btn').classList.add('hidden');
+            document.getElementById('practice-try-again-btn').classList.remove('hidden');
+        }
+    }
+
+    function tryPracticeAgain() {
+        document.getElementById('practice-feedback').textContent = '';
+        document.getElementById('practice-check-btn').classList.remove('hidden');
+        document.getElementById('practice-try-again-btn').classList.add('hidden');
+        renderPracticeItem();
+    }
+    
+    function resetPracticeButtons() {
+        document.getElementById('practice-feedback').textContent = '';
+        document.getElementById('practice-check-btn').classList.remove('hidden');
+        document.getElementById('practice-next-btn').classList.add('hidden');
+        document.getElementById('practice-try-again-btn').classList.add('hidden');
+    }
+
+    function nextPracticeItem() {
+        if (currentPracticeItemIndex < practiceActivities.length - 1) {
+            currentPracticeItemIndex++;
+            renderPracticeItem();
+        } else {
+            alert('You have completed the practice center!');
+            showView('home');
+        }
+    }
+
+    // --- UTILITY & EXPORT FUNCTIONS ---
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function escapeHTML(str) {
+        if (typeof str !== 'string') return '';
+        return str.replace(/[&<>"']/g, match => ({'&': '&amp;','<': '&lt;','>': '&gt;','"': '&quot;',"'": '&#39;'})[match]);
+    }
+
+    function downloadWork() {
+        const stateToSave = { answers: studentAnswers, state: testState };
+        const jsonString = JSON.stringify(stateToSave);
+        let currentHtml = document.documentElement.outerHTML;
+        const scriptTagRegex = /<script id="progress-data" type="application\/json">.*?<\/script>/s;
+        const newScriptTag = `<script id="progress-data" type="application/json">${jsonString}<\/script>`;
+        currentHtml = scriptTagRegex.test(currentHtml) ? currentHtml.replace(scriptTagRegex, newScriptTag) : currentHtml.replace('</body>', `${newScriptTag}</body>`);
+        const blob = new Blob([currentHtml], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'my-progress.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        alert("Your work has been downloaded as an HTML file.");
+    }
+
+    async function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const stagingArea = document.getElementById('pdf-staging-area');
+        stagingArea.innerHTML = '';
+        
+        const loader = document.createElement('div');
+        loader.innerHTML = `<div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center; color: white; font-size: 2rem;">Generating PDF...</div>`;
+        document.body.appendChild(loader);
+
+        for (let i = 0; i < assessmentQuestions.length; i++) {
+            const question = assessmentQuestions[i];
+            const answer = studentAnswers[question.id];
+            const passageKey = i < 5 ? 'icarus' : 'arachne';
+            const passage = sourceTexts[passageKey];
+
+            const container = document.createElement('div');
+            container.className = 'print-container';
+            
+            let passageHtml = `<div class="print-passage">
+                <h4 style="font-size: 14pt; font-weight: bold; margin-bottom: 10px;">Passage: ${passage.title}</h4>
+                ${passage.paragraphs.map(p => `<p style="font-size: 10pt;">${p.replace(/<strong>.*?<\/strong>/g, '')}</p>`).join('')}
+            </div>`;
+            
+            let questionHtml = `<h3 style="margin-bottom: 10px;">Question ${i + 1}${question.part ? `, Part ${question.part}` : ''}</h3><p style="margin-bottom: 15px;">${question.stem}</p>`;
+            
+            switch (question.type) {
+                case 'mc':
+                    questionHtml += '<ul style="list-style-type: none; padding: 0;">';
+                    question.options.forEach(opt => {
+                        const isSelected = answer === opt;
+                        questionHtml += `<li style="padding: 8px; border: 1px solid #ccc; margin-bottom: 5px; border-radius: 4px;" class="${isSelected ? 'print-answer-selected' : ''}">${escapeHTML(opt)} ${isSelected ? '<strong> (Selected)</strong>' : ''}</li>`;
+                    });
+                    questionHtml += '</ul>';
+                    break;
+                case 'hot-text':
+                    const sentences = question.sentence.split(/(?<=[.?!])\s+/);
+                    questionHtml += '<div style="background-color: #f9f9f9; border: 1px solid #ccc; padding: 10px;">';
+                    sentences.forEach(s => {
+                        const isSelected = answer === s;
+                        questionHtml += `<span class="${isSelected ? 'print-hot-text-selected' : ''}">${escapeHTML(s)} </span>`;
+                    });
+                    questionHtml += '</div>';
+                    if (answer) {
+                        questionHtml += `<p style="margin-top: 10px;"><strong>Student Selected:</strong> <span class="print-answer-selected">${escapeHTML(answer)}</span></p>`;
+                    } else {
+                        questionHtml += `<p style="margin-top: 10px;"><em>No answer provided.</em></p>`;
+                    }
+                    break;
+            }
+
+            container.innerHTML = passageHtml + questionHtml;
+            stagingArea.appendChild(container);
+
+            const canvas = await html2canvas(container, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const ratio = imgProps.width / imgProps.height;
+            let imgWidth = pdfWidth - 20;
+            let imgHeight = imgWidth / ratio;
+            
+            if (imgHeight > pdfHeight - 20) {
+                imgHeight = pdfHeight - 20;
+                imgWidth = imgHeight * ratio;
+            }
+            
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+            
+            stagingArea.removeChild(container);
+        }
+
+        pdf.save('two_myths_report.pdf');
+        document.body.removeChild(loader);
+    }
     </script>
 </body>
 </html>
+
