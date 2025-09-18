@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Prep Adventure!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /*
+        * Game: Test Prep Adventure!
+        * Description: An interactive practice test for 2nd grade math assessment.
+        * Features: Follows a 4-section test structure, provides hints, and requires mastery to progress.
+        */
+        :root {
+            --font-primary: 'Poppins', sans-serif;
+            --c-bg: #f0f7ff;
+            --c-primary: #007bff;
+            --c-secondary: #ffc107;
+            --c-text: #333;
+            --c-light-text: #555;
+            --c-container: #ffffff;
+            --c-correct: #28a745;
+            --c-incorrect: #dc3545;
+            --c-border: #dee2e6;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { width: 100%; height: 100%; overflow: hidden; }
+        body {
+            font-family: var(--font-primary);
+            background-color: var(--c-bg);
+            color: var(--c-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 900px;
+            height: 95vh;
+            max-height: 700px;
+            background-color: var(--c-container);
+            border: 1px solid var(--c-border);
+            box-shadow: var(--shadow);
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* --- SCREEN MANAGEMENT & ANIMATIONS --- */
+        .screen { display: none; width: 100%; height: 100%; flex-direction: column; animation: fadeIn 0.5s ease; }
+        .screen.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+        /* --- UI COMPONENTS --- */
+        .btn {
+            font-family: var(--font-primary);
+            font-weight: 600;
+            font-size: 1.1rem;
+            padding: 12px 28px;
+            border-radius: 50px;
+            border: 2px solid transparent;
+            background-color: var(--c-primary);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: var(--shadow);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 10px rgba(0,0,0,0.15); }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .title { font-size: clamp(2rem, 5vw, 2.8rem); text-align: center; margin-bottom: 2rem; color: var(--c-primary); }
+
+        /* --- START & WIN SCREENS --- */
+        #start-screen, #win-screen { justify-content: center; align-items: center; text-align: center; }
+        .content-box { background: rgba(255,255,255,0.7); padding: 2rem; border-radius: 15px; max-width: 450px; display: flex; flex-direction: column; gap: 1rem; }
+        #player-name-input { font-size: 1.2rem; padding: 10px 15px; border: 2px solid var(--c-border); border-radius: 8px; text-align: center; }
+        
+        /* --- MAIN MENU SCREEN --- */
+        #main-menu-screen { justify-content: center; align-items: center; }
+        #section-container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; width: 100%; max-width: 600px; }
+        .section-card {
+            background-color: #fff;
+            padding: 1.5rem;
+            border-radius: 15px;
+            border: 2px solid var(--c-border);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .section-card.locked { background-color: #f8f9fa; color: #999; cursor: not-allowed; }
+        .section-card:not(.locked):hover { transform: translateY(-5px); border-color: var(--c-primary); box-shadow: var(--shadow); }
+        .section-card h3 { margin-bottom: 0.5rem; font-size: 1.2rem; }
+        .star-icon { position: absolute; top: -15px; right: -15px; width: 40px; height: 40px; }
+        .star-icon.earned { color: var(--c-secondary); }
+        .star-icon.unearned { color: #e9ecef; }
+
+        /* --- QUESTION SCREEN --- */
+        #question-screen { padding: 1rem; }
+        #question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 2px solid var(--c-border); }
+        #question-title { font-size: 1.5rem; }
+        #question-progress { font-size: 1.2rem; font-weight: 600; color: var(--c-primary); }
+        #chances-display { display: flex; gap: 0.5rem; }
+        .chance-icon { width: 28px; height: 28px; color: var(--c-correct); transition: color 0.3s ease; }
+        .chance-icon.lost { color: var(--c-border); }
+        #question-area { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 1rem; }
+        .prompt-text { font-size: 1.5rem; line-height: 1.6; max-width: 80ch; text-align: center; margin-bottom: 2rem; }
+        .prompt-text .blank { display: inline-block; width: 60px; border-bottom: 2px solid var(--c-text); margin: 0 5px; text-align: center; font-weight: bold; color: var(--c-primary); }
+        #answer-zone { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+
+        /* Question Type Specific Styles */
+        /* MC */
+        .mc-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; width: 100%; max-width: 600px; }
+        .mc-option { display: block; width: 100%; padding: 1rem; font-size: 1.2rem; border-radius: 10px; border: 2px solid var(--c-border); background-color: #fff; cursor: pointer; transition: all 0.2s ease; }
+        .mc-option:hover { border-color: var(--c-primary); }
+        .mc-option.selected { border-color: var(--c-primary); background-color: #e7f3ff; }
+
+        /* Short Answer */
+        #sa-input { width: 150px; font-size: 1.5rem; text-align: center; margin: 1rem 0; }
+        #sa-solution-prompt { font-size: 1.3rem; }
+
+        /* Yes/No */
+        .yes-no-table { width: 100%; max-width: 500px; border-collapse: collapse; margin-top: 1rem; }
+        .yes-no-table td { padding: 0.8rem; border: 1px solid var(--c-border); text-align: center; }
+        .yes-no-table td:first-child { text-align: left; font-size: 1.4rem; font-family: var(--font-primary); }
+        .yes-no-option { width: 30px; height: 30px; cursor: pointer; }
+        
+        /* Bar Model */
+        .bar-model-container { margin-bottom: 2rem; }
+        .bar-model-whole { width: 300px; height: 50px; background: #e9ecef; border: 2px solid #6c757d; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; font-weight: 600; border-radius: 5px; margin-bottom: 5px; }
+        .bar-model-parts { display: flex; width: 300px; }
+        .bar-model-part { height: 50px; background: #cce5ff; border: 2px solid var(--c-primary); display: flex; justify-content: center; align-items: center; font-size: 1.5rem; font-weight: 600; }
+        #bar-model-part1 { border-radius: 5px 0 0 5px; }
+        #bar-model-part2 { border-radius: 0 5px 5px 0; background: #fff3cd; border-color: var(--c-secondary); }
+        #bar-model-solution-area { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+
+        #feedback-zone { min-height: 40px; margin-top: 1.5rem; font-size: 1.2rem; font-weight: 600; }
+        #feedback-zone.correct { color: var(--c-correct); }
+        #feedback-zone.incorrect { color: var(--c-incorrect); }
+        
+
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <!-- ===== START SCREEN ===== -->
+        <div id="start-screen" class="screen active">
+            <div class="content-box">
+                <h1 class="title">Test Prep Adventure!</h1>
+                <p>Enter your name to start your practice test.</p>
+                <input type="text" id="player-name-input" placeholder="Your Name">
+                <button id="start-game-btn" class="btn">Start Practice</button>
+            </div>
+        </div>
+
+        <!-- ===== MAIN MENU SCREEN ===== -->
+        <div id="main-menu-screen" class="screen">
+            <h1 class="title">Choose a Section</h1>
+            <div id="section-container"></div>
+        </div>
+
+        <!-- ===== QUESTION SCREEN ===== -->
+        <div id="question-screen" class="screen">
+            <header id="question-header">
+                <h2 id="question-title">Section Title</h2>
+                <div id="chances-display"></div>
+                <div id="question-progress">1 / 5</div>
+            </header>
+            <main id="question-area">
+                <p id="prompt-text" class="prompt-text"></p>
+                <div id="answer-zone"></div>
+                <div id="feedback-zone"></div>
+            </main>
+            <button id="back-to-menu-btn" style="position: absolute; top: 1.5rem; left: 1.5rem; background: #6c757d;">Menu</button>
+        </div>
+
+        <!-- ===== WIN SCREEN ===== -->
+        <div id="win-screen" class="screen">
+            <div class="content-box">
+                <h1 class="title">You're Ready!</h1>
+                <p>Great job, <span id="win-player-name"></span>! You've completed all the practice sections. You're ready for the test!</p>
+                <button id="play-again-btn" class="btn">Practice Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const GAME_DATA = JSON.parse(document.getElementById('game_data_json').textContent);
+        let gameState = {};
+        let currentSection = null;
+        let currentQuestionIndex = 0;
+        let yesNoAnswers = {};
+        let sectionChances = 2;
+        const MAX_CHANCES = 2;
+
+        // --- DOM Elements --- //
+        const screens = {
+            start: document.getElementById('start-screen'),
+            menu: document.getElementById('main-menu-screen'),
+            question: document.getElementById('question-screen'),
+            win: document.getElementById('win-screen')
+        };
+        const playerNameInput = document.getElementById('player-name-input');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const sectionContainer = document.getElementById('section-container');
+        const questionTitle = document.getElementById('question-title');
+        const questionProgress = document.getElementById('question-progress');
+        const chancesDisplay = document.getElementById('chances-display');
+        const promptText = document.getElementById('prompt-text');
+        const answerZone = document.getElementById('answer-zone');
+        const feedbackZone = document.getElementById('feedback-zone');
+        const winPlayerName = document.getElementById('win-player-name');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const backToMenuBtn = document.getElementById('back-to-menu-btn');
+
+
+        // --- AUDIO --- //
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const sfx = {};
+        async function setupAudio() { for (const key in GAME_DATA.sfx) { try { const r=await fetch(GAME_DATA.sfx[key]), b=await r.arrayBuffer(); sfx[key]=await audioCtx.decodeAudioData(b) } catch (e) { console.error(`Audio error for ${key}:`, e) } } }
+        function playSound(name) { if (sfx[name] && audioCtx.state === 'running') { const s=audioCtx.createBufferSource(); s.buffer=sfx[name]; s.connect(audioCtx.destination); s.start(0) } }
+
+        // --- STATE & UI MANAGEMENT --- //
+        const GameStateManager = {
+            init() {
+                gameState = JSON.parse(JSON.stringify(GAME_DATA.player));
+                if (this.load()) {
+                    UIManager.showScreen('menu');
+                    UIManager.renderMainMenu();
+                } else {
+                    UIManager.showScreen('start');
+                }
+            },
+            save() { localStorage.setItem('testPrepState', JSON.stringify(gameState)); },
+            load() {
+                const savedState = localStorage.getItem('testPrepState');
+                if (savedState) { gameState = JSON.parse(savedState); return true; }
+                return false;
+            },
+            reset() { localStorage.removeItem('testPrepState'); location.reload(); },
+        };
+
+        const UIManager = {
+            showScreen(name) { Object.values(screens).forEach(s => s.classList.remove('active')); screens[name].classList.add('active'); },
+            renderMainMenu() {
+                sectionContainer.innerHTML = '';
+                GAME_DATA.sections.forEach((section, index) => {
+                    const isCompleted = gameState.completedSections.includes(section.id);
+                    const isLocked = index > 0 && !gameState.completedSections.includes(GAME_DATA.sections[index - 1].id);
+
+                    const card = document.createElement('div');
+                    card.className = 'section-card';
+                    card.dataset.sectionId = section.id;
+                    if (isLocked) card.classList.add('locked');
+
+                    card.innerHTML = `
+                        <svg class="star-icon ${isCompleted ? 'earned' : 'unearned'}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                        <h3>${section.title}</h3>
+                        <p>${isCompleted ? 'Completed!' : isLocked ? 'Locked' : 'Click to Start'}</p>
+                    `;
+                    if (!isLocked) {
+                        card.addEventListener('click', () => handleSectionStart(section.id));
+                    }
+                    sectionContainer.appendChild(card);
+                });
+            },
+            renderQuestion() {
+                feedbackZone.textContent = '';
+                feedbackZone.className = '';
+                this.renderChances();
+
+                const question = currentSection.questions[currentQuestionIndex];
+                questionTitle.textContent = currentSection.title;
+                questionProgress.textContent = `${currentQuestionIndex + 1} / ${currentSection.questions.length}`;
+                promptText.textContent = question.prompt;
+                answerZone.innerHTML = '';
+
+                switch (currentSection.type) {
+                    case 'mc': this.renderMC(question); break;
+                    case 'short-answer': this.renderSA(question); break;
+                    case 'yes-no': this.renderYN(question); break;
+                    case 'bar-model': this.renderBM(question); break;
+                }
+            },
+            renderChances() {
+                chancesDisplay.innerHTML = '';
+                for (let i = 0; i < MAX_CHANCES; i++) {
+                    const isLost = i >= sectionChances;
+                    chancesDisplay.innerHTML += `
+                        <svg class="chance-icon ${isLost ? 'lost' : ''}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
+                        </svg>
+                    `;
+                }
+            },
+            renderMC(q) {
+                const optionsHtml = q.data.options.map(opt => `<button class="mc-option" data-value="${opt}">${opt}</button>`).join('');
+                answerZone.innerHTML = `<div class="mc-options">${optionsHtml}</div>`;
+                answerZone.querySelectorAll('.mc-option').forEach(btn => {
+                    btn.onclick = (e) => {
+                        answerZone.querySelectorAll('.mc-option').forEach(b => b.classList.remove('selected'));
+                        e.target.classList.add('selected');
+                        checkAnswerMC(e.target.dataset.value);
+                    };
+                });
+            },
+            renderSA(q) {
+                answerZone.innerHTML = `
+                    <div id="sa-work-area" style="font-size:1.2rem; color: var(--c-light-text);">Use this space to show your work on paper.</div>
+                    <input type="number" id="sa-input" />
+                    <p id="sa-solution-prompt">${q.data.solution_prompt.replace('___', '<span id="sa-blank">___</span>')}</p>
+                    <button id="sa-submit" class="btn">Check Answer</button>
+                `;
+                answerZone.querySelector('#sa-submit').onclick = () => {
+                    const answer = answerZone.querySelector('#sa-input').value;
+                    checkAnswerSA(answer);
+                };
+            },
+            renderYN(q) {
+                let tableHtml = `<table class="yes-no-table"><thead><tr><th>Equation</th><th>Yes</th><th>No</th></tr></thead><tbody>`;
+                q.data.equations.forEach((eq, index) => {
+                    tableHtml += `
+                        <tr>
+                            <td>${eq.text}</td>
+                            <td><input type="radio" name="eq-${index}" class="yes-no-option" value="Yes"></td>
+                            <td><input type="radio" name="eq-${index}" class="yes-no-option" value="No"></td>
+                        </tr>
+                    `;
+                });
+                tableHtml += `</tbody></table><button id="yn-submit" class="btn" style="margin-top: 1.5rem">Check Answers</button>`;
+                answerZone.innerHTML = tableHtml;
+                yesNoAnswers = {};
+                answerZone.querySelectorAll('.yes-no-option').forEach(radio => {
+                    radio.onchange = (e) => {
+                        yesNoAnswers[e.target.name] = e.target.value;
+                    };
+                });
+                answerZone.querySelector('#yn-submit').onclick = checkAnswerYN;
+            },
+            renderBM(q) {
+                promptText.innerHTML = q.prompt.replace(/___/g, '<span class="blank">?</span>');
+                const model = q.data.model;
+                answerZone.innerHTML = `
+                    <div class="bar-model-container">
+                        <div class="bar-model-whole">${model.whole}</div>
+                        <div class="bar-model-parts">
+                            <div id="bar-model-part1" style="width: ${model.part1 !== '?' ? (model.part1/model.whole)*100 : (1-(model.part2/model.whole))*100}%">${model.part1}</div>
+                            <div id="bar-model-part2" style="width: ${model.part2 !== '?' ? (model.part2/model.whole)*100 : (1-(model.part1/model.whole))*100}%">${model.part2}</div>
+                        </div>
+                    </div>
+                    <p><strong>Part A: Complete the problem.</strong></p>
+                    <div style="display:flex; gap: 1rem; margin-bottom: 1.5rem;">
+                         <input type="number" id="bm-blank1" placeholder="first blank">
+                         <input type="number" id="bm-blank2" placeholder="second blank">
+                    </div>
+                     <p><strong>Part B: Solve the problem.</strong></p>
+                     <div id="bar-model-solution-area">
+                        <p>${q.data.solution_prompt.replace('___', '<span id="bm-solution-blank">___</span>')}</p>
+                        <input type="number" id="bm-solution-input">
+                        <button id="bm-submit" class="btn">Check Answer</button>
+                    </div>
+                `;
+                answerZone.querySelector('#bm-submit').onclick = checkAnswerBM;
+            }
+        };
+
+        // --- ANSWER CHECKING LOGIC --- //
+        function handleCorrect() {
+            playSound('correct');
+            feedbackZone.className = 'correct';
+            feedbackZone.textContent = 'Correct! Great job!';
+            setTimeout(() => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex >= currentSection.questions.length) {
+                    handleSectionComplete();
+                } else {
+                    UIManager.renderQuestion();
+                }
+            }, 1500);
+        }
+        function handleIncorrect() {
+            playSound('incorrect');
+            sectionChances--;
+            UIManager.renderChances();
+
+            feedbackZone.className = 'incorrect';
+            feedbackZone.classList.add('shake');
+            setTimeout(() => feedbackZone.classList.remove('shake'), 500);
+
+            if (sectionChances <= 0) {
+                feedbackZone.textContent = "Out of chances! Let's try this section again.";
+                // Disable all answer inputs
+                answerZone.querySelectorAll('button, input').forEach(el => el.disabled = true);
+                setTimeout(() => {
+                    handleSectionStart(currentSection.id);
+                }, 2500);
+            } else {
+                feedbackZone.textContent = `Not quite, try again! You have ${sectionChances} chance left.`;
+            }
+        }
+
+        function checkAnswerMC(answer) {
+            const question = currentSection.questions[currentQuestionIndex];
+            if (answer === question.correct) { handleCorrect(); } else { handleIncorrect(); }
+        }
+        function checkAnswerSA(answer) {
+            const question = currentSection.questions[currentQuestionIndex];
+            if (answer === question.correct) {
+                document.getElementById('sa-blank').textContent = answer;
+                handleCorrect();
+            } else { handleIncorrect(); }
+        }
+        function checkAnswerYN() {
+            const question = currentSection.questions[currentQuestionIndex];
+            let allCorrect = true;
+            question.data.equations.forEach((eq, index) => {
+                if (yesNoAnswers[`eq-${index}`] !== eq.correct) {
+                    allCorrect = false;
+                }
+            });
+            if (allCorrect) { handleCorrect(); } else { handleIncorrect(); }
+        }
+        function checkAnswerBM() {
+            const question = currentSection.questions[currentQuestionIndex];
+            const blank1 = document.getElementById('bm-blank1').value;
+            const blank2 = document.getElementById('bm-blank2').value;
+            const solution = document.getElementById('bm-solution-input').value;
+            
+            const blanksCorrect = blank1 === question.correct.blanks[0] && blank2 === question.correct.blanks[1];
+            const solutionCorrect = solution === question.correct.solution;
+
+            if (blanksCorrect && solutionCorrect) {
+                document.querySelectorAll('.prompt-text .blank')[0].textContent = blank1;
+                document.querySelectorAll('.prompt-text .blank')[1].textContent = blank2;
+                document.getElementById('bm-solution-blank').textContent = solution;
+                handleCorrect();
+            } else {
+                handleIncorrect();
+            }
+        }
+        
+        function handleSectionComplete() {
+            if (!gameState.completedSections.includes(currentSection.id)) {
+                gameState.completedSections.push(currentSection.id);
+            }
+            GameStateManager.save();
+            
+            if (gameState.completedSections.length === GAME_DATA.sections.length) {
+                playSound('win');
+                winPlayerName.textContent = gameState.name;
+                UIManager.showScreen('win');
+            } else {
+                UIManager.showScreen('menu');
+                UIManager.renderMainMenu();
+            }
+        }
+
+        // --- EVENT LISTENERS & INIT --- //
+        function handleSectionStart(sectionId) {
+            playSound('click');
+            currentSection = GAME_DATA.sections.find(s => s.id === sectionId);
+            currentQuestionIndex = 0;
+            sectionChances = MAX_CHANCES; // Reset chances for the new section
+            UIManager.showScreen('question');
+            UIManager.renderQuestion();
+        }
+        function initEventListeners() {
+            startGameBtn.addEventListener('click', () => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const name = playerNameInput.value.trim();
+                if (!name) { alert("Please enter your name!"); return; }
+                playSound('click');
+                gameState.name = name;
+                GameStateManager.save();
+                UIManager.showScreen('menu');
+                UIManager.renderMainMenu();
+            });
+            playAgainBtn.addEventListener('click', GameStateManager.reset);
+            backToMenuBtn.addEventListener('click', () => {
+                 UIManager.showScreen('menu');
+                 UIManager.renderMainMenu();
+            });
+        }
+
+        GameStateManager.init();
+        setupAudio();
+        initEventListeners();
+    });
+    </script>
+    <script id="game_data_json" type="application/json">
+        {
+          "player": { "name": "", "completedSections": [] },
+          "sections": [
+            { "id": "sec1", "title": "Section 1: Multiple Choice", "type": "mc", "questions": [
+                { "id": "s1q1", "prompt": "Maria’s class has 15 goldfish. They give some away to the first graders. Now they have 9 goldfish. How many goldfish did the class give away?", "data": { "options": ["6 goldfish", "9 goldfish", "15 goldfish", "24 goldfish"] }, "correct": "6 goldfish" },
+                { "id": "s1q2", "prompt": "There were 20 cookies on a plate. The students ate some cookies after lunch. Now there are 11 cookies left. How many cookies did the students eat?", "data": { "options": ["31 cookies", "20 cookies", "11 cookies", "9 cookies"] }, "correct": "9 cookies" },
+                { "id": "s1q3", "prompt": "David has 16 toy cars. He puts some on a shelf. Now he has 10 cars left on the floor. How many cars did he put on the shelf?", "data": { "options": ["26 cars", "16 cars", "6 cars", "10 cars"] }, "correct": "6 cars" },
+                { "id": "s1q4", "prompt": "A tree had 19 apples. Some apples fell off. Now there are 13 apples on the tree. How many apples fell off?", "data": { "options": ["32 apples", "19 apples", "13 apples", "6 apples"] }, "correct": "6 apples" },
+                { "id": "s1q5", "prompt": "Sara made 17 friendship bracelets. She gave some to her friends. Now she has 8 bracelets left. How many bracelets did she give away?", "data": { "options": ["25 bracelets", "9 bracelets", "8 bracelets", "17 bracelets"] }, "correct": "9 bracelets" }
+              ]
+            },
+            { "id": "sec2", "title": "Section 2: Show Your Work", "type": "short-answer", "questions": [
+                { "id": "s2q1", "prompt": "Chen sees 5 red boats on the lake. He also sees some blue boats. Chen sees 14 boats in all. How many blue boats does Chen see?", "data": { "solution_prompt": "Chen sees ___ blue boats." }, "correct": "9" },
+                { "id": "s2q2", "prompt": "There are 17 balls in the gym bag. 8 are basketballs and the rest are soccer balls. How many soccer balls are in the bag?", "data": { "solution_prompt": "There are ___ soccer balls." }, "correct": "9" },
+                { "id": "s2q3", "prompt": "A pet store has 6 puppies. They also have some kittens. The store has 15 animals in all. How many kittens does the pet store have?", "data": { "solution_prompt": "The pet store has ___ kittens." }, "correct": "9" },
+                { "id": "s2q4", "prompt": "Maya has 11 stickers. Her friend gives her some more. Now Maya has 19 stickers. How many stickers did her friend give her?", "data": { "solution_prompt": "Her friend gave her ___ stickers." }, "correct": "8" },
+                { "id": "s2q5", "prompt": "There are 13 children on the bus. Some children get off at the first stop. Now there are 7 children on the bus. How many children got off at the first stop?", "data": { "solution_prompt": "___ children got off the bus." }, "correct": "6" }
+              ]
+            },
+            { "id": "sec3", "title": "Section 3: Yes or No Equations", "type": "yes-no", "questions": [
+                { "id": "s3q1", "prompt": "There are 9 children playing on the swings. Then 5 more children join them. How many children are playing now?", "data": { "equations": [ { "text": "9 + 5 = 14", "correct": "Yes" }, { "text": "9 - 5 = 4", "correct": "No" }, { "text": "5 + 9 = 14", "correct": "Yes" }, { "text": "14 - 9 = 5", "correct": "Yes" } ] } },
+                { "id": "s3q2", "prompt": "A baker puts 6 cupcakes on a tray. Then he adds 8 more cupcakes. How many cupcakes are on the tray now?", "data": { "equations": [ { "text": "6 + 2 = 8", "correct": "No" }, { "text": "8 - 6 = 2", "correct": "No" }, { "text": "6 + 8 = 14", "correct": "Yes" }, { "text": "8 + 6 = 14", "correct": "Yes" } ] } },
+                { "id": "s3q3", "prompt": "Lila finds 11 seashells on the beach. Her brother finds 7 seashells. How many seashells do they have in all?", "data": { "equations": [ { "text": "11 + 7 = 18", "correct": "Yes" }, { "text": "11 - 7 = 4", "correct": "No" }, { "text": "18 - 11 = 7", "correct": "Yes" }, { "text": "7 + 11 = 18", "correct": "Yes" } ] } },
+                { "id": "s3q4", "prompt": "There are 12 fish in a tank. The owner adds 8 more fish. How many fish are in the tank now?", "data": { "equations": [ { "text": "12 - 8 = 4", "correct": "No" }, { "text": "8 + 12 = 20", "correct": "Yes" }, { "text": "20 - 12 = 8", "correct": "Yes" }, { "text": "12 + 8 = 20", "correct": "Yes" } ] } },
+                { "id": "s3q5", "prompt": "A cat has 4 gray kittens and 7 orange kittens. How many kittens does the cat have in all?", "data": { "equations": [ { "text": "7 + 4 = 11", "correct": "Yes" }, { "text": "7 - 4 = 3", "correct": "No" }, { "text": "4 + 7 = 11", "correct": "Yes" }, { "text": "11 + 4 = 15", "correct": "No" } ] } }
+              ]
+            },
+            { "id": "sec4", "title": "Section 4: Bar Models", "type": "bar-model", "questions": [
+                { "id": "s4q1", "prompt": "There are ___ red flowers in a garden and some more yellow flowers. There are ___ flowers in all. How many yellow flowers are in the garden?", "data": { "model": { "part1": "9", "part2": "?", "whole": "15" }, "solution_prompt": "___ yellow flowers are in the garden." }, "correct": { "blanks": ["9", "15"], "solution": "6" } },
+                { "id": "s4q2", "prompt": "There are ___ students on the bus and some more students get on. There are ___ students in all. How many students got on the bus?", "data": { "model": { "part1": "8", "part2": "?", "whole": "17" }, "solution_prompt": "___ students got on the bus." }, "correct": { "blanks": ["8", "17"], "solution": "9" } },
+                { "id": "s4q3", "prompt": "There are some frogs on a log and ___ more frogs jump on. There are ___ frogs in all. How many frogs were on the log first?", "data": { "model": { "part1": "?", "part2": "6", "whole": "14" }, "solution_prompt": "___ frogs were on the log first." }, "correct": { "blanks": ["6", "14"], "solution": "8" } },
+                { "id": "s4q4", "prompt": "A team scored ___ points in the first half and some more points in the second half. They scored ___ points in all. How many points did they score in the second half?", "data": { "model": { "part1": "11", "part2": "?", "whole": "20" }, "solution_prompt": "They scored ___ points in the second half." }, "correct": { "blanks": ["11", "20"], "solution": "9" } },
+                { "id": "s4q5", "prompt": "There are some birds in a tree and ___ more birds fly in. There are ___ birds in all. How many birds were in the tree at the start?", "data": { "model": { "part1": "?", "part2": "10", "whole": "18" }, "solution_prompt": "___ birds were in the tree at the start." }, "correct": { "blanks": ["10", "18"], "solution": "8" } }
+              ]
+            }
+          ],
+          "sfx": { "click": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==", "correct": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==", "incorrect": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==", "win": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAD//w==" }
+        }
+    </script>
+</body>
+</html>
+
+
