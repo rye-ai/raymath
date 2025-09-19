@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blueprint Architects: Designing with Composite Shapes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --blueprint-blue: #4A90E2;
+            --construction-yellow: #F5A623;
+            --dark-bg: #1a202c;
+            --light-bg: #edf2f7;
+            --text-light: #f7fafc;
+            --text-dark: #2d3748;
+            --correct-green: #48bb78;
+            --incorrect-red: #f56565;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--light-bg);
+            color: var(--text-dark);
+            background-image:
+                linear-gradient(rgba(74, 144, 226, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 144, 226, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .blueprint-button {
+            background-color: var(--construction-yellow);
+            color: var(--text-dark);
+            font-weight: bold;
+            border-radius: 8px;
+            padding: 10px 20px;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .blueprint-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .tab-button.active {
+            border-bottom: 3px solid var(--construction-yellow);
+            color: var(--blueprint-blue);
+        }
+
+        .slide {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        .slide.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Interactive Element Styles */
+        .mc-option, .tf-option {
+            cursor: pointer;
+            border: 2px solid #cbd5e0;
+            transition: all 0.2s;
+        }
+
+        .mc-option:hover, .tf-option:hover {
+            border-color: var(--blueprint-blue);
+            background-color: #e2e8f0;
+        }
+        
+        .mc-option.selected, .tf-option.selected {
+            border-color: var(--blueprint-blue);
+            background-color: #dbeafe;
+        }
+
+        .ms-option.selected {
+            border-color: var(--blueprint-blue);
+            background-color: #dbeafe;
+        }
+
+        .draggable {
+            cursor: grab;
+        }
+
+        .drop-target {
+            border: 2px dashed #a0aec0;
+            min-height: 50px;
+        }
+
+        .drop-target.drag-over {
+            background-color: #dbeafe;
+        }
+
+        .feedback {
+            font-weight: bold;
+            padding: 8px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .feedback.correct {
+            color: var(--correct-green);
+        }
+        .feedback.incorrect {
+            color: var(--incorrect-red);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            width: 90%;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="app-container" class="max-w-7xl mx-auto bg-white rounded-lg shadow-2xl overflow-hidden">
+        <!-- Header -->
+        <header class="bg-white p-4 shadow-md flex justify-between items-center border-b-2 border-gray-200">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Blueprint Architects</h1>
+                <p class="text-md text-gray-600">Designing with Composite Shapes</p>
+            </div>
+            <div id="header-controls">
+                 <button id="mode-toggle-btn" class="blueprint-button hidden"></button>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="flex border-b border-gray-200 bg-gray-50">
+            <button id="lesson-tab-btn" class="tab-button flex-1 py-3 px-2 text-lg font-semibold text-gray-600 hover:bg-gray-100 transition active">Lesson</button>
+            <button id="assessment-tab-btn" class="tab-button flex-1 py-3 px-2 text-lg font-semibold text-gray-600 hover:bg-gray-100 transition">Assessment</button>
+        </nav>
+
+        <!-- Main Content -->
+        <main id="main-content" class="p-6 md:p-8">
+            <div id="lesson-content"></div>
+            <div id="assessment-content" class="hidden"></div>
+        </main>
+        
+        <!-- Global Controls -->
+        <footer class="p-4 bg-gray-100 border-t flex justify-end items-center space-x-4">
+             <button id="download-pdf-btn" class="blueprint-button">Download as PDF</button>
+             <button id="download-work-btn" class="blueprint-button">Download Work</button>
+        </footer>
+    </div>
+    
+    <!-- Hidden file input for image uploads -->
+    <input type="file" id="image-uploader" class="hidden" accept="image/*">
+
+    <!-- JSON Data Island -->
+    <script id="lesson-data" type="application/json">
+    [
+      { "id": "d1_intro_hook", "type": "intro", "title": "The Dream Playroom", "content": "<p>Imagine you're an architect designing a dream playroom. Your client wants a cool, L-shaped room like the one below, not just a boring rectangle!</p><p class='mt-4'>But here's the challenge: how do you figure out how much carpet to order? You need to find the <strong>area</strong> of this unusual shape. This is a real problem architects and builders solve every day.</p><p class='mt-4 font-bold'>Your first task: Think about how you could break this complex problem into smaller, easier pieces.</p>", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'L', 'dimensions':{'v_h':15, 'v_w':10, 'h_h':8, 'h_w':18}, 'show_labels':true}" },
+      { "id": "d1_intro_demo", "type": "intro", "title": "Decomposition: The Architect's Secret", "content": "<p>The secret is a powerful idea called <strong>decomposition</strong>. It means breaking a complex shape into simpler ones we already know, like rectangles.</p><p class='mt-4'>We'll also follow a step-by-step process, which is a type of <strong>algorithm</strong>, to make sure we get it right every time. Watch how we can split the L-shape in two different ways. Notice that no matter how we split it, the total area will always be the same!</p>", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'L', 'dimensions':{'v_h':15, 'v_w':10, 'h_h':8, 'h_w':18}, 'decomposition_lines':[{'from':{'x':10,'y':0},'to':{'x':10,'y':7}}, {'from':{'x':10,'y':7}, 'to':{'x':28,'y':7}, 'dashed':true}], 'show_labels':true}" },
+      { "id": "d1_l1_ido1", "type": "mc", "prompt": "This L-shaped figure is on a grid where each square is 1x1 unit. First, we use **decomposition** to split it into two rectangles. What is the total area?", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'L', 'dimensions':{'v_h':6, 'v_w':3, 'h_h':3, 'h_w':10}, 'show_grid':true, 'decomposition_lines':[{'from':{'x':3,'y':0}, 'to':{'x':3,'y':3}}], 'show_labels':true}", "ai_prompt_suggestion": "A simple L-shaped figure drawn on a grid. A dotted line clearly divides the shape into two smaller rectangles.", "data": { "options": ["18 sq units", "21 sq units", "39 sq units", "42 sq units"] }, "correct": "39 sq units", "section": "I Do"},
+      { "id": "d1_l1_ido2", "type": "text-box", "prompt": "The total height of this T-shaped part is 8 units. Use the given dimensions to find the height of the stem. Then, calculate the total area.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'T', 'dimensions':{'top_w':10, 'top_h':3, 'stem_w':4, 'total_h':8}, 'show_labels':true, 'omit_labels':['stem_h']}", "ai_prompt_suggestion": "A T-shaped polygon with labeled outer dimensions. The total height is shown, but the stem height is missing.", "data": { "size": 10 }, "correct": "50", "section": "I Do"},
+      { "id": "d1_l1_ido3", "type": "mc", "prompt": "This blueprint shows a courtyard inside a building. What is the area of just the building (the shaded part)?", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'donut', 'dimensions':{'outer_w':12, 'outer_h':10, 'inner_w':5, 'inner_h':4}, 'show_labels':true}", "ai_prompt_suggestion": "A large rectangle with a smaller rectangle cut out from its center, creating a frame shape. The outer and inner dimensions are labeled.", "data": { "options": ["120 sq units", "100 sq units", "20 sq units", "140 sq units"] }, "correct": "100 sq units", "section": "I Do"},
+      { "id": "d1_l1_wedo1", "type": "mc", "prompt": "An architect is designing an L-shaped corner office. Before ordering materials, they must find the area and perimeter. Which option below is correct?", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'L', 'dimensions':{'v_h':8, 'v_w':4, 'h_h':4, 'h_w':9}, 'show_labels':true}", "ai_prompt_suggestion": "A blueprint of a L-shaped corner office with dimensions clearly labeled.", "data": { "options": ["Area = 44 sq ft; Perimeter = 34 ft", "Area = 52 sq ft; Perimeter = 26 ft", "Area = 48 sq ft; Perimeter = 34 ft", "Area = 52 sq ft; Perimeter = 34 ft"] }, "correct": "Area = 52 sq ft; Perimeter = 34 ft", "section": "We Do"},
+      { "id": "d1_l1_wedo2", "type": "mc", "prompt": "Choose the best way to decompose this plus-shaped (+) figure for calculating its area.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'plus', 'dimensions':{'center_s':4, 'arm_l':3}, 'show_labels':true}", "ai_prompt_suggestion": "A plus-shaped figure with options showing decomposition into two overlapping rectangles versus three non-overlapping rectangles.", "data": { "options": ["Into 3 non-overlapping rectangles", "Into 2 overlapping rectangles"] }, "correct": "Into 3 non-overlapping rectangles", "section": "We Do"},
+      { "id": "d1_l1_wedo3", "type": "true-false", "prompt": "True or False: The dotted line shown is a valid way to decompose this shape.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'U', 'dimensions':{'back_w':10, 'arm_h':6, 'arm_w':3, 'back_thickness':4}, 'decomposition_lines':[{'from':{'x':0,'y':4}, 'to':{'x':10,'y':4}}], 'show_labels':true}", "ai_prompt_suggestion": "A U-shaped figure with a horizontal dotted line that correctly separates the back of the U from its two arms.", "data": { "options": ["True", "False"] }, "correct": "True", "section": "We Do"},
+      { "id": "d1_l1_wedo4", "type": "text-box", "prompt": "The shape is decomposed for you. Find the missing side length, then find the area of Rectangle A.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'L', 'dimensions':{'v_h':8, 'v_w':4, 'h_h':4, 'h_w':10}, 'decomposition_lines':[{'from':{'x':4,'y':0}, 'to':{'x':4,'y':4}}], 'labels':[{'text':'A', 'at':{'x':2,'y':4}}, {'text':'B', 'at':{'x':7,'y':6}}], 'show_labels':true, 'omit_labels':['v_upper_h']}", "ai_prompt_suggestion": "An L-shaped figure split into a vertical rectangle labeled 'A' and a horizontal rectangle labeled 'B'. A side length is missing.", "data": { "size": 10 }, "correct": "32", "section": "We Do"},
+      { "id": "d1_l1_wedo5", "type": "text-box", "prompt": "Using the same figure, what is the area of Rectangle B?", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'L', 'dimensions':{'v_h':8, 'v_w':4, 'h_h':4, 'h_w':10}, 'decomposition_lines':[{'from':{'x':4,'y':0}, 'to':{'x':4,'y':4}}], 'labels':[{'text':'A', 'at':{'x':2,'y':4}}, {'text':'B', 'at':{'x':7,'y':6}}], 'show_labels':true, 'omit_labels':['v_upper_h']}", "ai_prompt_suggestion": "An L-shaped figure split into a vertical rectangle labeled 'A' and a horizontal rectangle labeled 'B'.", "data": { "size": 10 }, "correct": "24", "section": "We Do"},
+      { "id": "d1_l1_wedo6", "type": "text-box", "prompt": "Now, what is the total area of the entire L-shaped figure?", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'L', 'dimensions':{'v_h':8, 'v_w':4, 'h_h':4, 'h_w':10}, 'decomposition_lines':[{'from':{'x':4,'y':0}, 'to':{'x':4,'y':4}}], 'labels':[{'text':'A', 'at':{'x':2,'y':4}}, {'text':'B', 'at':{'x':7,'y':6}}], 'show_labels':true, 'omit_labels':['v_upper_h']}", "ai_prompt_suggestion": "An L-shaped figure split into a vertical rectangle labeled 'A' and a horizontal rectangle labeled 'B'.", "data": { "size": 10 }, "correct": "56", "section": "We Do"},
+      { "id": "d1_l1_wedo7", "type": "text-box", "prompt": "The top bar of this shape is 12 ft wide. Find the missing height of the stem, then calculate the total area.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'T', 'dimensions':{'top_w':12, 'top_h':4, 'stem_w':5, 'total_h':10}, 'show_labels':true, 'omit_labels':['stem_h']}", "ai_prompt_suggestion": "A T-shaped figure with its total height given but the stem height missing.", "data": { "size": 10 }, "correct": "78", "section": "We Do"},
+      { "id": "d1_l1_wedo8", "type": "mc", "prompt": "A pool has the shape below. First, find the length of the missing right side. Then calculate the total surface area.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'points_missing', 'points':[[0,13],[6,13],[6,8],[11,8],[11,0],[0,0]], 'omit_labels':[[11,8], [11,0]], 'show_labels':true}", "ai_prompt_suggestion": "A complex polygon pool shape with one side length missing.", "data": { "options": ["102", "118", "130", "98"] }, "correct": "118", "section": "We Do"},
+      { "id": "d1_l1_wedo9", "type": "text-box", "prompt": "This is a blueprint for a room. Find the missing dimension for the thickness of the base, then calculate the total area in square yards.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'U', 'dimensions':{'back_w':20, 'arm_h':10, 'arm_w':5, 'total_h':15}, 'show_labels':true, 'omit_labels':['back_thickness']}", "ai_prompt_suggestion": "A blueprint of a U-shaped room, with dimensions in yards, but the thickness of the base is not given.", "data": { "size": 10 }, "correct": "150", "section": "We Do"},
+      { "id": "d1_l1_wedo10", "type": "mc", "prompt": "Find the area of the shaded walkway around the garden.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'donut', 'dimensions':{'outer_w':15, 'outer_h':10, 'inner_w':12, 'inner_h':7}, 'show_labels':true}", "ai_prompt_suggestion": "A rectangular garden is surrounded by a shaded rectangular walkway. Dimensions for both the garden and the outer edge of the walkway are shown.", "data": { "options": ["66 sq m", "84 sq m", "150 sq m", "234 sq m"] }, "correct": "66 sq m", "section": "We Do"},
+      { "id": "d1_l1_youdo1", "type": "text-box", "prompt": "Calculate the total area of the L-shaped patio after finding the missing length.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'L', 'dimensions':{'v_h':12, 'v_w':5, 'h_w':10, 'h_h': 5}, 'show_labels':true, 'omit_labels':['h_h']}", "ai_prompt_suggestion": "A simple L-shaped patio with one outer dimension missing.", "data": { "size": 10 }, "correct": "85", "section": "You Do"},
+      { "id": "d1_l1_youdo2", "type": "text-box", "prompt": "Find the area of the U-shaped countertop. You will need to determine the width of the gap first.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'U', 'dimensions':{'back_w':12, 'arm_h':8, 'arm_w':4, 'back_thickness':4}, 'show_labels':true, 'omit_labels':['gap_w']}", "ai_prompt_suggestion": "A U-shaped countertop with its dimensions labeled in inches, but the gap between the arms is not labeled.", "data": { "size": 10 }, "correct": "112", "section": "You Do"},
+      { "id": "d1_l1_youdo3", "type": "text-box", "prompt": "A gardener is planting a new flower bed shaped like the figure below. If one bag of soil covers 10 square feet, how many bags does the gardener need?", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'T', 'dimensions':{'top_w':15, 'top_h':5, 'stem_w':5, 'stem_h':5}, 'show_labels':true}", "ai_prompt_suggestion": "A T-shaped flower bed with dimensions in feet.", "data": { "size": 10 }, "correct": "10", "section": "You Do"},
+      { "id": "d1_l1_youdo4", "type": "text-box", "prompt": "Find the missing side length 'x', then calculate the total area.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'points_missing', 'points':[[0,12],[10,12],[10,4],[7,4],[7,0],[0,0]], 'missing_label':{'text':'x', 'at':{'x':3.5, 'y':-1}}, 'show_labels':true, 'omit_labels':[[7,0], [0,0]]}", "ai_prompt_suggestion": "A complex polygon with one side length labeled 'x'. Students must deduce 'x' from the other side lengths before finding the area.", "data": { "size": 10 }, "correct": "96", "section": "You Do"},
+      { "id": "d1_l1_youdo5", "type": "mc", "prompt": "Calculate the area of this section of a modern art museum.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'E', 'dimensions':{'back_h':15, 'back_w':4, 'arm_l':6, 'arm_w':3, 'arm_gap':3}, 'show_labels':true, 'omit_labels': ['arm_gap']}", "ai_prompt_suggestion": "A shape like a capital letter E, with some dimensions labeled. The gap between arms must be deduced.", "data": { "options": ["114", "108", "99", "120"] }, "correct": "114", "section": "You Do"},
+      { "id": "d1_l1_assess1", "type": "mc", "prompt": "Which of the following is the correct first step in the algorithm for finding the area of the composite figure shown?", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'F', 'dimensions':{'back_h':10, 'back_w':3, 'top_arm_l':5, 'mid_arm_l':4}, 'show_labels':true}", "ai_prompt_suggestion": "A shape like a capital letter F is shown with dimensions. The question asks for the first step to find its area.", "data": { "options": ["Multiply all the side lengths together.", "Add all the known side lengths to find the perimeter.", "Use decomposition to break the figure into smaller rectangles.", "Guess the area and check by estimating."] }, "correct": "Use decomposition to break the figure into smaller rectangles." },
+      { "id": "d1_l1_assess2", "type": "e-bsr", "prompt": { "part_a": "What is the total area of the community garden shown in the blueprint?", "part_b": "Which equation shows a correct way to calculate the area?" }, "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'points', 'points':[[0,9],[4,9],[4,3],[10,3],[10,0],[0,0]], 'show_labels':true}", "ai_prompt_suggestion": "A blueprint of an L-shaped community garden with outer dimensions labeled.", "data": { "part_a_options": ["39 square units", "54 square units", "64 square units", "78 square units"], "part_b_options": ["(4 x 6) + (10 x 3) = 54", "(10 x 9) - (6 x 6) = 54", "(4 x 9) + (10 x 3) = 66", "(10 x 6) + (4 x 3) = 72"] }, "correct": { "part_a": "54 square units", "part_b": "(10 x 9) - (6 x 6) = 54" } },
+      { "id": "d1_l1_assess3", "type": "multi-select", "prompt": "The blueprint for a new park is shown below. Which of the following statements about the blueprint are true? Select all that apply.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'S_tetris', 'dimensions':{'rect_w':4, 'rect_h':2}, 'show_grid':true, 'show_labels':true}", "ai_prompt_suggestion": "A shape resembling a Tetris S-block is drawn on a grid. The question asks for true statements about its area and decomposition.", "data": { "options": ["The total area can be found by calculating 3 * (4 * 2).", "The total area is 24 square units.", "The shape can be decomposed into two L-shaped figures.", "The perimeter of the park is 28 units."] }, "correct": ["The total area is 24 square units.", "The perimeter of the park is 28 units."] },
+      { "id": "d1_l1_assess4", "type": "text-box", "prompt": "A family is installing new wood flooring in their hallway, which has the shape shown in the diagram. The flooring costs $5 per square foot. What is the total cost to install the new floor? (Provide the number only)", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'U', 'dimensions':{'back_w':15, 'arm_h':5, 'arm_w':5, 'back_thickness':5}, 'show_labels':true, 'omit_labels':['gap_w']}", "ai_prompt_suggestion": "A U-shaped hallway with dimensions in feet. The question asks for the total cost of flooring at a given price per square foot.", "data": { "size": 20 }, "correct": "625" },
+      { "id": "d1_l1_assess5", "type": "drag-drop-match", "prompt": "Decompose the floor plan by dragging the correct calculation onto the part of the shape it represents.", "visual": "SVG_COMMAND: create_composite_shape {'shape_type':'L', 'dimensions':{'v_h':10, 'v_w':4, 'h_h':4, 'h_w':10}, 'has_drop_zones':true, 'show_labels':true}", "ai_prompt_suggestion": "An L-shaped figure is shown, divided into two rectangles which are drop zones. The user must drag the correct area calculation onto each part.", "data": { "draggables": ["10 x 4 = 40 sq ft", "6 x 4 = 24 sq ft"], "dropTargets": ["Vertical Rectangle", "Horizontal Rectangle"] }, "correct": { "10 x 4 = 40 sq ft": "Vertical Rectangle", "6 x 4 = 24 sq ft": "Horizontal Rectangle" } }
+    ]
+    </script>
+    
+    <script type="module">
+        // --- APPLICATION STATE & INITIALIZATION ---
+        let state = {
+            currentMode: 'lesson', // 'lesson' or 'assessment'
+            lesson: {
+                slides: [],
+                currentIndex: 0,
+            },
+            assessment: {
+                slides: [],
+                currentIndex: 0,
+                completed: false,
+            },
+            answers: {}, // { questionId: answer }
+            customImages: {}, // { questionId: base64String }
+        };
+
+        const POSITIVE_AFFIRMATIONS = [
+            "Blueprint Perfect!", "Solid Foundation!", "Great Calculation!", "You're a master architect!", "Excellent work!", "Spot on!"
+        ];
+
+        document.addEventListener('DOMContentLoaded', init);
+
+        function init() {
+            loadProgress();
+            
+            const rawData = JSON.parse(document.getElementById('lesson-data').textContent);
+            
+            const lessonSlidesData = rawData.filter(q => q.section);
+            const assessmentSlidesData = rawData.filter(q => !q.section);
+            
+            // Add intro slides
+            const introSlides = rawData.filter(q => q.type === 'intro');
+            
+            const sectionHeaders = {
+                "I Do": "I Do: Teacher Models",
+                "We Do": "We Do: Guided Practice",
+                "You Do": "You Do: Independent Practice"
+            };
+
+            let lastSection = "";
+            introSlides.forEach(slide => state.lesson.slides.push(slide));
+
+            lessonSlidesData.forEach(slide => {
+                if (slide.section !== lastSection) {
+                    state.lesson.slides.push({
+                        id: `header_${slide.section.replace(/\s+/g, '')}`,
+                        type: 'intro',
+                        title: sectionHeaders[slide.section],
+                        content: `<p>Now, let's work on the "${slide.section}" part of our lesson.</p>`,
+                    });
+                    lastSection = slide.section;
+                }
+                state.lesson.slides.push(slide);
+            });
+            
+            state.assessment.slides = assessmentSlidesData;
+
+            addEventListeners();
+            renderApp();
+        }
+
+        // --- STATE & PROGRESS MANAGEMENT ---
+        function saveProgress() {
+            localStorage.setItem('blueprintArchitectsProgress', JSON.stringify(state));
+        }
+
+        function loadProgress() {
+            let savedState = null;
+            const progressDataEl = document.getElementById('progress-data');
+            if (progressDataEl) {
+                try {
+                    savedState = JSON.parse(progressDataEl.textContent);
+                } catch (e) {
+                    console.error("Could not parse progress data from script tag.", e);
+                }
+            }
+            
+            if (!savedState) {
+                const lsState = localStorage.getItem('blueprintArchitectsProgress');
+                if (lsState) {
+                    try {
+                        savedState = JSON.parse(lsState);
+                    } catch (e) {
+                        console.error("Could not parse progress data from localStorage.", e);
+                    }
+                }
+            }
+            
+            if (savedState) {
+                // Merge saved state carefully
+                state.currentMode = savedState.currentMode || 'lesson';
+                state.lesson.currentIndex = savedState.lesson?.currentIndex || 0;
+                state.assessment.currentIndex = savedState.assessment?.currentIndex || 0;
+                state.assessment.completed = savedState.assessment?.completed || false;
+                state.answers = savedState.answers || {};
+                state.customImages = savedState.customImages || {};
+            }
+        }
+
+
+        // --- EVENT LISTENERS ---
+        function addEventListeners() {
+            document.getElementById('lesson-tab-btn').addEventListener('click', () => switchMode('lesson'));
+            document.getElementById('assessment-tab-btn').addEventListener('click', () => switchMode('assessment'));
+            document.getElementById('mode-toggle-btn').addEventListener('click', () => {
+                const targetMode = state.currentMode === 'lesson' ? 'assessment' : 'lesson';
+                switchMode(targetMode);
+            });
+
+            document.getElementById('main-content').addEventListener('click', handleMainContentClick);
+            document.getElementById('image-uploader').addEventListener('change', handleFileInputChange);
+            document.getElementById('download-work-btn').addEventListener('click', handleDownloadWork);
+            document.getElementById('download-pdf-btn').addEventListener('click', handleDownloadPDF);
+            
+            // Drag and Drop listeners
+            const mainContent = document.getElementById('main-content');
+            mainContent.addEventListener('dragstart', handleDragStart);
+            mainContent.addEventListener('dragover', handleDragOver);
+            mainContent.addEventListener('dragleave', handleDragLeave);
+            mainContent.addEventListener('drop', handleDrop);
+        }
+        
+        // --- DOM MANIPULATION & RENDERING ---
+        
+        function renderApp() {
+            const lessonContent = document.getElementById('lesson-content');
+            const assessmentContent = document.getElementById('assessment-content');
+            const lessonTabBtn = document.getElementById('lesson-tab-btn');
+            const assessmentTabBtn = document.getElementById('assessment-tab-btn');
+            const modeToggleBtn = document.getElementById('mode-toggle-btn');
+            
+            if (state.currentMode === 'lesson') {
+                lessonContent.classList.remove('hidden');
+                assessmentContent.classList.add('hidden');
+                lessonTabBtn.classList.add('active');
+                assessmentTabBtn.classList.remove('active');
+                modeToggleBtn.textContent = 'Go to Assessment';
+                modeToggleBtn.classList.remove('hidden');
+                renderSlide('lesson');
+            } else {
+                lessonContent.classList.add('hidden');
+                assessmentContent.classList.remove('hidden');
+                lessonTabBtn.classList.remove('active');
+                assessmentTabBtn.classList.add('active');
+                modeToggleBtn.textContent = 'Back to Lesson';
+                modeToggleBtn.classList.remove('hidden');
+                renderSlide('assessment');
+            }
+            saveProgress();
+        }
+
+        function renderSlide(mode) {
+            const contentContainer = document.getElementById(`${mode}-content`);
+            const slideData = state[mode].slides[state[mode].currentIndex];
+            
+            if (!slideData) {
+                contentContainer.innerHTML = `<p>Error: Slide data not found.</p>`;
+                return;
+            }
+
+            if (mode === 'assessment' && state.assessment.completed) {
+                renderCompletionScreen();
+                return;
+            }
+            
+            let slideHTML = generateQuestionHTML(slideData, mode);
+            contentContainer.innerHTML = slideHTML;
+        }
+
+        function generateQuestionHTML(q, mode) {
+            const isIntro = q.type === 'intro';
+            const progress = state[mode].currentIndex + 1;
+            const total = state[mode].slides.length;
+            
+            const sectionTitle = q.section ? `<p class="text-sm font-bold text-blue-600 mb-2">${q.section}</p>` : '';
+
+            let mainContentHTML = '';
+            if (isIntro) {
+                mainContentHTML = `
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">${q.title}</h2>
+                    <div class="prose max-w-none">${q.content || ''}</div>
+                `;
+            } else {
+                mainContentHTML = `
+                    <p class="text-lg mb-4">${q.prompt.part_a ? q.prompt.part_a : q.prompt}</p>
+                    ${generateInteractiveElement(q)}
+                `;
+                 if (q.type === 'e-bsr') {
+                    mainContentHTML += `
+                        <p class="text-lg my-4">${q.prompt.part_b}</p>
+                        ${generateInteractiveElement(q, true)}
+                    `;
+                }
+            }
+
+            return `
+                <div class="slide active p-4 border rounded-lg bg-gray-50" data-question-id="${q.id}">
+                    <div class="flex justify-between items-center mb-4">
+                        ${sectionTitle}
+                        <div class="text-sm text-gray-500">${progress} / ${total}</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                        <div class="prose max-w-none">
+                            ${mainContentHTML}
+                            <div id="feedback-container-${q.id}"></div>
+                             ${!isIntro ? `<button class="check-answer-btn blueprint-button mt-6" data-question-id="${q.id}">Check My Work</button>` : ''}
+                        </div>
+                        <div class="flex items-center justify-center">
+                           ${generateVisual(q)}
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation -->
+                    <div class="flex justify-between mt-8">
+                        <button class="nav-btn blueprint-button" data-direction="prev" data-mode="${mode}" ${progress === 1 ? 'disabled' : ''}>Previous</button>
+                        ${(q.section === 'You Do' && state.lesson.currentIndex === state.lesson.slides.length -1) ? 
+                            `<button class="switch-mode-btn blueprint-button" data-target="assessment">Go to Assessment</button>` :
+                            `<button class="nav-btn blueprint-button" data-direction="next" data-mode="${mode}" ${progress === total ? 'disabled' : ''}>Next</button>`
+                        }
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateInteractiveElement(q, isPartB = false) {
+             const savedAnswer = state.answers[q.id];
+             
+             switch (q.type) {
+                case 'mc':
+                case 'true-false':
+                    return `
+                        <div class="space-y-3 mc-options" data-question-type="${q.type}">
+                            ${q.data.options.map(opt => `
+                                <div class="mc-option p-3 rounded-lg border-2 ${savedAnswer === opt ? 'selected' : ''}" data-value="${opt}">${opt}</div>
+                            `).join('')}
+                        </div>`;
+                case 'multi-select':
+                     return `
+                        <div class="space-y-3 ms-options" data-question-type="multi-select">
+                           ${q.data.options.map(opt => `
+                                <div class="ms-option p-3 rounded-lg border-2 cursor-pointer ${savedAnswer && savedAnswer.includes(opt) ? 'selected' : ''}" data-value="${opt}">${opt}</div>
+                            `).join('')}
+                        </div>`;
+                case 'text-box':
+                    return `<textarea class="w-full p-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" rows="3" maxlength="${q.data.size}" placeholder="Type your answer here...">${savedAnswer || ''}</textarea>`;
+                case 'drag-drop-match':
+                    return `
+                        <div class="flex flex-col md:flex-row gap-8">
+                            <div class="w-full md:w-1/3 space-y-4">
+                                <h3 class="font-bold text-center">Calculations</h3>
+                                ${q.data.draggables.map((item, index) => `<div class="draggable p-3 bg-yellow-200 rounded-lg text-center shadow" draggable="true" data-value="${item}" data-item-id="${q.id}-drag-${index}">${item}</div>`).join('')}
+                            </div>
+                            <div class="w-full md:w-2/3 space-y-4">
+                                 <h3 class="font-bold text-center">Blueprint Sections</h3>
+                                ${q.data.dropTargets.map((target, index) => `
+                                    <div class="drop-target p-3 rounded-lg flex items-center justify-center bg-gray-100" data-target-name="${target}" data-target-id="${q.id}-drop-${index}">
+                                        ${getDroppedItemHTML(q.id, target)}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>`;
+                case 'e-bsr':
+                    const part = isPartB ? 'part_b' : 'part_a';
+                    const partSavedAnswer = savedAnswer ? savedAnswer[part] : undefined;
+                    return `
+                        <div class="space-y-3 mc-options" data-part="${part}" data-question-type="mc">
+                             ${q.data[`${part}_options`].map(opt => `
+                                <div class="mc-option p-3 rounded-lg border-2 ${partSavedAnswer === opt ? 'selected' : ''}" data-value="${opt}">${opt}</div>
+                            `).join('')}
+                        </div>
+                    `;
+                default:
+                    return '';
+            }
+        }
+        
+        function getDroppedItemHTML(questionId, targetName) {
+            const savedAnswer = state.answers[questionId];
+            if (!savedAnswer) return targetName;
+            
+            const droppedItem = Object.keys(savedAnswer).find(key => savedAnswer[key] === targetName);
+            
+            if (droppedItem) {
+                 return `<div class="draggable p-3 bg-yellow-200 rounded-lg text-center shadow" draggable="true" data-value="${droppedItem}">${droppedItem}</div>`;
+            }
+            return targetName;
+        }
+
+        function renderCompletionScreen() {
+            const container = document.getElementById('assessment-content');
+            const total = state.assessment.slides.length;
+            let correctCount = 0;
+            state.assessment.slides.forEach(q => {
+                if (checkAnswer(q.id, state.answers[q.id], true)) {
+                    correctCount++;
+                }
+            });
+
+            container.innerHTML = `
+                <div class="text-center p-8">
+                    <h2 class="text-3xl font-bold text-blue-700 mb-4">Assessment Complete!</h2>
+                    <p class="text-lg text-gray-600 mb-8">You have completed all the questions. Great work, architect!</p>
+                    <div id="score-summary" class="hidden my-8">
+                        <h3 class="text-2xl font-semibold">Score Summary</h3>
+                        <p class="text-4xl font-bold my-4">${correctCount} / ${total}</p>
+                    </div>
+                    <button id="teacher-view-btn" class="text-blue-600 hover:underline">Teacher View</button>
+                </div>
+            `;
+
+            document.getElementById('teacher-view-btn').addEventListener('click', () => {
+                promptForPassword("Enter teacher password to view score:", (password) => {
+                    if (password === "raymond") {
+                        document.getElementById('score-summary').classList.remove('hidden');
+                        document.getElementById('teacher-view-btn').classList.add('hidden');
+                    } else {
+                        showModal("Incorrect password.");
+                    }
+                });
+            });
+        }
+        
+        // --- VISUAL GENERATION ---
+
+        function generateVisual(question) {
+            if (!question || !question.visual) {
+                return '';
+            }
+            const { visual, ai_prompt_suggestion, id } = question;
+            const customImage = state.customImages[id];
+            
+            let visualContent = '';
+            if (customImage) {
+                 visualContent = `<img src="${customImage}" alt="Custom visual for the question" class="max-w-full h-auto rounded-lg shadow-md">`;
+            } else if (visual.startsWith('SVG_COMMAND:')) {
+                const command = visual.substring('SVG_COMMAND:'.length);
+                visualContent = createSVG(command);
+            } else if (visual.startsWith('emoji:')) {
+                const emoji = visual.substring('emoji:'.length);
+                visualContent = `<div class="text-8xl">${emoji}</div>`;
+            } else if (visual.startsWith('icon:')) {
+                const iconClass = visual.substring('icon:'.length);
+                visualContent = `<i class="${iconClass} text-8xl"></i>`;
+            } else if (visual.startsWith('gemini:')) {
+                visualContent = `<div class="p-4 border-2 border-dashed rounded-lg text-center">
+                    <p>No default visual for this question.</p>
+                    <p class="text-sm text-gray-500 mt-2">A teacher can generate one using the AI toolkit.</p>
+                </div>`;
+            }
+
+            return `
+                <div class="relative w-full max-w-md mx-auto" data-ai-prompt="${ai_prompt_suggestion || ''}" data-question-id="${id}">
+                    ${visualContent}
+                    <div class="absolute top-2 right-2">
+                        <button class="teacher-toolkit-btn text-2xl text-gray-500 hover:text-blue-600 transition opacity-50 hover:opacity-100">⚙️</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function createSVG(command) {
+            let svgContent = '';
+            try {
+                command = command.trim();
+                const commandParts = command.split(/ (.*)/s);
+                const func = commandParts[0];
+                const paramsStr = commandParts[1];
+                const params = paramsStr ? JSON.parse(paramsStr.replace(/'/g, '"')) : {};
+                
+                if (func === 'create_composite_shape') {
+                    const { shape_type, dimensions = {}, points = [], show_grid, decomposition_lines = [], labels = [], has_drop_zones, missing_label, show_labels, omit_labels = [] } = params;
+                    let paths = '';
+                    let grid = '';
+                    let lines = '';
+                    let textLabels = '';
+                    let dropZones = '';
+                    
+                    const scale = 4;
+                    const labelOffset = 6;
+                    const fontSize = "3";
+
+                    let minX = 0, minY = 0, maxX = 0, maxY = 0;
+
+                    const addLabel = (x, y, text, options = {}) => {
+                        const { angle = 0, anchor = 'middle', baseline = 'middle', cssClass = '' } = options;
+                        const transform = angle ? `rotate(${angle}, ${x}, ${y})` : '';
+                        textLabels += `<text x="${x}" y="${y}" font-size="${fontSize}" font-weight="bold" fill="#2d3748" class="${cssClass}" text-anchor="${anchor}" dominant-baseline="${baseline}" transform="${transform}">${text}</text>`;
+                    };
+
+                    const updateViewBox = (x, y) => {
+                        minX = Math.min(minX, x);
+                        minY = Math.min(minY, y);
+                        maxX = Math.max(maxX, x);
+                        maxY = Math.max(maxY, y);
+                    };
+
+                    const buildPath = (pointsArr) => {
+                        const scaledPoints = pointsArr.map(p => [p[0] * scale, p[1] * scale]);
+                        scaledPoints.forEach(p => updateViewBox(p[0], p[1]));
+                        return `<path d="M ${scaledPoints.map(p => p.join(',')).join(' L ')} Z" fill="#4A90E2" fill-opacity="0.6" stroke="#1a202c" stroke-width="${0.5 * scale}"/>`;
+                    };
+
+                    let pathPoints = [];
+
+                    switch(shape_type) {
+                        case 'L': {
+                            const { v_h=10, v_w=4, h_h=4, h_w=10 } = dimensions;
+                            pathPoints = [[0,0],[v_w,0],[v_w,v_h-h_h],[h_w,v_h-h_h],[h_w,v_h],[0,v_h]];
+                            paths = buildPath(pathPoints);
+                            if(show_labels){
+                                if(!omit_labels.includes('top_w')) addLabel(v_w * scale / 2, -labelOffset, v_w);
+                                if(!omit_labels.includes('h_w_part')) addLabel((v_w + (h_w-v_w)/2) * scale, (v_h-h_h)*scale - labelOffset, h_w-v_w);
+                                if(!omit_labels.includes('h_h')) addLabel(h_w * scale + labelOffset, (v_h - h_h/2) * scale, h_h, {anchor: 'start'});
+                                if(!omit_labels.includes('v_upper_h')) addLabel(v_w * scale + labelOffset, ((v_h-h_h)/2) * scale, v_h-h_h, {anchor: 'start'});
+                                if(!omit_labels.includes('v_h')) addLabel(-labelOffset, (v_h/2) * scale, v_h, {anchor: 'end'});
+                                if(!omit_labels.includes('h_w')) addLabel((h_w/2)*scale, v_h*scale + labelOffset, h_w, {baseline:'hanging'});
+                            }
+                            if(has_drop_zones){
+                                dropZones += `<rect x="0" y="0" width="${v_w*scale}" height="${v_h*scale}" fill="transparent" stroke-width="1" stroke-dasharray="2,2" stroke="#f5a623" class="drop-target-svg" data-target-name="Vertical Rectangle" />`;
+                                dropZones += `<rect x="${v_w*scale}" y="${(v_h-h_h)*scale}" width="${(h_w-v_w)*scale}" height="${h_h*scale}" fill="transparent" stroke-width="1" stroke-dasharray="2,2" stroke="#f5a623" class="drop-target-svg" data-target-name="Horizontal Rectangle" />`;
+                            }
+                            break;
+                        }
+                       case 'L_options': {
+                             const { v_h=8, v_w=4, h_h=4, h_w=9 } = dimensions;
+                             pathPoints = [[0,0],[v_w,0],[v_w,v_h-h_h],[h_w,v_h-h_h],[h_w,v_h],[0,v_h]];
+                             paths = buildPath(pathPoints);
+
+                             lines += `<line x1="${v_w*scale}" y1="${0*scale}" x2="${v_w*scale}" y2="${(v_h-h_h)*scale}" stroke="red" stroke-width="${0.5*scale}" stroke-dasharray="4,4"/>`;
+                             addLabel(v_w*scale - labelOffset, (v_h-h_h)*scale/2, 'A');
+
+                             lines += `<line x1="${v_w*scale}" y1="${(v_h-h_h)*scale}" x2="${h_w*scale}" y2="${(v_h-h_h)*scale}" stroke="blue" stroke-width="${0.5*scale}" stroke-dasharray="4,4"/>`;
+                             addLabel((v_w+(h_w-v_w)/2)*scale, (v_h-h_h)*scale-labelOffset, 'B');
+
+                             lines += `<line x1="${0*scale}" y1="${v_h*scale}" x2="${v_w*scale}" y2="${(v_h-h_h)*scale}" stroke="green" stroke-width="${0.5*scale}" stroke-dasharray="4,4"/>`;
+                             addLabel(v_w/2*scale + labelOffset, (v_h-h_h/2)*scale, 'C');
+                             
+                             if(show_labels) {
+                                addLabel(v_w/2*scale, -labelOffset, v_w);
+                                addLabel(-labelOffset, v_h/2*scale, v_h, {anchor: 'end'});
+                                addLabel(h_w*scale+labelOffset, v_h/2*scale, v_h, {anchor: 'start'});
+                                addLabel((v_w+(h_w-v_w)/2)*scale, v_h*scale+labelOffset, h_w-v_w, {baseline: 'hanging'});
+                                addLabel(v_w*scale+labelOffset, (v_h-h_h)/2*scale, v_h-h_h, {anchor: 'start'});
+                             }
+                            break;
+                        }
+                        case 'T': {
+                             const { top_w=10, top_h=3, stem_w=4, stem_h, total_h } = dimensions;
+                             const current_stem_h = stem_h !== undefined ? stem_h : total_h - top_h;
+                             const stem_offset = (top_w - stem_w) / 2;
+                             pathPoints = [[0,0],[top_w,0],[top_w,top_h],[stem_offset+stem_w,top_h],[stem_offset+stem_w, top_h+current_stem_h],[stem_offset,top_h+current_stem_h],[stem_offset,top_h],[0,top_h]];
+                             paths = buildPath(pathPoints);
+                             if(show_labels){
+                                if(!omit_labels.includes('top_w')) addLabel(top_w*scale/2, -labelOffset, top_w);
+                                if(!omit_labels.includes('top_h')) addLabel(top_w*scale+labelOffset, top_h*scale/2, top_h, {anchor:'start'});
+                                if(!omit_labels.includes('stem_h')) addLabel((stem_offset+stem_w)*scale+labelOffset, (top_h + current_stem_h/2)*scale, current_stem_h, {anchor:'start'});
+                                if(!omit_labels.includes('stem_w')) addLabel((stem_offset + stem_w/2)*scale, (top_h+current_stem_h)*scale+labelOffset, stem_w, {baseline:'hanging'});
+                                if(!omit_labels.includes('total_h')) addLabel(-labelOffset, (top_h+current_stem_h)/2 * scale, top_h+current_stem_h, {anchor:'end'});
+                             }
+                            break;
+                        }
+                         case 'donut': {
+                            const { outer_w=12, outer_h=10, inner_w=5, inner_h=4 } = dimensions;
+                            const inner_x = (outer_w - inner_w) / 2;
+                            const inner_y = (outer_h - inner_h) / 2;
+                            paths = `<path d="M0 0 H${outer_w*scale} V${outer_h*scale} H0 Z M${inner_x*scale} ${inner_y*scale} V${(inner_y+inner_h)*scale} H${(inner_x+inner_w)*scale} V${inner_y*scale} Z" fill="#4A90E2" fill-opacity="0.6" stroke="#1a202c" stroke-width="${0.5*scale}" fill-rule="evenodd"/>`;
+                            updateViewBox(outer_w*scale, outer_h*scale);
+                            if(show_labels){
+                                addLabel(outer_w*scale/2, -labelOffset, outer_w);
+                                addLabel(outer_w*scale+labelOffset, outer_h*scale/2, outer_h, {anchor:'start'});
+                                addLabel(inner_x*scale+inner_w*scale/2, inner_y*scale-labelOffset, inner_w);
+                                addLabel(inner_x*scale-labelOffset, inner_y*scale+inner_h*scale/2, inner_h, {anchor:'end'});
+                            }
+                            break;
+                        }
+                         case 'U': {
+                             const { back_w=10, arm_h=6, arm_w=3, back_thickness, total_h } = dimensions;
+                             const current_back_thickness = back_thickness !== undefined ? back_thickness : total_h - arm_h;
+                             pathPoints = [[0,0],[back_w,0],[back_w,arm_h],[back_w-arm_w, arm_h],[back_w-arm_w, current_back_thickness],[arm_w,current_back_thickness],[arm_w,arm_h],[0,arm_h]];
+                             paths = buildPath(pathPoints);
+                             if(show_labels){
+                                if(!omit_labels.includes('back_w')) addLabel(back_w*scale/2, -labelOffset, back_w);
+                                if(!omit_labels.includes('arm_h')) addLabel(-labelOffset, arm_h*scale/2, arm_h, {anchor:'end'});
+                                if(!omit_labels.includes('total_h')) addLabel(back_w*scale+labelOffset, (arm_h+current_back_thickness)/2*scale, arm_h+current_back_thickness, {anchor:'start'});
+                                if(!omit_labels.includes('arm_w')) addLabel(arm_w*scale/2, arm_h*scale+labelOffset, arm_w, {baseline:'hanging'});
+                                if(!omit_labels.includes('gap_w')) addLabel((arm_w+ (back_w-2*arm_w)/2)*scale, current_back_thickness*scale-labelOffset, back_w-2*arm_w);
+                                if(!omit_labels.includes('back_thickness')) addLabel(back_w*scale+labelOffset, current_back_thickness/2*scale, current_back_thickness, {anchor:'start'});
+                             }
+                            break;
+                        }
+                         case 'E': {
+                            const { back_h=15, back_w=4, arm_l=6, arm_w=3, arm_gap=3 } = dimensions;
+                            const total_w = back_w + arm_l;
+                             pathPoints = [
+                                [0,0], [total_w, 0], [total_w, arm_w], [back_w, arm_w],
+                                [back_w, arm_w+arm_gap], [total_w, arm_w+arm_gap], [total_w, 2*arm_w+arm_gap], [back_w, 2*arm_w+arm_gap],
+                                [back_w, 2*arm_w+2*arm_gap], [total_w, 2*arm_w+2*arm_gap], [total_w, back_h], [0, back_h]
+                            ];
+                             paths = buildPath(pathPoints);
+                             if(show_labels){
+                                addLabel(-labelOffset, back_h*scale/2, back_h, {anchor:'end'});
+                                addLabel(back_w*scale/2, back_h*scale+labelOffset, back_w, {baseline:'hanging'});
+                                if(!omit_labels.includes('arm_l')) addLabel((back_w+arm_l/2)*scale, -labelOffset, arm_l);
+                                addLabel(total_w*scale+labelOffset, arm_w*scale/2, arm_w, {anchor:'start'});
+                                if(!omit_labels.includes('arm_gap')) addLabel(back_w*scale-labelOffset, arm_w*scale+arm_gap*scale/2, arm_gap, {anchor:'end'});
+                             }
+                            break;
+                        }
+                        case 'F': {
+                            const { back_h=10, back_w=3, top_arm_l=5, mid_arm_l=4 } = dimensions;
+                             pathPoints = [
+                                [0,0],[back_w+top_arm_l,0],[back_w+top_arm_l,2],[back_w,2],
+                                [back_w,4],[back_w+mid_arm_l,4],[back_w+mid_arm_l,6],[back_w,6],
+                                [back_w,back_h],[0,back_h]
+                            ];
+                             paths = buildPath(pathPoints);
+                             if(show_labels){
+                                addLabel(-labelOffset, back_h*scale/2, back_h, {anchor:'end'});
+                                addLabel(back_w*scale/2, back_h*scale+labelOffset, back_w, {baseline:'hanging'});
+                                addLabel((back_w+top_arm_l/2)*scale, -labelOffset, top_arm_l);
+                                addLabel((back_w+mid_arm_l/2)*scale, 3*scale, mid_arm_l);
+                             }
+                            break;
+                        }
+                        case 'plus': {
+                            const { center_s=4, arm_l=3 } = dimensions;
+                            const total_dim = center_s + 2 * arm_l;
+                             pathPoints = [
+                                [arm_l,0], [arm_l+center_s,0], [arm_l+center_s, arm_l],
+                                [total_dim, arm_l], [total_dim, arm_l+center_s], [arm_l+center_s, arm_l+center_s],
+                                [arm_l+center_s, total_dim], [arm_l, total_dim], [arm_l, arm_l+center_s],
+                                [0,arm_l+center_s], [0,arm_l], [arm_l,arm_l]
+                            ];
+                             paths = buildPath(pathPoints);
+                             if(show_labels){
+                                addLabel((arm_l+center_s/2)*scale, -labelOffset, center_s);
+                                addLabel(total_dim*scale+labelOffset, (arm_l+center_s/2)*scale, center_s, {anchor:'start'});
+                                addLabel(-labelOffset, arm_l*scale/2, arm_l, {anchor:'end'});
+                             }
+                            break;
+                        }
+                        case 'S_tetris': {
+                             const { rect_w=4, rect_h=2 } = dimensions;
+                             pathPoints = [
+                                 [rect_w,0],[3*rect_w,0],[3*rect_w,rect_h],[2*rect_w,rect_h],
+                                 [2*rect_w,2*rect_h],[0,2*rect_h],[0,rect_h],[rect_w,rect_h]
+                             ];
+                             paths = buildPath(pathPoints);
+                             if(show_labels){
+                                addLabel(2*rect_w*scale, -labelOffset, 2*rect_w);
+                                addLabel(rect_w*scale, 2*rect_h*scale+labelOffset, 2*rect_w, {baseline:'hanging'});
+                                addLabel(-labelOffset, rect_h*scale, rect_h, {anchor:'end'});
+                                addLabel(3*rect_w*scale+labelOffset, rect_h*scale/2, rect_h, {anchor:'start'});
+                             }
+                            break;
+                        }
+                        case 'points':
+                        case 'points_missing':
+                            paths = buildPath(points);
+                            if(show_labels){
+                                for(let i=0; i < points.length; i++){
+                                    const p1 = points[i];
+                                    const p2 = points[(i+1) % points.length];
+                                    
+                                    const isOmitted = omit_labels.some(pair => 
+                                        (pair[0][0] === p1[0] && pair[0][1] === p1[1] && pair[1][0] === p2[0] && pair[1][1] === p2[1]) ||
+                                        (pair[0][0] === p2[0] && pair[0][1] === p2[1] && pair[1][0] === p1[0] && pair[1][1] === p1[1])
+                                    );
+                                    if(isOmitted) continue;
+
+                                    const length = Math.round(Math.sqrt(Math.pow(p2[0]-p1[0],2) + Math.pow(p2[1]-p1[1],2)));
+                                    if(length === 0) continue;
+                                    const midX = (p1[0]+p2[0])/2;
+                                    const midY = (p1[1]+p2[1])/2;
+                                    
+                                    if(p1[1] === p2[1]){ // Horizontal
+                                        addLabel(midX*scale, midY*scale-labelOffset, length);
+                                    } else if (p1[0] === p2[0]){ // Vertical
+                                        addLabel(midX*scale-labelOffset, midY*scale, length, {anchor:'end'});
+                                    }
+                                }
+                            }
+                            break;
+                    }
+
+                    lines = decomposition_lines.map(line => `<line x1="${line.from.x*scale}" y1="${line.from.y*scale}" x2="${line.to.x*scale}" y2="${line.to.y*scale}" stroke="#f56565" stroke-width="0.5" stroke-dasharray="${2*scale},${2*scale}"/>`).join('');
+                    labels.forEach(label => addLabel(label.at.x*scale, label.at.y*scale, label.text));
+                    if (missing_label) {
+                       addLabel(missing_label.at.x*scale, missing_label.at.y*scale, missing_label.text, {anchor: 'start'});
+                    }
+
+                    svgContent = `<svg viewBox="${minX - 10} ${minY - 10} ${maxX-minX+20} ${maxY-minY+20}" width="100%" height="100%">${grid}${paths}${lines}${textLabels}${dropZones}</svg>`;
+                }
+            } catch (e) {
+                console.error("Failed to create SVG:", e, "Command was:", command);
+                return `<div class="p-4 border-2 border-dashed border-red-400 rounded-lg text-center text-red-600">
+                    <p>Error generating visual.</p>
+                </div>`;
+            }
+            return svgContent;
+        }
+
+        // --- INTERACTION HANDLERS ---
+        
+        function handleMainContentClick(e) {
+            const { classList, dataset } = e.target;
+            
+            // Navigation
+            if (classList.contains('nav-btn')) {
+                handleNavClick(dataset.direction, dataset.mode);
+            }
+            if (classList.contains('switch-mode-btn')) {
+                switchMode(dataset.target);
+            }
+
+            // Answer submission
+            if (classList.contains('check-answer-btn')) {
+                handleCheckAnswer(e.target);
+            }
+            
+            // Selections
+            if (classList.contains('mc-option') || classList.contains('tf-option')) {
+                const parent = e.target.closest('.mc-options, .tf-options');
+                parent.querySelectorAll('.mc-option, .tf-option').forEach(el => el.classList.remove('selected'));
+                classList.add('selected');
+            }
+            if (classList.contains('ms-option')) {
+                classList.toggle('selected');
+            }
+            
+            // Teacher Toolkit
+            if (classList.contains('teacher-toolkit-btn')) {
+                handleToolkitClick(e.target);
+            }
+        }
+        
+        function handleNavClick(direction, mode) {
+            const currentIdx = state[mode].currentIndex;
+            const maxIdx = state[mode].slides.length - 1;
+
+            if (direction === 'next' && currentIdx < maxIdx) {
+                state[mode].currentIndex++;
+            } else if (direction === 'prev' && currentIdx > 0) {
+                state[mode].currentIndex--;
+            }
+            renderApp();
+        }
+
+        function switchMode(mode) {
+            state.currentMode = mode;
+            renderApp();
+        }
+
+        function handleCheckAnswer(button) {
+            const questionId = button.dataset.questionId;
+            const questionContainer = button.closest('.slide');
+            const feedbackContainer = document.getElementById(`feedback-container-${questionId}`);
+
+            let studentAnswer;
+            const question = [...state.lesson.slides, ...state.assessment.slides].find(q => q.id === questionId);
+            
+            switch (question.type) {
+                case 'mc':
+                case 'true-false':
+                    studentAnswer = questionContainer.querySelector('.selected')?.dataset.value;
+                    break;
+                case 'multi-select':
+                    studentAnswer = Array.from(questionContainer.querySelectorAll('.selected')).map(el => el.dataset.value);
+                    break;
+                case 'text-box':
+                    studentAnswer = questionContainer.querySelector('textarea').value.trim();
+                    break;
+                case 'drag-drop-match':
+                    studentAnswer = state.answers[questionId] || {};
+                    break;
+                case 'e-bsr':
+                    studentAnswer = {
+                        part_a: questionContainer.querySelector('[data-part="part_a"] .selected')?.dataset.value,
+                        part_b: questionContainer.querySelector('[data-part="part_b"] .selected')?.dataset.value
+                    };
+                    break;
+            }
+
+            state.answers[questionId] = studentAnswer;
+            
+            const isCorrect = checkAnswer(questionId, studentAnswer);
+            
+            if (isCorrect) {
+                const affirmation = POSITIVE_AFFIRMATIONS[Math.floor(Math.random() * POSITIVE_AFFIRMATIONS.length)];
+                feedbackContainer.innerHTML = `<div class="feedback correct">${affirmation}</div>`;
+            } else {
+                feedbackContainer.innerHTML = `<div class="feedback incorrect">Not quite, check your work and try again.</div>`;
+            }
+
+            if (state.currentMode === 'assessment' && state.assessment.currentIndex === state.assessment.slides.length - 1) {
+                state.assessment.completed = true;
+                setTimeout(renderCompletionScreen, 1500);
+            }
+            
+            saveProgress();
+        }
+
+        function checkAnswer(questionId, studentAnswer, silent = false) {
+             const question = [...state.lesson.slides, ...state.assessment.slides].find(q => q.id === questionId);
+            if (!question) return false;
+            
+            const correctAnswer = question.correct;
+            
+            switch (question.type) {
+                 case 'mc':
+                 case 'true-false':
+                 case 'text-box':
+                    return studentAnswer?.toString().toLowerCase() === correctAnswer?.toString().toLowerCase();
+                case 'multi-select':
+                     if (!Array.isArray(studentAnswer) || !Array.isArray(correctAnswer)) return false;
+                     const sortedStudentAnswer = [...studentAnswer].sort();
+                     const sortedCorrectAnswer = [...correctAnswer].sort();
+                     return JSON.stringify(sortedStudentAnswer) === JSON.stringify(sortedCorrectAnswer);
+                case 'e-bsr':
+                    return studentAnswer?.part_a === correctAnswer.part_a && studentAnswer?.part_b === correctAnswer.part_b;
+                case 'drag-drop-match':
+                     if (typeof studentAnswer !== 'object' || studentAnswer === null) return false;
+                     return Object.keys(correctAnswer).length === Object.keys(studentAnswer).length &&
+                            Object.keys(correctAnswer).every(key => correctAnswer[key] === studentAnswer[key]);
+                default:
+                    return false;
+            }
+        }
+        
+        // --- DRAG & DROP LOGIC ---
+        let draggedItem = null;
+
+        function handleDragStart(e) {
+            if (e.target.classList.contains('draggable')) {
+                draggedItem = e.target;
+                setTimeout(() => {
+                    e.target.style.display = 'none';
+                }, 0);
+            }
+        }
+
+        function handleDragEnd() {
+            if(draggedItem) {
+                setTimeout(() => {
+                    draggedItem.style.display = 'block';
+                    draggedItem = null;
+                }, 0);
+            }
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const target = e.target.closest('.drop-target');
+            if (target) {
+                target.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            const target = e.target.closest('.drop-target');
+            if (target) {
+                target.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const dropTarget = e.target.closest('.drop-target');
+            if (dropTarget && draggedItem) {
+                dropTarget.classList.remove('drag-over');
+                
+                // If there's already an item, swap it back to its original container
+                const existingItem = dropTarget.querySelector('.draggable');
+                const originalContainer = document.querySelector(`[data-item-id="${draggedItem.dataset.itemId}"]`).parentElement;
+
+                if (existingItem) {
+                     originalContainer.appendChild(existingItem);
+                }
+
+                dropTarget.innerHTML = '';
+                dropTarget.appendChild(draggedItem);
+
+                const questionId = dropTarget.closest('.slide').dataset.questionId;
+                const answer = state.answers[questionId] || {};
+                answer[draggedItem.dataset.value] = dropTarget.dataset.targetName;
+                state.answers[questionId] = answer;
+                saveProgress();
+            }
+        }
+        
+        // --- MODALS & PASSWORD ---
+        
+        function showModal(message, onOk) {
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'modal-overlay';
+            modalOverlay.innerHTML = `
+                <div class="modal-content">
+                    <p class="mb-6 text-center">${message}</p>
+                    <button id="modal-ok-btn" class="blueprint-button w-full">OK</button>
+                </div>`;
+            document.body.appendChild(modalOverlay);
+            document.getElementById('modal-ok-btn').addEventListener('click', () => {
+                document.body.removeChild(modalOverlay);
+                if (onOk) onOk();
+            });
+        }
+
+        function promptForPassword(message, callback) {
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'modal-overlay';
+            modalOverlay.innerHTML = `
+                <div class="modal-content">
+                    <p class="mb-4 text-center">${message}</p>
+                    <input type="password" id="password-input" class="w-full p-2 border-2 border-gray-300 rounded-lg mb-4">
+                    <button id="password-submit-btn" class="blueprint-button w-full">Submit</button>
+                </div>`;
+            document.body.appendChild(modalOverlay);
+            
+            const submitBtn = document.getElementById('password-submit-btn');
+            const passwordInput = document.getElementById('password-input');
+
+            const handleSubmit = () => {
+                const password = passwordInput.value;
+                document.body.removeChild(modalOverlay);
+                callback(password);
+            };
+
+            submitBtn.addEventListener('click', handleSubmit);
+            passwordInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') handleSubmit();
+            });
+            passwordInput.focus();
+        }
+
+        // --- TEACHER TOOLKIT ---
+        
+        function handleToolkitClick(button) {
+            const visualContainer = button.closest('.relative');
+            promptForPassword("Enter teacher password to use toolkit:", (password) => {
+                if (password === 'raymond') {
+                    showToolkitControls(visualContainer);
+                } else {
+                    showModal("Incorrect password.");
+                }
+            });
+        }
+        
+        function showToolkitControls(container) {
+            // Remove existing toolkit if present
+            container.querySelector('.toolkit-controls')?.remove();
+
+            const controls = document.createElement('div');
+            controls.className = 'toolkit-controls absolute top-10 right-2 bg-white p-2 rounded-lg shadow-lg space-y-2 z-50';
+            controls.innerHTML = `
+                <button class="generate-ai-btn block w-full text-left text-sm px-2 py-1 hover:bg-gray-100 rounded">Generate with AI</button>
+                <button class="upload-image-btn block w-full text-left text-sm px-2 py-1 hover:bg-gray-100 rounded">Upload Image</button>
+                <button class="revert-image-btn block w-full text-left text-sm px-2 py-1 hover:bg-gray-100 rounded">Revert to Original</button>
+            `;
+            container.appendChild(controls);
+
+            controls.querySelector('.generate-ai-btn').addEventListener('click', () => handleGenerateAIImage(container));
+            controls.querySelector('.upload-image-btn').addEventListener('click', () => handleUploadImage(container));
+            controls.querySelector('.revert-image-btn').addEventListener('click', () => handleRevertImage(container));
+        }
+
+        async function handleGenerateAIImage(container) {
+             const questionId = container.dataset.questionId;
+             const prompt = container.dataset.aiPrompt;
+             container.querySelector('.toolkit-controls')?.remove();
+             
+             const loadingIndicator = document.createElement('div');
+             loadingIndicator.className = 'absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-20';
+             loadingIndicator.innerHTML = '<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>';
+             container.appendChild(loadingIndicator);
+             
+             try {
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+                const payload = { instances: [{ prompt }], parameters: { "sampleCount": 1 } };
+        
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+        
+                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+        
+                const result = await response.json();
+                
+                if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                    const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                    state.customImages[questionId] = imageUrl;
+                    saveProgress();
+                    renderApp(); // Re-render to show the new image
+                } else {
+                    throw new Error("Invalid response from image generation API.");
+                }
+
+             } catch (error) {
+                 console.error("AI Image Generation Failed:", error);
+                 showModal("Sorry, there was an error generating the image.");
+             } finally {
+                loadingIndicator.remove();
+             }
+        }
+        
+        function handleUploadImage(container) {
+            const questionId = container.dataset.questionId;
+            const uploader = document.getElementById('image-uploader');
+            uploader.dataset.currentQuestionId = questionId;
+            uploader.click();
+            container.querySelector('.toolkit-controls')?.remove();
+        }
+        
+        function handleRevertImage(container) {
+            const questionId = container.dataset.questionId;
+            delete state.customImages[questionId];
+            saveProgress();
+            renderApp();
+            container.querySelector('.toolkit-controls')?.remove();
+        }
+
+        function handleFileInputChange(e) {
+            const file = e.target.files[0];
+            const questionId = e.target.dataset.currentQuestionId;
+            if (!file || !questionId) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                state.customImages[questionId] = event.target.result;
+                saveProgress();
+                renderApp();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- EXPORTING ---
+        function handleDownloadWork() {
+            const clone = document.documentElement.cloneNode(true);
+            
+            // Remove any existing progress data script to replace it
+            let progressScript = clone.querySelector('#progress-data');
+            if (progressScript) {
+                progressScript.remove();
+            }
+
+            // Create a new script tag with the current state
+            progressScript = document.createElement('script');
+            progressScript.id = 'progress-data';
+            progressScript.type = 'application/json';
+            progressScript.textContent = JSON.stringify(state);
+            
+            clone.querySelector('body').appendChild(progressScript);
+            
+            const blob = new Blob([clone.outerHTML], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'my_blueprint_work.html';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        async function handleDownloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const mainContainer = document.getElementById('app-container');
+            
+            showModal("Generating PDF... Please wait.");
+            
+            // Create a temporary container for printing
+            const printContainer = document.createElement('div');
+            printContainer.style.position = 'absolute';
+            printContainer.style.left = '-9999px';
+            printContainer.style.width = '800px'; // A fixed width for consistent rendering
+            document.body.appendChild(printContainer);
+
+            const allSlides = [...state.lesson.slides, ...state.assessment.slides];
+            
+            let contentHTML = `
+                <div class="p-8">
+                    <h1 class="text-3xl font-bold mb-2">Blueprint Architects</h1>
+                    <h2 class="text-xl text-gray-600 mb-8">Student Work Summary</h2>
+            `;
+
+            allSlides.forEach(q => {
+                if (q.type === 'intro') {
+                     contentHTML += `<hr class="my-6"><h3 class="text-2xl font-bold mt-8 mb-4">${q.title}</h3>`;
+                } else {
+                    const answer = state.answers[q.id];
+                    let answerDisplay = 'Not answered';
+                    if (answer) {
+                        if (Array.isArray(answer)) answerDisplay = answer.join(', ');
+                        else if (typeof answer === 'object') answerDisplay = JSON.stringify(answer, null, 2);
+                        else answerDisplay = answer;
+                    }
+                    
+                    contentHTML += `
+                        <div class="border p-4 rounded-lg mb-4 bg-white shadow-sm" style="page-break-inside: avoid;">
+                            <p class="font-semibold mb-2">${q.prompt.part_a ? q.prompt.part_a : q.prompt}</p>
+                            <p><strong>Answer:</strong> <span class="text-blue-700">${answerDisplay}</span></p>
+                        </div>
+                    `;
+                }
+            });
+            contentHTML += `</div>`;
+            printContainer.innerHTML = contentHTML;
+
+            const canvas = await html2canvas(printContainer, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+            let heightLeft = pdfHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pdf.internal.pageSize.getHeight();
+
+            while (heightLeft >= 0) {
+                position = heightLeft - pdfHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= pdf.internal.pageSize.getHeight();
+            }
+
+            pdf.save('blueprint_architects_work.pdf');
+            document.body.removeChild(printContainer);
+            showModal("PDF download complete!");
+        }
+
+    </script>
+</body>
+</html>
+
