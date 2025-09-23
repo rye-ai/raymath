@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF--8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Mage Adventure: Word Problems</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Krub:wght@400;600;700&display=swap');
+
+        :root {
+            --bg-color: #0d1b2a;
+            --primary-color: #1b263b;
+            --secondary-color: #415a77;
+            --accent-color: #e0e1dd;
+            --player-health: #4CAF50;
+            --monster-health: #F44336;
+            --spell-fire: #ff9800;
+            --spell-ice: #03a9f4;
+            --font-family: 'Krub', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--accent-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+
+        /* SCREENS */
+        .screen {
+            width: 100%;
+            max-width: 900px;
+            background: linear-gradient(0deg, #1b263b 0%, #415a77 100%);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            border: 3px solid #778da9;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* START SCREEN - Flexible Height */
+        #start-screen {
+            padding: 2rem 3rem;
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+        }
+        
+        #start-screen h1 {
+            font-size: 3rem;
+            color: var(--spell-fire);
+            margin: 0;
+        }
+        
+        #start-screen p {
+            font-size: 1.1rem;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+        
+        .avatar-customization {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            background-color: rgba(0,0,0,0.2);
+            padding: 1.5rem;
+            border-radius: 15px;
+        }
+        
+        #avatar-preview {
+            width: 120px;
+            height: 120px;
+            border-radius: 15px;
+            background-color: var(--bg-color);
+            border: 3px solid var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        #avatar-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .custom-file-upload {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: var(--secondary-color);
+            color: var(--accent-color);
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        #avatar-upload {
+            display: none;
+        }
+
+        #start-game-button {
+            font-family: var(--font-family);
+            font-size: 1.8rem;
+            font-weight: 700;
+            padding: 15px 40px;
+            border-radius: 15px;
+            cursor: pointer;
+            color: var(--bg-color);
+            background-color: var(--spell-fire);
+            border: none;
+            box-shadow: 0 5px 0 #c26a00;
+            transition: all 0.1s ease;
+            margin-top: 1rem;
+        }
+        
+        #start-game-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #c26a00;
+        }
+        
+        /* MAP & GAME SCREENS - Fixed Aspect Ratio */
+        #map-screen-container,
+        #game-container {
+            aspect-ratio: 16 / 9;
+        }
+
+        #map-screen-container {
+            padding: 1.5rem;
+        }
+
+        #map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        #map-title {
+            font-size: 2rem;
+            margin: 0;
+        }
+        
+        #score-display {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background-color: rgba(0,0,0,0.3);
+            padding: 5px 15px;
+            border-radius: 10px;
+        }
+        
+        #map-container {
+            width: 100%;
+            height: 80%;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            position: relative;
+        }
+        
+        .stage-node {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background-color: var(--secondary-color);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 0.8rem;
+            padding: 5px;
+            border: 3px solid #000;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .stage-node.locked {
+            background-color: #333;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+        
+        .stage-node.completed {
+            background-color: var(--player-health);
+            border-color: #fff;
+        }
+        
+        .stage-node.unlocked:not(.completed):hover {
+            transform: scale(1.1);
+            border-color: var(--spell-fire);
+        }
+
+        /* BATTLE SCREEN */
+        #battle-screen {
+            flex-grow: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 2% 5%;
+            position: relative;
+        }
+
+        .character-container {
+            width: 30%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        #player-container { align-items: flex-start; }
+        #monster-container { align-items: flex-end; }
+
+        .health-bar {
+            width: 100%;
+            height: 25px;
+            background-color: #333;
+            border-radius: 15px;
+            border: 2px solid black;
+            padding: 3px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        .health-bar-inner {
+            height: 100%;
+            width: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease-in-out;
+        }
+        #player-health { background-color: var(--player-health); }
+        #monster-health { background-color: var(--monster-health); }
+        
+        .health-text {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 5px;
+            color: white;
+            text-shadow: 1px 1px 3px black;
+        }
+
+        .character-sprite {
+            width: 180px;
+            height: 180px;
+            position: relative;
+            transition: transform 0.2s ease;
+        }
+        
+        .damage-popup {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: red;
+            text-shadow: 2px 2px 0 white;
+            opacity: 0;
+            animation: floatUp 1.5s ease-out forwards;
+        }
+
+        /* UI & QUESTION AREA */
+        #ui-panel {
+            height: 45%;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-top: 3px solid #778da9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            gap: 1rem;
+        }
+        
+        #word-problem-container {
+            width: 90%;
+            height: 60%;
+            background-color: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            line-height: 1.5;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #answer-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        #answer-input {
+            width: 150px;
+            height: 60px;
+            font-family: var(--font-family);
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            background-color: #e0e1dd;
+            color: var(--bg-color);
+            border: 3px solid transparent;
+            border-radius: 10px;
+            outline: none;
+        }
+
+        #answer-input:focus {
+            border-color: var(--spell-fire);
+        }
+        
+        #submit-button {
+            font-family: var(--font-family);
+            font-size: 1.5rem;
+            font-weight: 600;
+            padding: 10px 30px;
+            height: 60px;
+            border-radius: 10px;
+            cursor: pointer;
+            color: var(--bg-color);
+            background-color: var(--spell-fire);
+            border: none;
+            box-shadow: 0 5px 0 #c26a00;
+            transition: all 0.1s ease;
+        }
+
+        #submit-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #c26a00;
+        }
+
+        /* ANIMATIONS */
+        #animation-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .spell-projectile {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            transition: all 0.6s cubic-bezier(0.5, -0.5, 1, 1);
+        }
+        
+        .impact-effect {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            opacity: 0;
+            animation: burst 0.5s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translate(-50%, 0); opacity: 1; }
+            100% { transform: translate(-50%, -100px); opacity: 0; }
+        }
+        
+        @keyframes burst {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        
+        @keyframes characterHit {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        @keyframes characterAttack {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* MESSAGE OVERLAY */
+        #message-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s;
+            z-index: 100;
+        }
+        #message-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        #message-box {
+            padding: 2rem;
+        }
+        #message-box h2 { font-size: 3rem; }
+        #message-box button {
+            font-family: var(--font-family);
+            font-size: 1.5rem;
+            margin-top: 1rem;
+            padding: 10px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            color: var(--bg-color);
+            background-color: var(--accent-color);
+            border: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="screen">
+        <h1>Math Mage Adventure</h1>
+        <h2>The Word Problem Chronicles</h2>
+        <p>Welcome back, Math Mage! The monsters have returned, armed with complex word riddles. Decipher their stories, find the hidden numbers, and cast your powerful spells to bring peace to the land once more!</p>
+        <div class="avatar-customization">
+            <div id="avatar-preview"></div>
+            <label for="avatar-upload" class="custom-file-upload">Upload Avatar</label>
+            <input type="file" id="avatar-upload" accept="image/*">
+        </div>
+        <button id="start-game-button">Start Adventure</button>
+    </div>
+    
+    <div id="map-screen-container" class="screen hidden">
+        <div id="map-header">
+            <h2 id="map-title">World Map</h2>
+            <div id="score-display">Score: 0</div>
+        </div>
+        <div id="map-container"></div>
+    </div>
+
+    <div id="game-container" class="screen hidden">
+        <div id="battle-screen">
+            <div id="player-container" class="character-container">
+                <div class="health-bar">
+                    <div id="player-health" class="health-bar-inner"></div>
+                </div>
+                <div id="player-health-text" class="health-text"></div>
+                <div id="player-sprite" class="character-sprite"></div>
+            </div>
+            <div id="monster-container" class="character-container">
+                <div class="health-bar">
+                    <div id="monster-health" class="health-bar-inner"></div>
+                </div>
+                <div id="monster-health-text" class="health-text"></div>
+                <div id="monster-sprite" class="character-sprite"></div>
+            </div>
+        </div>
+        <div id="ui-panel">
+            <div id="word-problem-container"></div>
+            <div id="answer-container">
+                <input type="number" id="answer-input" maxlength="5" />
+                <button id="submit-button">Cast Spell</button>
+            </div>
+        </div>
+        <div id="animation-layer"></div>
+    </div>
+    
+    <div id="message-overlay">
+        <div id="message-box">
+            <h2 id="message-title"></h2>
+            <p id="message-body"></p>
+            <button id="message-button"></button>
+        </div>
+    </div>
+
+    <script type="application/json" id="game-spec">
+    {
+        "player": {
+            "maxHealth": 100,
+            "spellPower": 35
+        },
+        "map": {
+            "stages": [
+                { "id": 1, "name": "Castle Market", "monsterIndex": 0, "position": {"top": "70%", "left": "15%"} },
+                { "id": 2, "name": "Dragon's Hoard", "monsterIndex": 1, "position": {"top": "50%", "left": "45%"} },
+                { "id": 3, "name": "Galactic Library", "monsterIndex": 2, "position": {"top": "20%", "left": "75%"} }
+            ]
+        },
+        "story": {
+            "stage1": "Your quest begins in the bustling Castle Market. A Grumpy Goblin is causing trouble at the apple stand!",
+            "stage2": "You venture into the Dragon's Hoard. A mighty dragon sleeps atop its treasure, but a Gold Golem blocks your path.",
+            "stage3": "Your final challenge is the Galactic Library, a place of infinite knowledge guarded by a Star Spirit."
+        },
+        "monsters": [
+            {
+                "name": "Grumpy Goblin",
+                "maxHealth": 60,
+                "attackPower": 15,
+                "points": 100,
+                "svg": { "bodyColor": "#27ae60", "eyeColor": "#2ecc71" }
+            },
+            {
+                "name": "Gold Golem",
+                "maxHealth": 80,
+                "attackPower": 20,
+                "points": 150,
+                "svg": { "bodyColor": "#f1c40f", "eyeColor": "#f39c12" }
+            },
+            {
+                "name": "Star Spirit",
+                "maxHealth": 100,
+                "attackPower": 25,
+                "points": 200,
+                "svg": { "bodyColor": "#3498db", "eyeColor": "#5dade2" }
+            }
+        ],
+        "questions": [
+            { "prompt": "The castle baker made 350 loaves of bread. He sold 125 loaves in the morning. How many loaves are left?", "correct": "225", "type": "sub" },
+            { "prompt": "A farmer has 820 apple trees. He plants 150 more. How many apple trees does he have in total?", "correct": "970", "type": "add" },
+            { "prompt": "The Royal Guard has 560 soldiers. 95 new soldiers were recruited. How many soldiers are there now?", "correct": "655", "type": "add" },
+            { "prompt": "A merchant had 780 gold coins. He spent 250 on supplies. How many coins does he have left?", "correct": "530", "type": "sub" },
+            { "prompt": "The Royal Library has 4,520 books. The king donates another 1,250 books. How many books does the library have now?", "correct": "5770", "type": "add" },
+            { "prompt": "A dragon is guarding a hoard of 9,800 gold coins. A brave knight takes 2,350 coins. How many coins are left?", "correct": "7450", "type": "sub" },
+            { "prompt": "An astronomer counted 6,200 stars on Monday. She counted 1,850 more on Tuesday. What is the total number of stars she counted?", "correct": "8050", "type": "add" },
+            { "prompt": "A spaceship traveled 8,900 miles. It has 1,500 miles left to reach its destination. What was the total distance of the trip?", "correct": "10400", "type": "add"},
+            { "prompt": "The galaxy has 9,999 planets. A cosmic storm destroyed 1,234 of them. How many planets are left?", "correct": "8765", "type": "sub" },
+            { "prompt": "A wizard read a spellbook with 5,400 pages. He has 1,200 pages left to read. How many pages has he already read?", "correct": "4200", "type": "sub" }
+        ]
+    }
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const gameSpec = JSON.parse(document.getElementById('game-spec').textContent);
+
+        // --- DOM Elements ---
+        const screens = {
+            start: document.getElementById('start-screen'),
+            map: document.getElementById('map-screen-container'),
+            game: document.getElementById('game-container')
+        };
+        const startGameButton = document.getElementById('start-game-button');
+        const avatarUpload = document.getElementById('avatar-upload');
+        const avatarPreview = document.getElementById('avatar-preview');
+        const mapContainer = document.getElementById('map-container');
+        const scoreDisplay = document.getElementById('score-display');
+        
+        const playerSprite = document.getElementById('player-sprite');
+        const monsterSprite = document.getElementById('monster-sprite');
+        const playerHealthBar = document.getElementById('player-health');
+        const monsterHealthBar = document.getElementById('monster-health');
+        const playerHealthText = document.getElementById('player-health-text');
+        const monsterHealthText = document.getElementById('monster-health-text');
+        const wordProblemContainer = document.getElementById('word-problem-container');
+        const answerInput = document.getElementById('answer-input');
+        const submitButton = document.getElementById('submit-button');
+        const animationLayer = document.getElementById('animation-layer');
+        const messageOverlay = document.getElementById('message-overlay');
+        const messageTitle = document.getElementById('message-title');
+        const messageBody = document.getElementById('message-body');
+        const messageButton = document.getElementById('message-button');
+
+        // --- Game State ---
+        let gameState, player, monster, currentQuestion, questionsPool, currentStageId;
+        let isBattleOver = false;
+        let playerAvatarURL = null;
+
+        // --- SVG & Animation Engine ---
+        const visualEngine = {
+            drawPlayer: () => {
+                if (playerAvatarURL) {
+                    return `
+                        <svg viewBox="0 0 100 100">
+                            <defs>
+                                <clipPath id="avatarClip"><rect x="0" y="0" width="100" height="100" rx="15" /></clipPath>
+                            </defs>
+                            <image href="${playerAvatarURL}" width="100" height="100" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice" />
+                        </svg>
+                    `;
+                }
+                return `
+                    <svg viewBox="0 0 100 100">
+                        <circle cx="50" cy="30" r="15" fill="#f1c40f" />
+                        <path d="M 35 50 L 50 80 L 65 50 Z" fill="#3498db" />
+                        <circle cx="45" cy="30" r="3" fill="black" />
+                        <circle cx="55" cy="30" r="3" fill="black" />
+                    </svg>
+                `;
+            },
+            drawMonster: (m) => {
+                return `
+                    <svg viewBox="0 0 100 100">
+                        <path d="M 20 90 Q 50 20 80 90 Z" fill="${m.svg.bodyColor}" />
+                        <circle cx="40" cy="60" r="5" fill="${m.svg.eyeColor}" />
+                        <circle cx="60" cy="60" r="5" fill="${m.svg.eyeColor}" />
+                    </svg>
+                `;
+            },
+            playerAttack: (type) => {
+                const spell = document.createElement('div');
+                spell.className = 'spell-projectile';
+                const spellSVG = type === 'add' ?
+                    `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="${getComputedStyle(document.documentElement).getPropertyValue('--spell-fire')}" /></svg>` :
+                    `<svg viewBox="0 0 100 100"><polygon points="50,10 90,90 10,90" fill="${getComputedStyle(document.documentElement).getPropertyValue('--spell-ice')}" /></svg>`;
+                spell.innerHTML = spellSVG;
+                
+                const playerRect = playerSprite.getBoundingClientRect();
+                const monsterRect = monsterSprite.getBoundingClientRect();
+                const containerRect = animationLayer.getBoundingClientRect();
+
+                spell.style.top = `${playerRect.top - containerRect.top + playerRect.height / 2 - 25}px`;
+                spell.style.left = `${playerRect.left - containerRect.left + playerRect.width / 2 - 25}px`;
+                
+                animationLayer.appendChild(spell);
+                playerSprite.style.animation = 'characterAttack 0.5s ease';
+
+                setTimeout(() => {
+                    spell.style.top = `${monsterRect.top - containerRect.top + monsterRect.height / 2 - 25}px`;
+                    spell.style.left = `${monsterRect.left - containerRect.left + monsterRect.width / 2 - 25}px`;
+                    spell.style.transform = 'scale(0.5)';
+                }, 50);
+
+                setTimeout(() => {
+                    animationLayer.removeChild(spell);
+                    visualEngine.showImpact(monsterRect, type);
+                    monsterSprite.style.animation = 'characterHit 0.5s ease';
+                }, 650);
+                
+                setTimeout(() => {
+                    playerSprite.style.animation = '';
+                    monsterSprite.style.animation = '';
+                }, 1150);
+            },
+            monsterAttack: () => {
+                monsterSprite.style.animation = 'characterAttack 0.5s ease';
+                setTimeout(() => {
+                    playerSprite.style.animation = 'characterHit 0.5s ease';
+                    visualEngine.showImpact(playerSprite.getBoundingClientRect(), 'monster');
+                }, 300);
+                setTimeout(() => {
+                    monsterSprite.style.animation = '';
+                    playerSprite.style.animation = '';
+                }, 800);
+            },
+            showImpact: (targetRect, type) => {
+                const impact = document.createElement('div');
+                impact.className = 'impact-effect';
+                const color = type === 'add' ? 'var(--spell-fire)' : type === 'sub' ? 'var(--spell-ice)' : 'red';
+                impact.innerHTML = `<svg viewBox="0 0 100 100"><path d="M 50 0 L 61 39 L 100 39 L 69 62 L 80 100 L 50 75 L 20 100 L 31 62 L 0 39 L 39 39 Z" fill="${color}"/></svg>`;
+                
+                const containerRect = animationLayer.getBoundingClientRect();
+                impact.style.top = `${targetRect.top - containerRect.top + targetRect.height / 2 - 50}px`;
+                impact.style.left = `${targetRect.left - containerRect.left + targetRect.width / 2 - 50}px`;
+
+                animationLayer.appendChild(impact);
+                setTimeout(() => animationLayer.removeChild(impact), 500);
+            },
+            showDamage: (target, amount) => {
+                const popup = document.createElement('div');
+                popup.className = 'damage-popup';
+                popup.textContent = amount;
+                target.appendChild(popup);
+                setTimeout(() => target.removeChild(popup), 1500);
+            }
+        };
+
+        // --- Game Flow & State Management ---
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.add('hidden'));
+            screens[screenName].classList.remove('hidden');
+        }
+
+        function saveState() {
+            localStorage.setItem('mathMageWordProblemsState', JSON.stringify(gameState));
+        }
+
+        function loadState() {
+            const savedState = localStorage.getItem('mathMageWordProblemsState');
+            if (savedState) {
+                gameState = JSON.parse(savedState);
+            } else {
+                gameState = {
+                    unlockedStage: 1,
+                    score: 0
+                };
+            }
+            playerAvatarURL = localStorage.getItem('mathMageAvatar') || null;
+        }
+
+        function setupHomepage() {
+            avatarPreview.innerHTML = playerAvatarURL ? `<img src="${playerAvatarURL}" alt="Player Avatar">` : visualEngine.drawPlayer();
+            avatarUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        playerAvatarURL = e.target.result;
+                        localStorage.setItem('mathMageAvatar', playerAvatarURL);
+                        avatarPreview.innerHTML = `<img src="${playerAvatarURL}" alt="Player Avatar">`;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            startGameButton.addEventListener('click', () => {
+                showMapScreen();
+            });
+        }
+        
+        function showMapScreen() {
+            switchScreen('map');
+            scoreDisplay.textContent = `Score: ${gameState.score}`;
+            mapContainer.innerHTML = '';
+            gameSpec.map.stages.forEach(stage => {
+                const node = document.createElement('div');
+                node.className = 'stage-node';
+                node.textContent = stage.name;
+                node.style.top = stage.position.top;
+                node.style.left = stage.position.left;
+                
+                if (stage.id < gameState.unlockedStage) {
+                    node.classList.add('completed');
+                } else if (stage.id === gameState.unlockedStage) {
+                    node.classList.add('unlocked');
+                    node.addEventListener('click', () => showPreBattleStory(stage.id));
+                } else {
+                    node.classList.add('locked');
+                }
+                mapContainer.appendChild(node);
+            });
+        }
+        
+        function showPreBattleStory(stageId) {
+            const storyText = gameSpec.story[`stage${stageId}`];
+            showMessage(`Stage ${stageId}`, storyText, "Begin Battle", () => {
+                initBattle(stageId);
+            });
+        }
+
+        function initBattle(stageId) {
+            currentStageId = stageId;
+            switchScreen('game');
+            const stage = gameSpec.map.stages.find(s => s.id === stageId);
+            const monsterIndex = stage.monsterIndex;
+            
+            player = { ...gameSpec.player, currentHealth: gameSpec.player.maxHealth };
+            monster = { ...gameSpec.monsters[monsterIndex], currentHealth: gameSpec.monsters[monsterIndex].maxHealth };
+            
+            questionsPool = [...gameSpec.questions].sort(() => Math.random() - 0.5);
+            isBattleOver = false;
+            
+            playerSprite.innerHTML = visualEngine.drawPlayer();
+            monsterSprite.innerHTML = visualEngine.drawMonster(monster);
+            updateUI();
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            if (isBattleOver) return;
+            if (questionsPool.length === 0) {
+                questionsPool = [...gameSpec.questions].sort(() => Math.random() - 0.5);
+            }
+            currentQuestion = questionsPool.pop();
+            
+            wordProblemContainer.textContent = currentQuestion.prompt;
+            answerInput.value = '';
+            answerInput.focus();
+            submitButton.disabled = false;
+        }
+
+        function handleSubmit() {
+            if (isBattleOver || answerInput.value === '') return;
+            
+            submitButton.disabled = true;
+            const isCorrect = answerInput.value === currentQuestion.correct;
+
+            if (isCorrect) {
+                visualEngine.playerAttack(currentQuestion.type);
+                setTimeout(() => {
+                    const damage = player.spellPower;
+                    monster.currentHealth = Math.max(0, monster.currentHealth - damage);
+                    visualEngine.showDamage(monsterSprite, damage);
+                    updateUI();
+                    checkBattleStatus();
+                }, 700);
+            } else {
+                visualEngine.monsterAttack();
+                setTimeout(() => {
+                    const damage = monster.attackPower;
+                    player.currentHealth = Math.max(0, player.currentHealth - damage);
+                    visualEngine.showDamage(playerSprite, damage);
+                    updateUI();
+                    checkBattleStatus();
+                }, 500);
+            }
+        }
+
+        function checkBattleStatus() {
+            if (monster.currentHealth <= 0) {
+                isBattleOver = true;
+                gameState.score += monster.points;
+                gameState.unlockedStage = Math.max(gameState.unlockedStage, currentStageId + 1);
+                saveState();
+
+                if (currentStageId >= gameSpec.map.stages.length) {
+                     setTimeout(() => showEndGame(true), 1000);
+                } else {
+                    setTimeout(() => showMessage('Victory!', `You defeated the ${monster.name}!`, 'Return to Map', showMapScreen), 1000);
+                }
+            } else if (player.currentHealth <= 0) {
+                isBattleOver = true;
+                setTimeout(() => showEndGame(false), 1000);
+            } else {
+                setTimeout(nextQuestion, 1500);
+            }
+        }
+
+        function showEndGame(isWin) {
+            const title = isWin ? 'Congratulations!' : 'Game Over';
+            const body = isWin ? `You have defeated all the monsters! Final Score: ${gameState.score}` : 'The monsters were too strong. Keep practicing!';
+            const buttonText = 'Play Again';
+            showMessage(title, body, buttonText, () => {
+                gameState.unlockedStage = 1;
+                gameState.score = 0;
+                saveState();
+                showMapScreen();
+            });
+        }
+
+        // --- UI Updates ---
+        function updateUI() {
+            playerHealthBar.style.width = `${(player.currentHealth / player.maxHealth) * 100}%`;
+            playerHealthText.textContent = `${player.currentHealth} / ${player.maxHealth}`;
+            monsterHealthBar.style.width = `${(monster.currentHealth / monster.maxHealth) * 100}%`;
+            monsterHealthText.textContent = `${monster.currentHealth} / ${monster.maxHealth}`;
+        }
+        
+        function showMessage(title, body, buttonText, callback) {
+            messageTitle.textContent = title;
+            messageBody.textContent = body;
+            messageButton.textContent = buttonText;
+            messageOverlay.classList.add('visible');
+            messageButton.onclick = () => {
+                messageOverlay.classList.remove('visible');
+                callback();
+            };
+        }
+
+        // --- INITIALIZE ---
+        loadState();
+        setupHomepage();
+        submitButton.addEventListener('click', handleSubmit);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !isBattleOver && !screens.game.classList.contains('hidden')) {
+                handleSubmit();
+            }
+        });
+    });
+    </script>
+</body>
+</html>
