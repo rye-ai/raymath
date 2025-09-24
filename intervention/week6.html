@@ -1,1 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Math Toolkit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tab.active {
+            background-color: #4A90E2;
+            color: white;
+            border-bottom-color: transparent;
+        }
+        .tab {
+            transition: all 0.2s ease-in-out;
+        }
+        .slide-content {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .feedback-correct { color: #50C878; }
+        .feedback-incorrect { color: #F5A623; }
+
+        /* Print styles for PDF generation */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #pdf-container, #pdf-container * {
+                visibility: visible;
+            }
+            #pdf-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+        .pdf-slide {
+            border: 1px solid #ccc;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background-color: white;
+        }
+        .pdf-selected-answer {
+            background-color: #d4edda;
+            border-left: 5px solid #50C878;
+            padding: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 antialiased">
+
+    <!-- Data Injection for All Grades -->
+    <script id="all-data" type="application/json">
+    {
+        "k": {
+            "lesson_day1": [ { "id": "k_l_hook1", "type": "mc", "prompt": "Let's warm up! I'm holding up 2 fingers on one hand and 1 on the other. How many fingers am I holding up in all?", "visual": "emoji:🖐️", "data": { "options": ["2", "1", "3", "4"] }, "correct": "3" }, { "id": "k_l_ido1", "type": "mc", "prompt": "I have 1 red bear on one plate and 2 blue bears on another. When I put them together, how many bears do I have in all? <br> 1 plus 2 equals...", "visual": "SVG_COMMAND: create item_group items=[{icon:'fa-solid fa-bear', color:'red', count:1}, {icon:'fa-solid fa-bear', color:'blue', count:2}]", "data": { "options": ["1", "2", "3", "4"] }, "correct": "3" }, { "id": "k_l_wedo1", "type": "text-box", "prompt": "Let's try this together! Place 3 red counters on your five-frame. Now add 2 yellow counters. How many counters are there in all?", "visual": "SVG_COMMAND: create five_frame counters=[{color:'red', count:3}, {color:'yellow', count:2}]", "data": { "size": 1 }, "correct": "5" } ],
+            "lesson_day2": [ { "id": "k_l2_hook1", "type": "mc", "prompt": "Let's tell a math story! I saw 2 birds in a tree. 2 more birds flew in. How many birds are there now?", "visual": "emoji:🐦", "data": {"options": ["2", "3", "4", "5"]}, "correct": "4" }, { "id": "k_l2_ido1", "type": "mc", "prompt": "I have 2 apples in my basket. I pick 2 more. Which number sentence matches the story of how many apples I have in all?", "visual": "SVG_COMMAND: create item_group items=[{icon:'fa-solid fa-apple-whole', color:'red', count:2}, {icon:'fa-solid fa-apple-whole', color:'red', count:2}]", "data": {"options": ["2 - 2 = 0", "2 + 2 = 4", "2 + 1 = 3", "4 - 2 = 2"]}, "correct": "2 + 2 = 4" }, { "id": "k_l2_wedo1", "type": "text-box", "prompt": "There are 3 cars in the parking lot. 2 more cars drive in. How many cars are there now?", "visual": "SVG_COMMAND: create item_group items=[{icon:'fa-solid fa-car', color:'blue', count:3}, {icon:'fa-solid fa-car', color:'red', count:2}]", "data": {"size": 1}, "correct": "5" } ],
+            "practice_day1": [ { "id": "k_p1_q1", "type": "text-box", "prompt": "1 red bear and 3 blue bears make how many bears in all?", "visual": "SVG_COMMAND: create item_group items=[{icon:'fa-solid fa-bear', color:'red', count:1}, {icon:'fa-solid fa-bear', color:'blue', count:3}]", "data": {"size": 1}, "correct": "4" }, { "id": "k_p1_q2", "type": "text-box", "prompt": "How many counters are there in all?", "visual": "SVG_COMMAND: create five_frame counters=[{color:'red', count:2}, {color:'yellow', count:1}]", "data": {"size": 1}, "correct": "3" }, { "id": "k_p1_q3", "type": "text-box", "prompt": "2 + 2 = ?", "visual": "SVG_COMMAND: create item_group items=[{icon:'fa-solid fa-star', color:'gold', count:2}, {icon:'fa-solid fa-star', color:'gold', count:2}]", "data": {"size": 1}, "correct": "4" }, { "id": "k_p1_q4", "type": "text-box", "prompt": "Solve: 3 + 1 =", "visual": "icon:fa-solid fa-calculator", "data": {"size": 1}, "correct": "4" }, { "id": "k_p1_q5", "type": "text-box", "prompt": "How many apples do you see?", "visual": "SVG_COMMAND: create item_group items=[{icon:'fa-solid fa-apple-whole', color:'red', count:2}, {icon:'fa-solid fa-apple-whole', color:'green', count:3}]", "data": {"size": 1}, "correct": "5" }, { "id": "k_p1_q6", "type": "text-box", "prompt": "You have 1 car. You get 2 more. How many cars do you have now?", "visual": "emoji:🚗", "data": {"size": 1}, "correct": "3" }, { "id": "k_p1_q7", "type": "text-box", "prompt": "Count all the counters on the five-frame.", "visual": "SVG_COMMAND: create five_frame counters=[{color:'red', count:4}, {color:'yellow', count:1}]", "data": {"size": 1}, "correct": "5" }, { "id": "k_p1_q8", "type": "text-box", "prompt": "Solve: 2 + 1 =", "visual": "icon:fa-solid fa-calculator", "data": {"size": 1}, "correct": "3" }, { "id": "k_p1_q9", "type": "text-box", "prompt": "1 cookie and 4 more cookies is how many cookies?", "visual": "emoji:🍪", "data": {"size": 1}, "correct": "5" }, { "id": "k_p1_q10", "type": "text-box", "prompt": "There are 3 fish in a tank. 2 more are added. How many fish are there altogether?", "visual": "SVG_COMMAND: create item_group items=[{icon:'fa-solid fa-fish', color:'orange', count:3}, {icon:'fa-solid fa-fish', color:'blue', count:2}]", "data": {"size": 1}, "correct": "5" } ],
+            "test_day1": [ { "id": "k_t1_q1", "type": "mc", "prompt": "There are 2 red counters and 2 yellow counters on the five-frame. How many counters are there in all?", "visual": "SVG_COMMAND: create five_frame counters=[{color:'red', count:2}, {color:'yellow', count:2}]", "data": {"options": ["2", "3", "4", "5"]}, "correct": "4" }, { "id": "k_t1_q2", "type": "mc", "prompt": "Maria sees 3 cars. Then she sees 1 more car. How many cars does she see in all?", "visual": "emoji:🚗", "data": {"options": ["2", "3", "4", "5"]}, "correct": "4" }, { "id": "k_t1_q3", "type": "mc", "prompt": "What is 2 + 3?", "visual": "icon:fa-solid fa-calculator", "data": {"options": ["3", "4", "5", "2"]}, "correct": "5" }, { "id": "k_t1_q4", "type": "mc", "prompt": "How many fingers are there in all?", "visual": "emoji:🖐️", "data": {"options": ["1", "3", "4", "5"]}, "correct": "5" }, { "id": "k_t1_q5", "type": "mc", "prompt": "How many bears are there altogether?", "visual": "SVG_COMMAND: create item_group items=[{icon:'fa-solid fa-bear', color:'brown', count:2}, {icon:'fa-solid fa-bear', color:'black', count:1}]", "data": {"options": ["1", "2", "3", "4"]}, "correct": "3" } ],
+            "practice_day2": [ { "id": "k_p2_q1", "type": "mc", "prompt": "Story: 1 cat is sleeping. 2 more cats come to play. How many cats are there now?", "visual": "emoji:🐈", "data": {"options": ["1", "2", "3", "4"]}, "correct": "3" }, { "id": "k_p2_q2", "type": "mc", "prompt": "Draw a picture for this story: You have 3 balls. You find 2 more. Which number sentence matches?", "visual": "icon:fa-solid fa-pencil", "data": {"options": ["3 - 2 = 1", "3 + 2 = 5", "2 + 2 = 4", "5 - 3 = 2"]}, "correct": "3 + 2 = 5" }, { "id": "k_p2_q3", "type": "mc", "prompt": "Story: 4 ducks are swimming. 1 more duck joins them. How many ducks are swimming?", "visual": "emoji:🦆", "data": {"options": ["3", "4", "5", "6"]}, "correct": "5" }, { "id": "k_p2_q4", "type": "mc", "prompt": "You see 2 red flowers and 1 yellow flower. Which picture shows this story?", "visual": "emoji:💐", "data": {"options": ["Picture of 2 flowers", "Picture of 1 flower", "Picture of 3 flowers"]}, "correct": "Picture of 3 flowers" }, { "id": "k_p2_q5", "type": "mc", "prompt": "Story: I ate 1 apple. Then I ate 1 more. How many apples did I eat?", "visual": "emoji:🍎", "data": {"options": ["1", "2", "3", "4"]}, "correct": "2" }, { "id": "k_p2_q6", "type": "mc", "prompt": "Which number sentence matches a story about 3 dogs playing and 1 more dog joining?", "visual": "emoji:🐕", "data": {"options": ["3 + 1 = 4", "3 - 1 = 2", "1 + 1 = 2", "4 - 1 = 3"]}, "correct": "3 + 1 = 4" }, { "id": "k_p2_q7", "type": "mc", "prompt": "Create your own story for 2 + 3 = 5. What could be the items?", "visual": "icon:fa-solid fa-question", "data": {"options": ["Frogs", "Pencils", "Cookies", "All of the above"]}, "correct": "All of the above" }, { "id": "k_p2_q8", "type": "mc", "prompt": "Story: You have 1 cookie. I give you 3 more. How many do you have?", "visual": "emoji:🍪", "data": {"options": ["2", "3", "4", "5"]}, "correct": "4" }, { "id": "k_p2_q9", "type": "mc", "prompt": "Draw a picture: 2 boys and 3 girls are on the playground. How many kids are there?", "visual": "icon:fa-solid fa-pencil", "data": {"options": ["2", "3", "4", "5"]}, "correct": "5" }, { "id": "k_p2_q10", "type": "mc", "prompt": "Which story matches 1 + 2 = 3?", "visual": "icon:fa-solid fa-book-open", "data": {"options": ["1 bird flew away from 3", "1 bird and 2 more birds", "3 birds and 1 more bird"]}, "correct": "1 bird and 2 more birds" } ],
+            "test_day2": [ { "id": "k_t2_q1", "type": "mc", "prompt": "You have 1 cookie. I give you 3 more. Draw a picture to find the answer. How many cookies do you have?", "visual": "emoji:🍪", "data": {"options": ["1", "3", "4", "5"]}, "correct": "4" }, { "id": "k_t2_q2", "type": "mc", "prompt": "Story: There are 3 cars in the parking lot. 2 more cars drive in. Which number sentence matches?", "visual": "emoji:🚗", "data": {"options": ["3 - 2 = 1", "2 + 2 = 4", "3 + 2 = 5", "5 - 3 = 2"]}, "correct": "3 + 2 = 5" }, { "id": "k_t2_q3", "type": "mc", "prompt": "I saw 2 birds in a tree. 2 more birds flew in. How many birds are there now?", "visual": "emoji:🐦", "data": {"options": ["2", "3", "4", "5"]}, "correct": "4" }, { "id": "k_t2_q4", "type": "mc", "prompt": "A picture shows 2 red apples and 3 green apples. How many apples are there in all?", "visual": "SVG_COMMAND: create item_group items=[{icon:'fa-solid fa-apple-whole', color:'red', count:2}, {icon:'fa-solid fa-apple-whole', color:'green', count:3}]", "data": {"options": ["2", "3", "4", "5"]}, "correct": "5" }, { "id": "k_t2_q5", "type": "mc", "prompt": "Which story is about adding?", "visual": "icon:fa-solid fa-question", "data": {"options": ["5 frogs, 2 hopped away", "I had 4 pencils and lost 1", "You have 2 stickers and get 2 more"]}, "correct": "You have 2 stickers and get 2 more" } ]
+        },
+        "g1": {
+            "lesson_day1": [ { "id": "g1_l_hook1", "type": "mc", "prompt": "I'm holding up 5 fingers. I hide 2 of them. How many fingers are hiding?", "visual": "emoji:🖐️", "data": {"options": ["5", "3", "2", "1"]}, "correct": "2" }, { "id": "g1_l_ido1", "type": "mc", "prompt": "The whole is 5. One part is 3, and the other part is 2. What is the correct number sentence?", "visual": "SVG_COMMAND: create part_part_whole_mat whole=5 parts=[3, 2]", "data": {"options": ["5-3=2", "3+2=5", "5+3=8", "3-2=1"]}, "correct": "3+2=5" }, { "id": "g1_l_wedo1", "type": "text-box", "prompt": "Let's try this together. The whole is 5. One part is 2. What is the other part? <br> 2 + __ = 5", "visual": "SVG_COMMAND: create part_part_whole_mat whole=5 parts=[2, '?']", "data": {"size": 1}, "correct": "3" } ],
+            "lesson_day2": [ { "id": "g1_l2_hook1", "type": "mc", "prompt": "I'm showing you 10 fingers, but then I put 3 down. How many fingers are down?", "visual": "emoji:🖐️", "data": {"options": ["10", "7", "3", "13"]}, "correct": "3" }, { "id": "g1_l2_ido1", "type": "true-false", "prompt": "True or False: On a 'Rainbow to 10', the numbers 1 and 9 are partners because they add up to 10.", "visual": "emoji:🌈", "data": {"options": ["True", "False"]}, "correct": "True" }, { "id": "g1_l2_wedo1", "type": "text-box", "prompt": "Let's use a ten-frame. We place 6 red counters inside. How many empty spaces are left to make 10?", "visual": "SVG_COMMAND: create ten_frame counters=[{color:'red', count:6}]", "data": {"size": 1}, "correct": "4" } ],
+            "practice_day1": [ { "id": "g1_p1_q1", "type": "text-box", "prompt": "The whole is 5. One part is 1. What is the other part?", "visual": "SVG_COMMAND: create number_bond whole=5 parts=[1, '?']", "data": {"size": 1}, "correct": "4" }, { "id": "g1_p1_q2", "type": "text-box", "prompt": "How many empty boxes are there? This is the missing part to make 5.", "visual": "SVG_COMMAND: create five_frame counters=[{color:'red', count:3}]", "data": {"size": 1}, "correct": "2" }, { "id": "g1_p1_q3", "type": "text-box", "prompt": "Solve: 4 + __ = 5", "visual": "icon:fa-solid fa-question", "data": {"size": 1}, "correct": "1" }, { "id": "g1_p1_q4", "type": "text-box", "prompt": "You have 2 red counters and 3 yellow counters. What is the whole?", "visual": "SVG_COMMAND: create part_part_whole_mat whole='?' parts=[2, 3]", "data": {"size": 1}, "correct": "5" }, { "id": "g1_p1_q5", "type": "text-box", "prompt": "What is the partner for 0 to make 5?", "visual": "SVG_COMMAND: create five_frame counters=[]", "data": {"size": 1}, "correct": "5" }, { "id": "g1_p1_q6", "type": "text-box", "prompt": "The whole is 5. One part is 5. What is the other part?", "visual": "SVG_COMMAND: create number_bond whole=5 parts=[5, '?']", "data": {"size": 1}, "correct": "0" }, { "id": "g1_p1_q7", "type": "text-box", "prompt": "Solve: 3 + __ = 5", "visual": "icon:fa-solid fa-question", "data": {"size": 1}, "correct": "2" }, { "id": "g1_p1_q8", "type": "text-box", "prompt": "What number makes 5 with 1?", "visual": "SVG_COMMAND: create five_frame counters=[{color:'red', count:1}]", "data": {"size": 1}, "correct": "4" }, { "id": "g1_p1_q9", "type": "text-box", "prompt": "I have 5. One part is 4. What is the other part?", "visual": "emoji:🖐️", "data": {"size": 1}, "correct": "1" }, { "id": "g1_p1_q10", "type": "text-box", "prompt": "The parts are 2 and 3. What is the whole?", "visual": "SVG_COMMAND: create number_bond whole='?' parts=[2, 3]", "data": {"size": 1}, "correct": "5" } ],
+            "test_day1": [ { "id": "g1_t1_q1", "type": "mc", "prompt": "The whole is 5. One part is 2. What is the missing part?", "visual": "SVG_COMMAND: create part_part_whole_mat whole=5 parts=[2, '?']", "data": {"options": ["2", "3", "4", "5"]}, "correct": "3" }, { "id": "g1_t1_q2", "type": "mc", "prompt": "Solve: 2 + __ = 5", "visual": "icon:fa-solid fa-question", "data": {"options": ["1", "2", "3", "5"]}, "correct": "3" }, { "id": "g1_t1_q3", "type": "mc", "prompt": "Solve: 1 + __ = 5", "visual": "icon:fa-solid fa-question", "data": {"options": ["1", "3", "4", "5"]}, "correct": "4" }, { "id": "g1_t1_q4", "type": "mc", "prompt": "Look at the number bond. What is the missing number?", "visual": "SVG_COMMAND: create number_bond whole=5 parts=[4, '?']", "data": {"options": ["1", "4", "5", "9"]}, "correct": "1" }, { "id": "g1_t1_q5", "type": "mc", "prompt": "You have 3 counters in a five-frame. How many more do you need to make 5?", "visual": "SVG_COMMAND: create five_frame counters=[{color:'red', count:3}]", "data": {"options": ["1", "2", "3", "5"]}, "correct": "2" } ],
+            "practice_day2": [ { "id": "g1_p2_q1", "type": "text-box", "prompt": "What is the partner for 7 to make 10?", "visual": "SVG_COMMAND: create ten_frame counters=[{color:'red', count:7}]", "data": {"size": 1}, "correct": "3" }, { "id": "g1_p2_q2", "type": "text-box", "prompt": "The whole is 10. One part is 9. What is the other part?", "visual": "SVG_COMMAND: create number_bond whole=10 parts=[9, '?']", "data": {"size": 1}, "correct": "1" }, { "id": "g1_p2_q3", "type": "text-box", "prompt": "Solve: 2 + __ = 10", "visual": "icon:fa-solid fa-question", "data": {"size": 1}, "correct": "8" }, { "id": "g1_p2_q4", "type": "text-box", "prompt": "What number makes 10 with 5?", "visual": "SVG_COMMAND: create ten_frame counters=[{color:'red', count:5}]", "data": {"size": 1}, "correct": "5" }, { "id": "g1_p2_q5", "type": "text-box", "prompt": "I have 4. How many more do I need to make 10?", "visual": "emoji:🌈", "data": {"size": 1}, "correct": "6" }, { "id": "g1_p2_q6", "type": "text-box", "prompt": "The whole is 10. One part is 0. What is the other part?", "visual": "SVG_COMMAND: create number_bond whole=10 parts=[0, '?']", "data": {"size": 2}, "correct": "10" }, { "id": "g1_p2_q7", "type": "text-box", "prompt": "Solve: 10 + __ = 10", "visual": "icon:fa-solid fa-question", "data": {"size": 1}, "correct": "0" }, { "id": "g1_p2_q8", "type": "text-box", "prompt": "I have 3. How many more to make 10?", "visual": "SVG_COMMAND: create ten_frame counters=[{color:'red', count:3}]", "data": {"size": 1}, "correct": "7" }, { "id": "g1_p2_q9", "type": "text-box", "prompt": "The parts are 8 and 2. What is the whole?", "visual": "SVG_COMMAND: create number_bond whole='?' parts=[8, 2]", "data": {"size": 2}, "correct": "10" }, { "id": "g1_p2_q10", "type": "text-box", "prompt": "What is the missing part if the whole is 10 and one part is 1?", "visual": "SVG_COMMAND: create part_part_whole_mat whole=10 parts=[1, '?']", "data": {"size": 1}, "correct": "9" } ],
+            "test_day2": [ { "id": "g1_t2_q1", "type": "mc", "prompt": "Which number is the partner for 8 to make 10?", "visual": "SVG_COMMAND: create ten_frame counters=[{color:'red', count:8}]", "data": {"options": ["1", "2", "3", "8"]}, "correct": "2" }, { "id": "g1_t2_q2", "type": "mc", "prompt": "The whole is 10. One part is 4. What is the missing part?", "visual": "SVG_COMMAND: create part_part_whole_mat whole=10 parts=[4, '?']", "data": {"options": ["4", "5", "6", "14"]}, "correct": "6" }, { "id": "g1_t2_q3", "type": "mc", "prompt": "Solve: 3 + __ = 10", "visual": "icon:fa-solid fa-question", "data": {"options": ["3", "6", "7", "13"]}, "correct": "7" }, { "id": "g1_t2_q4", "type": "mc", "prompt": "Look at the number bond. What is the missing number?", "visual": "SVG_COMMAND: create number_bond whole=10 parts=[9, '?']", "data": {"options": ["1", "9", "10", "19"]}, "correct": "1" }, { "id": "g1_t2_q5", "type": "mc", "prompt": "You have 1 counter in a ten-frame. How many more do you need to make 10?", "visual": "SVG_COMMAND: create ten_frame counters=[{color:'red', count:1}]", "data": {"options": ["1", "8", "9", "10"]}, "correct": "9" } ]
+        },
+        "g3": {
+            "lesson_day1": [ { "id": "g3_l_hook1", "type": "mc", "prompt": "Let's warm up. Can you create a story for 45 + 37?", "visual": "emoji:✍️", "data": {"options": ["I had 45 cookies and ate 37.", "I have 45 red marbles and 37 blue marbles. How many in all?", "I have 45 marbles and give 37 away."]}, "correct": "I have 45 red marbles and 37 blue marbles. How many in all?" }, { "id": "g3_l_ido1", "type": "mc", "prompt": "Problem: 'Maria picked 28 apples. Her brother picked 35 apples. How many apples did they pick in all?' Which keyword tells us to add?", "visual": "icon:fa-solid fa-magnifying-glass", "data": {"options": ["picked", "apples", "in all", "brother"]}, "correct": "in all" }, { "id": "g3_l_wedo1", "type": "true-false", "prompt": "Problem: 'The library has 47 mystery books and 39 adventure books. What is the total number of books?' The word 'total' tells us to add.", "visual": "emoji:📚", "data": {"options": ["True", "False"]}, "correct": "True" } ],
+            "lesson_day2": [ { "id": "g3_l2_hook1", "type": "mc", "prompt": "Which phrase below usually tells you to SUBTRACT?", "visual": "icon:fa-solid fa-magnifying-glass", "data": {"options": ["in all", "total", "left over", "combined"]}, "correct": "left over" }, { "id": "g3_l2_ido1", "type": "mc", "prompt": "Problem: 'There were 82 cars in the parking lot. 35 cars drove away. How many cars are left?' Which keyword here tells us to subtract?", "visual": "emoji:🚗", "data": {"options": ["cars", "parking lot", "drove away", "left"]}, "correct": "left" }, { "id": "g3_l2_wedo1", "type": "mc", "prompt": "A baker made 60 cookies. He sold 48 of them. To find out how many he has now, should you add or subtract?", "visual": "emoji:🍪", "data": {"options": ["Add", "Subtract"]}, "correct": "Subtract" } ],
+            "practice_day1": [ { "id": "g3_p1_q1", "type": "text-box", "prompt": "The school cafeteria has 67 bananas and 28 oranges. How many pieces of fruit are there in total?", "visual": "emoji:🍌", "data": {"size": 2}, "correct": "95" }, { "id": "g3_p1_q2", "type": "text-box", "prompt": "A farmer has 54 chickens and 23 cows. How many animals does he have altogether?", "visual": "emoji:🐔", "data": {"size": 2}, "correct": "77" }, { "id": "g3_p1_q3", "type": "mc", "prompt": "Which keyword suggests addition?", "visual": "icon:fa-solid fa-magnifying-glass", "data": {"options": ["difference", "take away", "how many more", "total"]}, "correct": "total" }, { "id": "g3_p1_q4", "type": "text-box", "prompt": "Liam read 34 pages of a book on Monday and 48 pages on Tuesday. How many pages did he read in all?", "visual": "emoji:📖", "data": {"size": 2}, "correct": "82" }, { "id": "g3_p1_q5", "type": "text-box", "prompt": "What is the sum of 19 and 72?", "visual": "icon:fa-solid fa-calculator", "data": {"size": 2}, "correct": "91" }, { "id": "g3_p1_q6", "type": "text-box", "prompt": "A class has 15 boys and 16 girls. How many students are in the class combined?", "visual": "emoji:🧑‍🤝‍🧑", "data": {"size": 2}, "correct": "31" }, { "id": "g3_p1_q7", "type": "text-box", "prompt": "You find 45 shells on the beach. Your friend finds 33 shells. How many shells do you have in all?", "visual": "emoji:🐚", "data": {"size": 2}, "correct": "78" }, { "id": "g3_p1_q8", "type": "mc", "prompt": "Which word is a clue to add?", "visual": "icon:fa-solid fa-question", "data": {"options": ["left", "fewer", "sum", "difference"]}, "correct": "sum" }, { "id": "g3_p1_q9", "type": "text-box", "prompt": "Solve: 27 + 64 =", "visual": "icon:fa-solid fa-calculator", "data": {"size": 2}, "correct": "91" }, { "id": "g3_p1_q10", "type": "text-box", "prompt": "There are 29 red birds and 38 blue birds in a tree. How many birds are there altogether?", "visual": "emoji:🐦", "data": {"size": 2}, "correct": "67" } ],
+            "test_day1": [ { "id": "g3_t1_q1", "type": "mc", "prompt": "The school cafeteria has 67 bananas and 28 oranges. How many pieces of fruit are there in total?", "visual": "emoji:🍌", "data": {"options": ["39", "85", "95", "105"]}, "correct": "95" }, { "id": "g3_t1_q2", "type": "mc", "prompt": "The library has 47 mystery books and 39 adventure books. What is the total number of books?", "visual": "emoji:📚", "data": {"options": ["8", "76", "86", "96"]}, "correct": "86" }, { "id": "g3_t1_q3", "type": "mc", "prompt": "Maria picked 28 apples. Her brother picked 35 apples. Which keyword in this problem tells you to add?", "visual": "icon:fa-solid fa-magnifying-glass", "data": {"options": ["apples", "picked", "brother", "in all"]}, "correct": "in all" }, { "id": "g3_t1_q4", "type": "mc", "prompt": "What is the sum of 55 and 25?", "visual": "icon:fa-solid fa-calculator", "data": {"options": ["30", "70", "80", "90"]}, "correct": "80" }, { "id": "g3_t1_q5", "type": "mc", "prompt": "A train has 42 passengers. 29 more passengers get on. How many passengers are on the train altogether?", "visual": "emoji:🚂", "data": {"options": ["13", "61", "71", "81"]}, "correct": "71" } ],
+            "practice_day2": [ { "id": "g3_p2_q1", "type": "text-box", "prompt": "There were 82 cars in the parking lot. 35 cars drove away. How many cars are left?", "visual": "emoji:🚗", "data": {"size": 2}, "correct": "47" }, { "id": "g3_p2_q2", "type": "mc", "prompt": "Which keyword suggests subtraction?", "visual": "icon:fa-solid fa-magnifying-glass", "data": {"options": ["sum", "combined", "left over", "in all"]}, "correct": "left over" }, { "id": "g3_p2_q3", "type": "text-box", "prompt": "You have 95 cents. You spend 40 cents on a snack. How much money do you have left?", "visual": "emoji:🪙", "data": {"size": 2}, "correct": "55" }, { "id": "g3_p2_q4", "type": "text-box", "prompt": "There are 75 students on the playground. 28 go inside. How many students are left?", "visual": "emoji:🧑‍🤝‍🧑", "data": {"size": 2}, "correct": "47" }, { "id": "g3_p2_q5", "type": "text-box", "prompt": "A store had 88 hats. They sold 59 of them. How many hats are left?", "visual": "emoji:🧢", "data": {"size": 2}, "correct": "29" }, { "id": "g3_p2_q6", "type": "mc", "prompt": "A baker made 60 cookies and sold 48. Do you add or subtract to find how many are left?", "visual": "emoji:🍪", "data": {"options": ["Add", "Subtract"]}, "correct": "Subtract" }, { "id": "g3_p2_q7", "type": "text-box", "prompt": "What is the difference between 91 and 15?", "visual": "icon:fa-solid fa-calculator", "data": {"size": 2}, "correct": "76" }, { "id": "g3_p2_q8", "type": "text-box", "prompt": "You have 50 dollars. You buy a toy for 24 dollars. How much money is left over?", "visual": "emoji:💵", "data": {"size": 2}, "correct": "26" }, { "id": "g3_p2_q9", "type": "text-box", "prompt": "A class has 32 students. 18 of them are boys. How many are girls?", "visual": "emoji:👧", "data": {"size": 2}, "correct": "14" }, { "id": "g3_p2_q10", "type": "mc", "prompt": "Which problem requires subtraction?", "visual": "icon:fa-solid fa-question", "data": {"options": ["25 red balls, 30 blue balls. How many in all?", "You had 40 stickers and gave 15 away.", "10 apples plus 12 oranges."]}, "correct": "You had 40 stickers and gave 15 away." } ],
+            "test_day2": [ { "id": "g3_t2_q1", "type": "mc", "prompt": "There are 75 students on the playground. 28 go inside. How many students are left on the playground?", "visual": "emoji:🧑‍🤝‍🧑", "data": {"options": ["47", "53", "93", "103"]}, "correct": "47" }, { "id": "g3_t2_q2", "type": "mc", "prompt": "A baker made 60 cookies. He sold 48 of them. Which number sentence would you use to find out how many cookies he has now?", "visual": "emoji:🍪", "data": {"options": ["60 + 48 = 108", "60 - 48 = 12", "48 - 60 = ?", "60 + 60 = 120"]}, "correct": "60 - 48 = 12" }, { "id": "g3_t2_q3", "type": "mc", "prompt": "Which keyword is a clue to subtract?", "visual": "icon:fa-solid fa-magnifying-glass", "data": {"options": ["total", "sum", "how many more", "altogether"]}, "correct": "how many more" }, { "id": "g3_t2_q4", "type": "mc", "prompt": "A book has 85 pages. You have read 48 pages. How many pages are left to read?", "visual": "emoji:📖", "data": {"options": ["37", "43", "123", "133"]}, "correct": "37" }, { "id": "g3_t2_q5", "type": "mc", "prompt": "There were 92 birds in a tree. 45 flew away. How many birds are left?", "visual": "emoji:🐦", "data": {"options": ["47", "53", "137", "147"]}, "correct": "47" } ]
+        },
+        "g4": {
+            "lesson_day1": [ { "id": "g4_l_hook1", "type": "mc", "prompt": "A video game costs $59. A new console costs $449. If you have $500, do you have enough to buy both? First, what is the total cost?", "visual": "emoji:🎮", "data": {"options": ["$390", "$498", "$508", "$558"]}, "correct": "$508" }, { "id": "g4_l_ido1", "type": "mc", "prompt": "Problem: 'On Friday, 1,250 people attended a concert. On Saturday, 1,875 people attended. On Sunday, 2,130 people attended. What is the combined attendance for Friday and Saturday?' Which numbers do you need for this step?", "visual": "icon:fa-solid fa-ticket", "data": {"options": ["1250 and 1875", "1875 and 2130", "1250 and 2130"]}, "correct": "1250 and 1875" }, { "id": "g4_l_wedo1", "type": "mc", "prompt": "Problem: 'The school library has 2,450 fiction books and 1,822 non-fiction books. They get 500 more fiction books. What is the total number of books now?' What is the first step (the hidden question)?", "visual": "emoji:📚", "data": {"options": ["Add all three numbers together.", "Find the new total of fiction books.", "Subtract 500 from 2,450."]}, "correct": "Find the new total of fiction books." }, { "id": "g4_l_wedo2", "type": "text-box", "prompt": "Let's solve Step 1 from the library problem: 2,450 + 500 =", "visual": "icon:fa-solid fa-calculator", "data": {"size": 4}, "correct": "2950" } ],
+            "lesson_day2": [ { "id": "g4_l2_hook1", "type": "mc", "prompt": "You start with $2,000, you deposit $500, then you withdraw $800. Which operations would you use to find your final balance?", "visual": "emoji:🏦", "data": {"options": ["Addition only", "Subtraction only", "Addition and Subtraction", "Multiplication"]}, "correct": "Addition and Subtraction" }, { "id": "g4_l2_ido1", "type": "mc", "prompt": "A family is on a 2,500-mile road trip. They drove 875 miles on Monday and 950 miles on Tuesday. What is the first step to find how many miles they have left to drive?", "visual": "emoji:🛣️", "data": {"options": ["2,500 - 875", "875 + 950", "2,500 - 950", "2,500 + 875"]}, "correct": "875 + 950" }, { "id": "g4_l2_wedo1", "type": "mc", "prompt": "A warehouse has 8,000 boxes, ships out 3,450, then receives 1,500. What is the first operation you must perform to find out how many boxes are left?", "visual": "emoji:📦", "data": {"options": ["8,000 + 1,500", "8,000 - 3,450", "3,450 - 1,500", "3,450 + 1,500"]}, "correct": "8,000 - 3,450" } ],
+            "practice_day1": [ { "id": "g4_p1_q1", "type": "text-box", "prompt": "A farmer planted 1,200 corn seeds and 850 bean seeds. He then planted another 400 corn seeds. How many seeds did he plant in all?", "visual": "emoji:🌱", "data": {"size": 4}, "correct": "2450" }, { "id": "g4_p1_q2", "type": "text-box", "prompt": "A library has 2,450 fiction books and 1,822 non-fiction books. They received a donation of 500 more fiction books. What is the total number of books in the library now?", "visual": "emoji:📚", "data": {"size": 4}, "correct": "4772" }, { "id": "g4_p1_q3", "type": "text-box", "prompt": "On Friday, 1,250 people attended a concert. On Saturday, 1,875 people attended. What was the total attendance for both days?", "visual": "icon:fa-solid fa-ticket", "data": {"size": 4}, "correct": "3125" }, { "id": "g4_p1_q4", "type": "text-box", "prompt": "A bakery made 1,500 cupcakes in the morning and 2,350 in the afternoon. How many cupcakes did they make in total?", "visual": "emoji:🧁", "data": {"size": 4}, "correct": "3850" }, { "id": "g4_p1_q5", "type": "text-box", "prompt": "A school bought 1,200 pencils. They then bought 800 more pencils. How many pencils do they have now?", "visual": "emoji:✏️", "data": {"size": 4}, "correct": "2000" }, { "id": "g4_p1_q6", "type": "mc", "prompt": "To solve 'A store had 1,500 shirts, then received 300 more, then sold 50.' What is the first step?", "visual": "icon:fa-solid fa-question", "data": {"options": ["1500 - 50", "1500 + 300", "300 - 50"]}, "correct": "1500 + 300" }, { "id": "g4_p1_q7", "type": "text-box", "prompt": "A city has a population of 8,900. A new neighborhood is built and 1,100 more people move in. What is the new population?", "visual": "emoji:🏙️", "data": {"size": 5}, "correct": "10000" }, { "id": "g4_p1_q8", "type": "text-box", "prompt": "A truck delivered 2,500 pounds of apples and 3,200 pounds of oranges. How many pounds of fruit were delivered in all?", "visual": "emoji:🚚", "data": {"size": 4}, "correct": "5700" }, { "id": "g4_p1_q9", "type": "text-box", "prompt": "A website got 4,550 hits on Monday and 5,120 hits on Tuesday. What is the combined number of hits?", "visual": "emoji:💻", "data": {"size": 4}, "correct": "9670" }, { "id": "g4_p1_q10", "type": "text-box", "prompt": "Solve: (1,200 + 800) + 500 =", "visual": "icon:fa-solid fa-calculator", "data": {"size": 4}, "correct": "2500" } ],
+            "test_day1": [ { "id": "g4_t1_q1", "type": "mc", "prompt": "A farmer planted 1,200 corn seeds and 850 bean seeds. He then planted another 400 corn seeds. How many seeds did he plant in all?", "visual": "emoji:🌱", "data": {"options": ["2,050", "2,450", "1,600", "1,250"]}, "correct": "2,450" }, { "id": "g4_t1_q2", "type": "mc", "prompt": "A movie theater sold 1,250 tickets on Friday and 1,875 tickets on Saturday. Their goal was to sell 5,000 tickets for the weekend. What is the hidden question you need to answer first?", "visual": "icon:fa-solid fa-question", "data": {"options": ["How many tickets were sold in total?", "How many more tickets are needed?", "What is the difference between Saturday and Friday sales?", "What are the total sales for Friday and Saturday?"]}, "correct": "What are the total sales for Friday and Saturday?" }, { "id": "g4_t1_q3", "type": "mc", "prompt": "The school library has 2,450 fiction books and 1,822 non-fiction books. They just received a donation of 500 more fiction books. What is the total number of books in the library now?", "visual": "emoji:📚", "data": {"options": ["4,272", "4,772", "3,950", "2,950"]}, "correct": "4,772" }, { "id": "g4_t1_q4", "type": "mc", "prompt": "A video game company sold 4,157 copies of a game in the first month and 5,940 in the second month. How many copies were sold in total?", "visual": "emoji:🎮", "data": {"options": ["9,097", "10,097", "1,783", "9,897"]}, "correct": "10,097" }, { "id": "g4_t1_q5", "type": "mc", "prompt": "What is the first step to solve: 'A park has 1,500 trees. 250 new trees are planted. Then another 300 trees are planted.'", "visual": "icon:fa-solid fa-question", "data": {"options": ["1500 - 250", "250 + 300", "1500 + 250", "1500 + 300"]}, "correct": "1500 + 250" } ],
+            "practice_day2": [ { "id": "g4_p2_q1", "type": "text-box", "prompt": "Maria had $1,250 saved. She earned $300 more. Then she spent $450 on a new bike. How much money does she have left?", "visual": "emoji:🚲", "data": {"size": 4}, "correct": "1100" }, { "id": "g4_p2_q2", "type": "text-box", "prompt": "A warehouse started with 8,000 boxes. It shipped out 3,450 boxes. Then, it received a new shipment of 1,500 boxes. How many boxes are in the warehouse now?", "visual": "emoji:📦", "data": {"size": 4}, "correct": "6050" }, { "id": "g4_p2_q3", "type": "text-box", "prompt": "A family is on a 2,500-mile road trip. They drove 875 miles on Monday and 950 miles on Tuesday. How many miles do they have left to drive?", "visual": "emoji:🛣️", "data": {"size": 3}, "correct": "675" }, { "id": "g4_p2_q4", "type": "text-box", "prompt": "A school has 1,500 students. On Monday, 120 students were absent. On Tuesday, 95 students were absent. How many students were present on Tuesday?", "visual": "emoji:🏫", "data": {"size": 4}, "correct": "1405" }, { "id": "g4_p2_q5", "type": "text-box", "prompt": "An airplane flew 4,500 miles. It had to travel a total of 9,000 miles. It then flew another 1,250 miles. How many miles does it have left to go?", "visual": "emoji:✈️", "data": {"size": 4}, "correct": "3250" }, { "id": "g4_p2_q6", "type": "text-box", "prompt": "A movie theater sold 1,250 tickets on Friday and 1,875 tickets on Saturday. Their goal was to sell 5,000 tickets for the weekend. How many more tickets do they need to sell on Sunday to reach their goal?", "visual": "icon:fa-solid fa-ticket", "data": {"size": 4}, "correct": "1875" }, { "id": "g4_p2_q7", "type": "text-box", "prompt": "A company made 7,500 toys. They sold 4,200 toys in November and 2,150 toys in December. How many toys were left unsold?", "visual": "emoji:🧸", "data": {"size": 4}, "correct": "1150" }, { "id": "g4_p2_q8", "type": "text-box", "prompt": "What is 3,000 - (800 + 750)?", "visual": "icon:fa-solid fa-calculator", "data": {"size": 4}, "correct": "1450" }, { "id": "g4_p2_q9", "type": "mc", "prompt": "A store had 5,000 items. It sold 1,200 items, then received 800 more. What operations do you use, in order?", "visual": "icon:fa-solid fa-question", "data": {"options": ["Add, Subtract", "Subtract, Add", "Subtract, Subtract", "Add, Add"]}, "correct": "Subtract, Add" }, { "id": "g4_p2_q10", "type": "text-box", "prompt": "You have 1,000 points in a game. You lose 250 points, then gain 400 points. What is your final score?", "visual": "emoji:🕹️", "data": {"size": 4}, "correct": "1150" } ],
+            "test_day2": [ { "id": "g4_t2_q1", "type": "mc", "prompt": "A family is on a 2,500-mile road trip. They drove 875 miles on Monday and 950 miles on Tuesday. How many miles do they have left to drive?", "visual": "emoji:🛣️", "data": {"options": ["1,825", "1,625", "775", "675"]}, "correct": "675" }, { "id": "g4_t2_q2", "type": "mc", "prompt": "Maria had $1,250 saved. She earned $300 more. Then she spent $450 on a new bike. How much money does she have left?", "visual": "emoji:🚲", "data": {"options": ["$1,550", "$1,100", "$500", "$1,400"]}, "correct": "$1,100" }, { "id": "g4_t2_q3", "type": "mc", "prompt": "A warehouse started with 8,000 boxes. It shipped out 3,450 boxes. Then, it received a new shipment of 1,500 boxes. What is the correct order of operations to solve this problem?", "visual": "emoji:📦", "data": {"options": ["Add then Subtract", "Subtract then Add", "Add then Add", "Subtract then Subtract"]}, "correct": "Subtract then Add" }, { "id": "g4_t2_q4", "type": "mc", "prompt": "A baker has 1,200 pounds of flour. He uses 450 pounds, then buys 800 more pounds. How much flour does he have now?", "visual": "emoji:🧑‍🍳", "data": {"options": ["1,550", "750", "1,650", "2,450"]}, "correct": "1,550" }, { "id": "g4_t2_q5", "type": "mc", "prompt": "What is 5,000 - 1,500 + 800?", "visual": "icon:fa-solid fa-calculator", "data": {"options": ["2,700", "3,500", "4,300", "6,300"]}, "correct": "4,300" } ]
+        },
+        "g5": {
+            "lesson_day1": [ { "id": "g5_l_hook1", "type": "mc", "prompt": "If we use an area model for 135 x 15, how would we break up 135 into expanded form?", "visual": "icon:fa-solid fa-table-cells-large", "data": {"options": ["100 + 3 + 5", "10 + 35", "100 + 30 + 5", "13 + 5"]}, "correct": "100 + 30 + 5" }, { "id": "g5_l_ido1", "type": "mc", "prompt": "Let's solve 243 x 35 with an area model. What is the partial product for 30 x 200?", "visual": "SVG_COMMAND: create area_model factors=['200+40+3', '30+5'] highlight_cell=[0,0]", "data": {"options": ["600", "6,000", "60,000", "60"]}, "correct": "6,000" }, { "id": "g5_l_wedo1", "type": "text-box", "prompt": "Let's solve 156 x 24 together. What is the partial product that goes in the highlighted box (20 x 50)?", "visual": "SVG_COMMAND: create area_model factors=['100+50+6', '20+4'] highlight_cell=[0,1]", "data": {"size": 4}, "correct": "1000" } ],
+            "lesson_day2": [ { "id": "g5_l2_hook1", "type": "mc", "prompt": "A student forgets the placeholder zero when multiplying 25 x 13. Their second line of work is just '25'. What should it have been?", "visual": "emoji:🤔", "data": {"options": ["25", "75", "250", "50"]}, "correct": "250" }, { "id": "g5_l2_ido1", "type": "true-false", "prompt": "When solving 243 × 35 using the standard algorithm, the second partial product (7290) is the result of multiplying 243 by 30.", "visual": "icon:fa-solid fa-calculator", "data": {"options": ["True", "False"]}, "correct": "True" }, { "id": "g5_l2_wedo1", "type": "mc", "prompt": "We are solving 156 × 24. We have already multiplied 156 by 4. What is the very next step in the standard algorithm?", "visual": "icon:fa-solid fa-calculator", "data": {"options": ["Add the results", "Add a placeholder zero", "Multiply 156 by 2", "Start over"]}, "correct": "Add a placeholder zero" } ],
+            "practice_day1": [ { "id": "g5_p1_q1", "type": "text-box", "prompt": "Solve 123 x 14 using the area model.", "visual": "icon:fa-solid fa-table-cells-large", "data": {"size": 4}, "correct": "1722" }, { "id": "g5_p1_q2", "type": "text-box", "prompt": "In the area model for 345 x 23, what is the value of the partial product from 40 x 20?", "visual": "icon:fa-solid fa-table-cells-large", "data": {"size": 3}, "correct": "800" }, { "id": "g5_p1_q3", "type": "text-box", "prompt": "Add all the partial products to find the final answer for 156 x 24.", "visual": "SVG_COMMAND: create area_model factors=['100+50+6', '20+4'] partial_products=[[2000, 1000, 120], [400, 200, 24]]", "data": {"size": 4}, "correct": "3744" }, { "id": "g5_p1_q4", "type": "mc", "prompt": "When using an area model for 281 x 31, how do you break up 281?", "visual": "icon:fa-solid fa-question", "data": {"options": ["200+8+1", "28+1", "200+80+1", "2+8+1"]}, "correct": "200+80+1" }, { "id": "g5_p1_q5", "type": "text-box", "prompt": "What is the partial product of 300 x 40 in an area model for 312 x 45?", "visual": "icon:fa-solid fa-table-cells-large", "data": {"size": 5}, "correct": "12000" }, { "id": "g5_p1_q6", "type": "text-box", "prompt": "Solve 215 x 25 using the area model.", "visual": "icon:fa-solid fa-table-cells-large", "data": {"size": 4}, "correct": "5375" }, { "id": "g5_p1_q7", "type": "text-box", "prompt": "What is 100 x 10 + 100 x 2 + 30 x 10 + 30 x 2?", "visual": "icon:fa-solid fa-calculator", "data": {"size": 4}, "correct": "1560" }, { "id": "g5_p1_q8", "type": "mc", "prompt": "An area model for 423 x 52 would have how many partial product boxes?", "visual": "icon:fa-solid fa-table-cells-large", "data": {"options": ["4", "5", "6", "8"]}, "correct": "6" }, { "id": "g5_p1_q9", "type": "text-box", "prompt": "In an area model for 521 x 18, what is the sum of the partial products involving the '8'?", "visual": "icon:fa-solid fa-table-cells-large", "data": {"size": 4}, "correct": "4168" }, { "id": "g5_p1_q10", "type": "text-box", "prompt": "Solve 111 x 11 using the area model.", "visual": "icon:fa-solid fa-table-cells-large", "data": {"size": 4}, "correct": "1221" } ],
+            "test_day1": [ { "id": "g5_t1_q1", "type": "mc", "prompt": "This area model shows the partial products for 123 x 14. What is the final product?", "visual": "SVG_COMMAND: create area_model factors=['100+20+3', '10+4'] partial_products=[[1000, 200, 30], [400, 80, 12]]", "data": {"options": ["1,722", "1,612", "1,422", "1,712"]}, "correct": "1,722" }, { "id": "g5_t1_q2", "type": "mc", "prompt": "When solving 243x35 with an area model, what are all the partial products you need to find?", "visual": "icon:fa-solid fa-question", "data": {"options": ["6", "4", "2", "8"]}, "correct": "6" }, { "id": "g5_t1_q3", "type": "mc", "prompt": "In an area model for 156 x 24, what is the partial product of 50 x 4?", "visual": "icon:fa-solid fa-table-cells-large", "data": {"options": ["20", "200", "2000", "54"]}, "correct": "200" }, { "id": "g5_t1_q4", "type": "mc", "prompt": "Why is the area model a helpful strategy for large multiplication problems?", "visual": "icon:fa-solid fa-question", "data": {"options": ["It only works for small numbers.", "It breaks the problem into simpler steps.", "It is faster than a calculator.", "It helps with subtraction."]}, "correct": "It breaks the problem into simpler steps." }, { "id": "g5_t1_q5", "type": "mc", "prompt": "Solve 115 x 12 using the area model.", "visual": "icon:fa-solid fa-table-cells-large", "data": {"options": ["1270", "1370", "1380", "1280"]}, "correct": "1380" } ],
+            "practice_day2": [ { "id": "g5_p2_q1", "type": "text-box", "prompt": "Solve using the standard algorithm: 345 x 23 =", "visual": "icon:fa-solid fa-calculator", "data": {"size": 4}, "correct": "7935" }, { "id": "g5_p2_q2", "type": "text-box", "prompt": "A concert hall has 145 rows of seats. Each row has 28 seats. How many seats are there in total?", "visual": "emoji:🎟️", "data": {"size": 4}, "correct": "4060" }, { "id": "g5_p2_q3", "type": "text-box", "prompt": "What is the product of 281 and 31?", "visual": "icon:fa-solid fa-calculator", "data": {"size": 4}, "correct": "8711" }, { "id": "g5_p2_q4", "type": "text-box", "prompt": "An airline has 18 flights a day from New York to Chicago. Each flight can hold 162 passengers. How many passengers can fly from New York to Chicago each day?", "visual": "emoji:✈️", "data": {"size": 4}, "correct": "2916" }, { "id": "g5_p2_q5", "type": "text-box", "prompt": "Solve: 452 x 45 =", "visual": "icon:fa-solid fa-calculator", "data": {"size": 5}, "correct": "20340" }, { "id": "g5_p2_q6", "type": "mc", "prompt": "In the problem 243 x 35, when using the standard algorithm, the first line of the product (before the placeholder zero) is 1215. This is the result of which calculation?", "visual": "icon:fa-solid fa-calculator", "data": {"options": ["243 x 3", "243 x 5", "243 x 30", "243 x 35"]}, "correct": "243 x 5" }, { "id": "g5_p2_q7", "type": "text-box", "prompt": "A large box contains 32 smaller boxes of crayons. Each small box has 125 crayons. How many crayons are in the large box?", "visual": "emoji:🖍️", "data": {"size": 4}, "correct": "4000" }, { "id": "g5_p2_q8", "type": "mc", "prompt": "What is the purpose of the placeholder zero in the standard algorithm?", "visual": "icon:fa-solid fa-question", "data": {"options": ["To make the number look bigger", "To show you are multiplying by a tens digit", "To mark the end of the problem"]}, "correct": "To show you are multiplying by a tens digit" }, { "id": "g5_p2_q9", "type": "text-box", "prompt": "Solve: 567 x 38 =", "visual": "icon:fa-solid fa-calculator", "data": {"size": 5}, "correct": "21546" }, { "id": "g5_p2_q10", "type": "text-box", "prompt": "A factory produces 450 toys per day. How many toys does it produce in 21 days?", "visual": "emoji:🏭", "data": {"size": 4}, "correct": "9450" } ],
+            "test_day2": [ { "id": "g5_t2_q1", "type": "mc", "prompt": "Solve using the standard algorithm: 345 × 23 =", "visual": "icon:fa-solid fa-calculator", "data": {"options": ["1,035", "7,835", "7,935", "6,900"]}, "correct": "7,935" }, { "id": "g5_t2_q2", "type": "mc", "prompt": "A concert hall has 145 rows of seats. Each row has 28 seats. How many seats are there in total?", "visual": "emoji:🎟️", "data": {"options": ["4,060", "1,730", "3,060", "4,020"]}, "correct": "4,060" }, { "id": "g5_t2_q3", "type": "mc", "prompt": "When solving 482 x 56 with the standard algorithm, what is the purpose of placing a zero on the second line of partial products?", "visual": "icon:fa-solid fa-question", "data": {"options": ["It's a reminder to add.", "It's to hold the tens place because you are multiplying by 50, not 5.", "It separates the two products.", "It's to make the number larger."]}, "correct": "It's to hold the tens place because you are multiplying by 50, not 5." }, { "id": "g5_t2_q4", "type": "mc", "prompt": "Find the error. A student solved 214 x 22 and got 4,408. Where did they make a mistake? <br> 214<br><u>x 22</u><br>  428<br><u>+4280</u><br>4708", "visual": "emoji:🤔", "data": {"options": ["The student added incorrectly.", "The student did not use a placeholder zero.", "The student multiplied 2 x 214 incorrectly.", "There is no error."]}, "correct": "There is no error." }, { "id": "g5_t2_q5", "type": "mc", "prompt": "Solve: 189 x 42 =", "visual": "icon:fa-solid fa-calculator", "data": {"options": ["7938", "7838", "231", "1134"]}, "correct": "7938" } ]
+        }
+    }
+    </script>
+    
+    <!-- This is for loading saved work from a downloaded file -->
+    <!-- <script id="progress-data" type="application/json">{}</script> -->
+
+    <div id="app" class="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-4">
+            <h1 class="text-3xl font-bold text-gray-700">Math Explorer's Toolkit</h1>
+            <div>
+                <button onclick="downloadWork()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 mr-2">
+                    <i class="fa-solid fa-download mr-2"></i>Download Work
+                </button>
+                 <button id="pdf-button" onclick="downloadPDF()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 mr-2">
+                    <i class="fa-solid fa-file-pdf mr-2"></i>Export Test PDF
+                </button>
+                <button onclick="toggleFullscreen()" class="text-gray-600 hover:text-blue-500 text-2xl">
+                    <i id="fullscreen-icon" class="fa-solid fa-expand"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Grade Level Tabs -->
+        <nav id="grade-tabs" class="flex border-b-2 border-gray-300 mb-6">
+            <button data-grade="k" class="tab text-lg font-semibold p-4 border-b-4 border-transparent hover:bg-gray-200">Kindergarten</button>
+            <button data-grade="g1" class="tab text-lg font-semibold p-4 border-b-4 border-transparent hover:bg-gray-200">1st Grade</button>
+            <button data-grade="g2" class="tab text-lg font-semibold p-4 border-b-4 border-transparent hover:bg-gray-200 text-gray-400 cursor-not-allowed" disabled>2nd Grade</button>
+            <button data-grade="g3" class="tab text-lg font-semibold p-4 border-b-4 border-transparent hover:bg-gray-200">3rd Grade</button>
+            <button data-grade="g4" class="tab text-lg font-semibold p-4 border-b-4 border-transparent hover:bg-gray-200">4th Grade</button>
+            <button data-grade="g5" class="tab text-lg font-semibold p-4 border-b-4 border-transparent hover:bg-gray-200">5th Grade</button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main id="content-area">
+            <!-- Content will be dynamically injected here -->
+        </main>
+        
+        <!-- Hidden container for PDF generation -->
+        <div id="pdf-container" class="hidden"></div>
+    </div>
+
+    <script>
+        // IIFE to encapsulate the application logic
+        (function() {
+            // --- STATE MANAGEMENT ---
+            let appData = {};
+            let studentAnswers = {};
+            let appState = {
+                grade: 'k',
+                mode: 'menu', // 'menu', 'lesson_day1', 'lesson_day2', 'practice_day1', 'practice_day2', 'test_day1', 'test_day2'
+                currentIndex: 0,
+            };
+
+            // --- DOM ELEMENTS ---
+            const contentArea = document.getElementById('content-area');
+            const gradeTabsContainer = document.getElementById('grade-tabs');
+            const { jsPDF } = window.jspdf;
+
+
+            // --- INITIALIZATION ---
+            function init() {
+                // 1. Load data from the page
+                const dataScript = document.getElementById('all-data');
+                appData = JSON.parse(dataScript.textContent);
+
+                // 2. Load progress
+                loadProgress();
+
+                // 3. Set up event listeners
+                gradeTabsContainer.addEventListener('click', handleTabClick);
+                contentArea.addEventListener('click', handleContentClick); // Event delegation
+                
+                // 4. Render initial view
+                renderView();
+            }
+
+            // --- PROGRESS & DATA HANDLING ---
+            function loadProgress() {
+                const progressScript = document.getElementById('progress-data');
+                if (progressScript && progressScript.textContent.trim().length > 2) {
+                    try {
+                        studentAnswers = JSON.parse(progressScript.textContent);
+                        return;
+                    } catch (e) {
+                        console.error('Error parsing progress data from script:', e);
+                    }
+                }
+                
+                const savedAnswers = localStorage.getItem('studentAnswers');
+                if (savedAnswers) {
+                    studentAnswers = JSON.parse(savedAnswers);
+                } else {
+                    studentAnswers = { k: {}, g1: {}, g3: {}, g4: {}, g5: {} };
+                }
+            }
+
+            function saveProgress() {
+                localStorage.setItem('studentAnswers', JSON.stringify(studentAnswers));
+            }
+
+            function getLockedState(grade, mode) {
+                const locked = localStorage.getItem(`testLocked_${grade}_${mode}`);
+                return locked ? JSON.parse(locked) : null;
+            }
+
+            function setLockedState(grade, mode) {
+                localStorage.setItem(`testLocked_${grade}_${mode}`, JSON.stringify({ locked: true }));
+            }
+
+            function clearLockedState(grade, mode) {
+                localStorage.removeItem(`testLocked_${grade}_${mode}`);
+            }
+
+            // --- VIEW RENDERING ---
+            function renderView() {
+                const isSlideMode = appState.mode.startsWith('lesson') || appState.mode.startsWith('practice') || appState.mode.startsWith('test');
+
+                if (appState.mode === 'menu') {
+                    renderGradeMenu();
+                } else if (isSlideMode) {
+                    renderSlideView();
+                } else if (appState.mode === 'test-confirm') {
+                    renderTestConfirmation();
+                }
+                updateActiveTab();
+            }
+
+            function renderGradeMenu() {
+                const gradeKey = appState.grade;
+                const gradeName = getGradeName(gradeKey);
+                contentArea.innerHTML = `
+                    <div class="text-center slide-content">
+                        <h2 class="text-4xl font-bold mb-8">Welcome to ${gradeName}!</h2>
+                        <div class="grid grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                            <!-- Day 1 -->
+                            <button data-mode="lesson_day1" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all transform flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-chalkboard-user text-5xl text-blue-500 mb-4"></i>
+                                <h3 class="text-2xl font-semibold">Lesson Day 1</h3>
+                            </button>
+                            <button data-mode="practice_day1" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all transform flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-pencil-alt text-5xl text-green-500 mb-4"></i>
+                                <h3 class="text-2xl font-semibold">Practice Day 1</h3>
+                            </button>
+                            <button data-mode="test_day1" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all transform flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-file-signature text-5xl text-red-500 mb-4"></i>
+                                <h3 class="text-2xl font-semibold">Test Day 1</h3>
+                            </button>
+                            <!-- Day 2 -->
+                            <button data-mode="lesson_day2" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all transform flex flex-col items-center justify-center">
+                                <i class="fa-solid fa-calendar-day text-5xl text-blue-500 mb-4"></i>
+                                <h3 class="text-2xl font-semibold">Lesson Day 2</h3>
+                            </button>
+                            <button data-mode="practice_day2" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all transform flex flex-col items-center justify-center">
+                               <i class="fa-solid fa-pencil-alt text-5xl text-green-500 mb-4"></i>
+                                <h3 class="text-2xl font-semibold">Practice Day 2</h3>
+                            </button>
+                            <button data-mode="test_day2" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all transform flex flex-col items-center justify-center">
+                               <i class="fa-solid fa-file-signature text-5xl text-red-500 mb-4"></i>
+                                <h3 class="text-2xl font-semibold">Test Day 2</h3>
+                            </button>
+                        </div>
+                    </div>`;
+            }
+
+            function renderSlideView() {
+                const dataSet = appData[appState.grade][appState.mode];
+                if (!dataSet || dataSet.length === 0) {
+                    contentArea.innerHTML = `<p>No content available for this section.</p>`;
+                    return;
+                }
+                const currentQuestion = dataSet[appState.currentIndex];
+                const isTest = appState.mode.startsWith('test');
+                const isLastSlide = appState.currentIndex === dataSet.length - 1;
+                const nextButtonText = isLastSlide && !isTest ? 'Finish' : 'Next';
+                
+                let modeTitle = appState.mode.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                // Progress Bar
+                const progress = ((appState.currentIndex + 1) / dataSet.length) * 100;
+
+                let html = `
+                    <div class="slide-content">
+                        <!-- Header & Progress -->
+                        <div class="flex justify-between items-center mb-4">
+                            <button data-action="back-to-menu" class="text-blue-500 hover:underline">&larr; Back to Menu</button>
+                            <div class="w-1/2">
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-base font-medium text-blue-700">${modeTitle}</span>
+                                    <span class="text-sm font-medium text-blue-700">${appState.currentIndex + 1} / ${dataSet.length}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Question Container -->
+                        <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200" data-question-id="${currentQuestion.id}">
+                            <div class="grid md:grid-cols-2 gap-8 items-center">
+                                <!-- Visual -->
+                                <div class="visual-container flex items-center justify-center bg-gray-50 p-6 rounded-lg min-h-[200px]">
+                                    ${renderVisual(currentQuestion.visual)}
+                                </div>
+                                <!-- Content -->
+                                <div>
+                                    <div class="flex items-start gap-3">
+                                        <p class="prompt text-xl mb-6 flex-grow">${currentQuestion.prompt}</p>
+                                        ${(appState.grade === 'k' || appState.grade === 'g1') ? `
+                                        <button data-action="read-aloud" data-target="prompt" class="text-2xl text-blue-500 hover:text-blue-700 p-2 shrink-0">
+                                            <i class="fa-solid fa-volume-high"></i>
+                                        </button>
+                                        ` : ''}
+                                    </div>
+                                    <div class="answer-area mb-4">
+                                        ${renderAnswerArea(currentQuestion)}
+                                    </div>
+                                    <div class="feedback-area text-lg font-semibold h-8"></div>
+                                </div>
+                            </div>
+                            <!-- Navigation -->
+                            <div class="flex justify-between items-center mt-8 pt-4 border-t">
+                                <button data-action="prev" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105" ${appState.currentIndex === 0 ? 'disabled' : ''}>Previous</button>
+                                <div>
+                                    ${!isTest ? `<button data-action="check-answer" class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-2 px-6 rounded-lg mr-2 transition-transform transform hover:scale-105">Check Answer</button>` : ''}
+                                    <button data-action="next" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105">${nextButtonText}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                contentArea.innerHTML = html;
+                if (isTest) {
+                    loadTestAnswer(currentQuestion.id);
+                }
+            }
+            
+            function renderTestConfirmation() {
+                let testDay = appState.mode.includes('day1') ? 'Day 1' : 'Day 2';
+                contentArea.innerHTML = `
+                    <div class="text-center slide-content max-w-2xl mx-auto bg-white p-10 rounded-xl shadow-lg">
+                        <i class="fa-solid fa-check-double text-6xl text-blue-500 mb-6"></i>
+                        <h2 class="text-3xl font-bold mb-4">Submit ${testGetGradeName(appState.grade)} ${testDay} Test?</h2>
+                        <p class="text-gray-600 mb-8">You can review your answers before submitting. Once you submit, your score will be final.</p>
+                        <div class="flex justify-center gap-4">
+                            <button data-action="review-test" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-8 rounded-lg transition-transform transform hover:scale-105">Review Answers</button>
+                            <button data-action="submit-test" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg transition-transform transform hover:scale-105">Submit for Grading</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function testGetGradeName(key) {
+                 const names = { k: 'Kindergarten', g1: '1st Grade', g3: '3rd Grade', g4: '4th Grade', g5: '5th Grade' };
+                return names[key] || 'Unknown Grade';
+            }
+
+
+            function renderScoreScreen() {
+                const gradeKey = appState.grade;
+                const testMode = appState.mode;
+                const testData = appData[gradeKey][testMode];
+                
+                // Initialize the answer structure if it doesn't exist
+                if (!studentAnswers[gradeKey]) studentAnswers[gradeKey] = {};
+                if (!studentAnswers[gradeKey][testMode]) studentAnswers[gradeKey][testMode] = {};
+
+                const userAnswers = studentAnswers[gradeKey][testMode];
+                let score = 0;
+                testData.forEach(question => {
+                    if (userAnswers[question.id] && userAnswers[question.id] == question.correct) {
+                        score++;
+                    }
+                });
+
+                let testDay = testMode.includes('day1') ? 'Day 1' : 'Day 2';
+                contentArea.innerHTML = `
+                    <div class="text-center slide-content max-w-2xl mx-auto bg-white p-10 rounded-xl shadow-lg">
+                        <i class="fa-solid fa-award text-6xl text-yellow-500 mb-6"></i>
+                        <h2 class="text-3xl font-bold mb-4">${testGetGradeName(gradeKey)} ${testDay} Test Complete!</h2>
+                        <p class="text-5xl font-bold text-blue-600 my-6">${score} / ${testData.length}</p>
+                        <p class="text-gray-600 mb-8">Great work! This test is now locked.</p>
+                        <button data-action="back-to-menu" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition-transform transform hover:scale-105">Back to Grade Menu</button>
+                        <div class="mt-8">
+                            <a href="#" data-action="admin-reset" class="text-xs text-gray-400 hover:underline">Admin Reset</a>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // --- SVG & VISUAL GENERATION ---
+            function renderVisual(visualStr) {
+                if (!visualStr) return '';
+                if (visualStr.startsWith('emoji:')) {
+                    return `<span class="text-8xl">${visualStr.substring(6)}</span>`;
+                }
+                if (visualStr.startsWith('icon:')) {
+                    return `<i class="${visualStr.substring(5)} text-8xl text-gray-500"></i>`;
+                }
+                if (visualStr.startsWith('SVG_COMMAND:')) {
+                    return generateSVG(visualStr.substring(12));
+                }
+                return '';
+            }
+
+            function generateSVG(command) {
+                const [type, ...params] = command.split(' ');
+                const args = {};
+                params.join(' ').replace(/(\w+)=([^\]]*?)(?=\s\w+=|$)/g, (match, key, value) => {
+                    args[key] = value.replace(/^\[|\]$/g, '');
+                });
+
+                switch (type) {
+                    case 'create':
+                        const svgType = params[0].split('=')[0];
+                        return generateSpecificSVG(params[0], params.slice(1).join(' '));
+                }
+                return '';
+            }
+            
+            function generateSpecificSVG(type, paramsStr) {
+                // This is a simplified parser for the demo
+                const args = {};
+                const regex = /(\w+)=\[([^\]]*)\]|(\w+)=([\w\d\?']+)/g;
+                let match;
+                while ((match = regex.exec(paramsStr)) !== null) {
+                    const key = match[1] || match[3];
+                    let value = match[2] || match[4];
+                    try {
+                        args[key] = JSON.parse(value.replace(/'/g, '"'));
+                    } catch (e) {
+                         try {
+                            // If parsing as JSON fails, try parsing as a JS object literal
+                            args[key] = eval('(' + value + ')');
+                        } catch (e2) {
+                            args[key] = value;
+                        }
+                    }
+                }
+
+                switch (type) {
+                    case 'five_frame':
+                        return createFrameSVG(5, 1, args.counters || []);
+                    case 'ten_frame':
+                        return createFrameSVG(5, 2, args.counters || []);
+                    case 'item_group':
+                        return createItemGroupSVG(args.items || []);
+                    case 'part_part_whole_mat':
+                         return createPartPartWholeSVG(args.whole, args.parts);
+                    case 'number_bond':
+                         return createNumberBondSVG(args.whole, args.parts);
+                     case 'area_model':
+                         return createAreaModelSVG(args.factors || [], args.partial_products || [], args.highlight_cell);
+                    default: return '';
+                }
+            }
+
+            function createFrameSVG(cols, rows, countersData) {
+                const width = cols * 50;
+                const height = rows * 50;
+                let circles = '';
+                let count = 0;
+                if (countersData) {
+                    countersData.forEach(group => {
+                        for (let i = 0; i < group.count; i++) {
+                            const x = (count % cols) * 50 + 25;
+                            const y = Math.floor(count / cols) * 50 + 25;
+                            circles += `<circle cx="${x}" cy="${y}" r="20" fill="${group.color}"/>`;
+                            count++;
+                        }
+                    });
+                }
+                let cells = '';
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        cells += `<rect x="${c*50}" y="${r*50}" width="50" height="50" fill="none" stroke="black"/>`;
+                    }
+                }
+                return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${cells}${circles}</svg>`;
+            }
+            
+            function createItemGroupSVG(items) {
+                const container = document.createElement('div');
+                container.className = 'flex flex-wrap gap-4 justify-center items-center';
+                items.forEach(item => {
+                    for (let i = 0; i < item.count; i++) {
+                        const iconEl = document.createElement('i');
+                        iconEl.className = `${item.icon} text-4xl`;
+                        iconEl.style.color = item.color;
+                        container.appendChild(iconEl);
+                    }
+                });
+                return container.outerHTML;
+            }
+
+            function createPartPartWholeSVG(whole, parts) {
+                return `
+                    <svg width="250" height="150" viewBox="0 0 250 150">
+                        <rect x="5" y="5" width="240" height="60" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="2" rx="10"/>
+                        <text x="125" y="40" font-size="20" text-anchor="middle" fill="#0369a1">Whole: ${whole}</text>
+                        
+                        <rect x="5" y="85" width="115" height="60" fill="#dcfce7" stroke="#22c55e" stroke-width="2" rx="10"/>
+                        <text x="62.5" y="120" font-size="20" text-anchor="middle" fill="#15803d">Part: ${parts[0]}</text>
+                        
+                        <rect x="130" y="85" width="115" height="60" fill="#dcfce7" stroke="#22c55e" stroke-width="2" rx="10"/>
+                        <text x="187.5" y="120" font-size="20" text-anchor="middle" fill="#15803d">Part: ${parts[1]}</text>
+                    </svg>
+                `;
+            }
+
+            function createNumberBondSVG(whole, parts) {
+                return `
+                    <svg width="200" height="200" viewBox="0 0 200 200">
+                        <line x1="100" y1="50" x2="50" y2="150" stroke="black" />
+                        <line x1="100" y1="50" x2="150" y2="150" stroke="black" />
+                        
+                        <circle cx="100" cy="50" r="30" fill="#e0f2fe" stroke="#0ea5e9" />
+                        <text x="100" y="55" text-anchor="middle" font-size="18">${whole}</text>
+
+                        <circle cx="50" cy="150" r="30" fill="#dcfce7" stroke="#22c55e" />
+                        <text x="50" y="155" text-anchor="middle" font-size="18">${parts[0]}</text>
+
+                        <circle cx="150" cy="150" r="30" fill="#dcfce7" stroke="#22c55e" />
+                        <text x="150" y="155" text-anchor="middle" font-size="18">${parts[1]}</text>
+                    </svg>
+                `;
+            }
+            
+            function createAreaModelSVG(factors, partialProducts, highlightCell) {
+                 if (!factors || factors.length !== 2) return '<p>Invalid factors for area model</p>';
+                const topFactors = factors[0].split('+');
+                const sideFactors = factors[1].split('+');
+                const cols = topFactors.length;
+                const rows = sideFactors.length;
+                const cellWidth = 80;
+                const cellHeight = 60;
+                const headerSize = 40;
+                const width = cols * cellWidth + headerSize;
+                const height = rows * cellHeight + headerSize;
+
+                let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="sans-serif">`;
+                
+                // Draw factors
+                topFactors.forEach((f, i) => {
+                    svg += `<text x="${headerSize + i * cellWidth + cellWidth/2}" y="${headerSize - 10}" text-anchor="middle">${f}</text>`;
+                });
+                sideFactors.forEach((f, i) => {
+                    svg += `<text x="${headerSize - 10}" y="${headerSize + i * cellHeight + cellHeight/2}" text-anchor="end" dominant-baseline="middle">${f}</text>`;
+                });
+
+                // Draw grid and partial products
+                for(let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const isHighlight = highlightCell && highlightCell[0] === r && highlightCell[1] === c;
+                        const x = headerSize + c * cellWidth;
+                        const y = headerSize + r * cellHeight;
+                        svg += `<rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" fill="${isHighlight ? '#fef9c3' : '#f8fafc'}" stroke="#94a3b8"/>`;
+                        if (partialProducts && partialProducts[r] && partialProducts[r][c] !== undefined) {
+                            svg += `<text x="${x + cellWidth/2}" y="${y + cellHeight/2}" text-anchor="middle" dominant-baseline="middle">${partialProducts[r][c]}</text>`;
+                        }
+                    }
+                }
+
+                svg += '</svg>';
+                return svg;
+            }
+
+
+            // --- ANSWER AREA RENDERING ---
+            function renderAnswerArea(question) {
+                switch (question.type) {
+                    case 'mc':
+                    case 'true-false':
+                        return question.data.options.map(option => `
+                            <label class="flex items-center justify-between border rounded-lg p-4 mb-3 has-[:checked]:bg-blue-100 has-[:checked]:border-blue-500 cursor-pointer">
+                                <span class="option-text flex-grow">
+                                    <input type="radio" name="option" value="${option}" class="mr-3">
+                                    ${option}
+                                </span>
+                                ${(appState.grade === 'k' || appState.grade === 'g1') ? `
+                                <button data-action="read-aloud" data-target="option" class="text-xl text-blue-500 hover:text-blue-700 p-2 ml-4 shrink-0">
+                                    <i class="fa-solid fa-volume-high"></i>
+                                </button>
+                                ` : ''}
+                            </label>
+                        `).join('');
+                    case 'text-box':
+                        return `<input type="text" maxlength="${question.data.size}" class="border-2 border-gray-300 p-3 rounded-lg w-full text-lg focus:border-blue-500 focus:ring-blue-500" />`;
+                    default:
+                        return '<p>Unsupported question type.</p>';
+                }
+            }
+            
+            function loadTestAnswer(questionId) {
+                const answer = studentAnswers[appState.grade]?.[appState.mode]?.[questionId];
+                if (answer === undefined) return;
+
+                const questionContainer = contentArea.querySelector(`[data-question-id="${questionId}"]`);
+                const input = questionContainer.querySelector(`input[value="${CSS.escape(answer)}"]`) || questionContainer.querySelector('input[type="text"]');
+                if (input) {
+                    if (input.type === 'radio') {
+                        input.checked = true;
+                    } else {
+                        input.value = answer;
+                    }
+                }
+            }
+
+
+            // --- EVENT HANDLING ---
+            function handleTabClick(e) {
+                if (e.target.matches('.tab')) {
+                    const grade = e.target.dataset.grade;
+                    if (grade) {
+                        appState.grade = grade;
+                        appState.mode = 'menu';
+                        appState.currentIndex = 0;
+                        renderView();
+                    }
+                }
+            }
+
+            function handleContentClick(e) {
+                const target = e.target.closest('button, a');
+                if (!target) return;
+                
+                const action = target.dataset.action;
+                const mode = target.dataset.mode;
+                
+                if (mode) {
+                    if (mode.startsWith('test')) {
+                        const lockedState = getLockedState(appState.grade, mode);
+                        if (lockedState) {
+                            appState.mode = mode;
+                            renderScoreScreen();
+                            return;
+                        }
+                    }
+                    appState.mode = mode;
+                    appState.currentIndex = 0;
+                    renderView();
+                } else if (action) {
+                    switch (action) {
+                        case 'back-to-menu':
+                            appState.mode = 'menu';
+                            renderView();
+                            break;
+                        case 'prev':
+                            navigate(-1);
+                            break;
+                        case 'next':
+                            navigate(1);
+                            break;
+                        case 'check-answer':
+                            checkAnswer(target);
+                            break;
+                        case 'try-again':
+                             resetAttempt(target);
+                             break;
+                        case 'review-test':
+                            appState.mode = appState.mode.replace('-confirm', '');
+                            appState.currentIndex = 0;
+                            renderView();
+                            break;
+                        case 'submit-test':
+                            setLockedState(appState.grade, appState.mode.replace('-confirm', ''));
+                            appState.mode = appState.mode.replace('-confirm', '');
+                            renderScoreScreen();
+                            break;
+                        case 'admin-reset':
+                             handleAdminReset();
+                             break;
+                        case 'read-aloud':
+                            handleReadAloud(target);
+                            break;
+                    }
+                }
+            }
+
+            function updateActiveTab() {
+                document.querySelectorAll('.tab').forEach(tab => {
+                    if (tab.dataset.grade === appState.grade) {
+                        tab.classList.add('active');
+                    } else {
+                        tab.classList.remove('active');
+                    }
+                });
+            }
+
+
+            // --- INTERACTION LOGIC ---
+            function navigate(direction) {
+                 if (appState.mode.startsWith('test')) {
+                    saveTestAnswer();
+                }
+
+                const dataSet = appData[appState.grade][appState.mode];
+                const newIndex = appState.currentIndex + direction;
+
+                if (newIndex >= 0 && newIndex < dataSet.length) {
+                    appState.currentIndex = newIndex;
+                    renderView();
+                } else if (newIndex >= dataSet.length) {
+                    if (appState.mode.startsWith('test')) {
+                        appState.mode = appState.mode + '-confirm';
+                    } else {
+                        appState.mode = 'menu';
+                    }
+                    renderView();
+                }
+            }
+
+            function checkAnswer(button) {
+                const questionContainer = button.closest('[data-question-id]');
+                const questionId = questionContainer.dataset.questionId;
+                const dataSet = appData[appState.grade][appState.mode];
+                const question = dataSet.find(q => q.id === questionId);
+                
+                const answerArea = questionContainer.querySelector('.answer-area');
+                const feedbackArea = questionContainer.querySelector('.feedback-area');
+                const nextButton = questionContainer.querySelector('[data-action="next"]');
+
+                let userAnswer;
+                if (question.type === 'mc' || question.type === 'true-false') {
+                    const selected = answerArea.querySelector('input:checked');
+                    userAnswer = selected ? selected.value : null;
+                } else if (question.type === 'text-box') {
+                    userAnswer = answerArea.querySelector('input').value.trim();
+                }
+
+                if (userAnswer && userAnswer.toLowerCase() == String(question.correct).toLowerCase()) {
+                    feedbackArea.textContent = 'Correct!';
+                    feedbackArea.className = 'feedback-area text-lg font-semibold h-8 feedback-correct';
+                    button.disabled = true;
+                    nextButton.disabled = false;
+                    lockInputs(answerArea);
+                } else {
+                    feedbackArea.innerHTML = `Not quite... <button data-action="try-again" class="ml-2 text-sm text-blue-500 underline">Try Again</button>`;
+                    feedbackArea.className = 'feedback-area text-lg font-semibold h-8 feedback-incorrect';
+                }
+            }
+            
+            function resetAttempt(button) {
+                const questionContainer = button.closest('[data-question-id]');
+                const feedbackArea = questionContainer.querySelector('.feedback-area');
+                const checkButton = questionContainer.querySelector('[data-action="check-answer"]');
+                const answerArea = questionContainer.querySelector('.answer-area');
+
+                feedbackArea.innerHTML = '';
+                checkButton.disabled = false;
+                
+                const inputs = answerArea.querySelectorAll('input');
+                inputs.forEach(input => {
+                    if (input.type === 'radio' || input.type === 'checkbox') {
+                        input.checked = false;
+                    } else {
+                        input.value = '';
+                    }
+                });
+            }
+            
+            function saveTestAnswer() {
+                 const questionContainer = contentArea.querySelector('[data-question-id]');
+                 if (!questionContainer) return;
+
+                 const questionId = questionContainer.dataset.questionId;
+                 const answerArea = questionContainer.querySelector('.answer-area');
+                 const testMode = appState.mode;
+                 const dataSet = appData[appState.grade][testMode];
+                 const question = dataSet.find(q => q.id === questionId);
+                 
+                 let userAnswer = null;
+                 if (question.type === 'mc' || question.type === 'true-false') {
+                    const selected = answerArea.querySelector('input:checked');
+                    userAnswer = selected ? selected.value : null;
+                } else if (question.type === 'text-box') {
+                    userAnswer = answerArea.querySelector('input').value.trim();
+                }
+
+                if (!studentAnswers[appState.grade]) studentAnswers[appState.grade] = {};
+                if (!studentAnswers[appState.grade][testMode]) studentAnswers[appState.grade][testMode] = {};
+                
+                studentAnswers[appState.grade][testMode][questionId] = userAnswer;
+                saveProgress();
+            }
+            
+            function lockInputs(container) {
+                container.querySelectorAll('input').forEach(input => input.disabled = true);
+            }
+            
+            function handleAdminReset() {
+                const password = prompt("Enter admin password to reset the test:");
+                const testMode = appState.mode;
+                if (password === "2026") {
+                    if (studentAnswers[appState.grade] && studentAnswers[appState.grade][testMode]) {
+                        studentAnswers[appState.grade][testMode] = {};
+                    }
+                    saveProgress();
+                    clearLockedState(appState.grade, testMode);
+                    alert("Test has been reset.");
+                    appState.mode = 'menu';
+                    renderView();
+                } else if (password !== null) {
+                    alert("Incorrect password.");
+                }
+            }
+
+            // --- READ ALOUD ---
+            function speakText(text) {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 0.9;
+                    utterance.pitch = 1.1;
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    alert('Sorry, your browser does not support the text-to-speech feature.');
+                }
+            }
+
+            function handleReadAloud(button) {
+                const targetType = button.dataset.target;
+                let textToRead = '';
+
+                if (targetType === 'prompt') {
+                    const promptElement = button.parentElement.querySelector('.prompt');
+                    if(promptElement) textToRead = promptElement.innerText;
+                } else if (targetType === 'option') {
+                    const optionElement = button.closest('label').querySelector('.option-text');
+                    if(optionElement) textToRead = optionElement.textContent.trim();
+                }
+
+                if (textToRead) {
+                    speakText(textToRead);
+                }
+            }
+
+
+            // --- UTILITY FUNCTIONS ---
+            function getGradeName(key) {
+                const names = { k: 'Kindergarten', g1: '1st Grade', g3: '3rd Grade', g4: '4th Grade', g5: '5th Grade' };
+                return names[key] || 'Unknown Grade';
+            }
+
+            window.toggleFullscreen = function() {
+                const elem = document.documentElement;
+                const icon = document.getElementById('fullscreen-icon');
+                if (!document.fullscreenElement) {
+                    elem.requestFullscreen().catch(err => {
+                        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    });
+                    icon.classList.remove('fa-expand');
+                    icon.classList.add('fa-compress');
+                } else {
+                    document.exitFullscreen();
+                    icon.classList.remove('fa-compress');
+                    icon.classList.add('fa-expand');
+                }
+            }
+
+            window.downloadPDF = async function() {
+                const button = document.getElementById('pdf-button');
+                const originalText = button.innerHTML;
+                button.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>Generating...`;
+                button.disabled = true;
+
+                // Prompt user to select which test to export
+                const daySelection = prompt("Which test would you like to export? Enter '1' for Day 1 or '2' for Day 2.");
+                if (daySelection !== '1' && daySelection !== '2') {
+                    alert("Invalid selection. Please enter '1' or '2'.");
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                    return;
+                }
+                
+                const testMode = `test_day${daySelection}`;
+                const gradeKey = appState.grade;
+
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'px',
+                    format: 'a4'
+                });
+                
+                const testData = appData[gradeKey][testMode];
+                const userAnswersForGrade = studentAnswers[gradeKey]?.[testMode] || {};
+                const pdfContainer = document.getElementById('pdf-container');
+                pdfContainer.classList.remove('hidden');
+
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                
+                for (let i = 0; i < testData.length; i++) {
+                    const question = testData[i];
+                    
+                    const staticSlide = document.createElement('div');
+                    staticSlide.className = 'pdf-slide';
+                    staticSlide.style.width = '450px';
+                    
+                    const visualHTML = renderVisual(question.visual);
+                    const promptHTML = `<p class="text-lg mb-4">${question.prompt}</p>`;
+                    let optionsHTML = '';
+                    
+                    if (question.type === 'mc' || question.type === 'true-false') {
+                        optionsHTML = question.data.options.map(option => {
+                            const userAnswer = userAnswersForGrade[question.id];
+                            const isSelected = userAnswer === option;
+                            return `<div class="border p-3 rounded mb-2 ${isSelected ? 'pdf-selected-answer' : ''}">${option} ${isSelected ? '(Selected)' : ''}</div>`;
+                        }).join('');
+                    } else if (question.type === 'text-box') {
+                        const userAnswer = userAnswersForGrade[question.id] || '[No Answer]';
+                        optionsHTML = `<div class="border p-3 rounded pdf-selected-answer">Answer: ${userAnswer}</div>`;
+                    }
+                    
+                    staticSlide.innerHTML = `
+                        <h3 class="font-bold mb-2">Question ${i + 1} of ${testData.length}</h3>
+                        <div class="my-4 flex justify-center">${visualHTML}</div>
+                        ${promptHTML}
+                        <div>${optionsHTML}</div>
+                    `;
+                    
+                    pdfContainer.appendChild(staticSlide);
+
+                    try {
+                        const canvas = await html2canvas(staticSlide, { scale: 2 });
+                        const imgData = canvas.toDataURL('image/png');
+                        const imgProps = pdf.getImageProperties(imgData);
+                        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                        if (i > 0) pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+                    } catch (error) {
+                         console.error('html2canvas error:', error);
+                    }
+                    
+                    pdfContainer.innerHTML = '';
+                }
+                
+                pdfContainer.classList.add('hidden');
+                pdf.save(`Test-Report-${gradeKey}-Day${daySelection}.pdf`);
+
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+
+            window.downloadWork = function() {
+                const progressJson = JSON.stringify(studentAnswers, null, 2);
+                const docClone = document.documentElement.cloneNode(true);
+                let progressScriptTag = docClone.querySelector('#progress-data');
+                if (!progressScriptTag) {
+                    progressScriptTag = document.createElement('script');
+                    progressScriptTag.id = 'progress-data';
+                    progressScriptTag.type = 'application/json';
+                    docClone.querySelector('body').appendChild(progressScriptTag);
+                }
+                progressScriptTag.textContent = progressJson;
+                const blob = new Blob([docClone.outerHTML], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'my-math-toolkit-progress.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                alert('Your work has been saved to an HTML file!');
+            }
+
+
+            // --- RUN APP ---
+            document.addEventListener('DOMContentLoaded', init);
+
+        })();
+    </script>
+</body>
+</html>
+
 
