@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architects of Order: Expressions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            background-image:
+                linear-gradient(rgba(74, 144, 226, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 144, 226, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        @import url('https://rsms.me/inter/inter.css');
+        .slide { display: none; }
+        .slide.active { display: block; }
+        .draggable { cursor: grab; }
+        .draggable:active { cursor: grabbing; }
+        .drop-target { border: 2px dashed #a0aec0; }
+        .drop-target.drag-over { border-color: #4A90E2; background-color: #EBF8FF; }
+        .progress-segment { background-color: #CBD5E0; }
+        .progress-segment.completed { background-color: #F5A623; }
+        .option-btn { transition: all 0.2s ease-in-out; }
+        .option-btn.selected { background-color: #4A90E2; color: white; border-color: #4A90E2; }
+        .option-btn.correct { background-color: #48BB78; color: white; }
+        .option-btn.incorrect { background-color: #F56565; color: white; }
+        .feedback { transition: opacity 0.3s; }
+        .hidden { display: none; }
+        .sortable-item { border: 1px solid #ccc; padding: 8px; margin: 4px; border-radius: 8px; }
+        /* Print-friendly styles for PDF export */
+        @media print {
+            body, .printable-content { margin: 0; padding: 0; }
+            .no-print, .no-print * { display: none !important; }
+            .printable-slide {
+                display: block !important;
+                page-break-after: always;
+                box-shadow: none;
+                border: none;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 antialiased">
+    <div id="app" class="max-w-6xl mx-auto p-4 sm:p-6 md:p-8">
+        <!-- Header -->
+        <header class="bg-white rounded-lg shadow-md p-4 mb-6 flex justify-between items-center no-print">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-[#4A90E2]">Architects of Order: Designing Expressions</h1>
+                <p class="text-sm text-gray-600">5.PAFR.3.4 - Gifted & Talented Edition</p>
+            </div>
+            <div id="header-controls" class="flex items-center space-x-2">
+                 <button id="mode-toggle-btn" class="bg-[#4A90E2] text-white font-bold py-2 px-4 rounded-lg hover:bg-[#357ABD] transition-colors">Go to Assessment</button>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <!-- Lesson View -->
+            <div id="lesson-view">
+                <!-- Progress Bar -->
+                <div class="flex rounded-full h-4 bg-gray-300 mb-6 no-print">
+                    <div id="progress-hook" class="progress-segment w-1/5 rounded-l-full"></div>
+                    <div id="progress-demo" class="progress-segment w-1/5"></div>
+                    <div id="progress-ido" class="progress-segment w-1/5"></div>
+                    <div id="progress-wedo" class="progress-segment w-1/5"></div>
+                    <div id="progress-youdo" class="progress-segment w-1/5 rounded-r-full"></div>
+                </div>
+                <div id="lesson-slides-container"></div>
+            </div>
+
+            <!-- Assessment View -->
+            <div id="assessment-view" class="hidden">
+                 <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-[#4A90E2]">Final Inspection</h2>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl">🔥</span>
+                        <span id="streak-counter" class="text-xl font-bold">0</span>
+                    </div>
+                </div>
+                <div id="assessment-slides-container"></div>
+            </div>
+        </main>
+
+         <!-- Footer Controls -->
+        <footer class="mt-8 flex flex-wrap justify-between items-center no-print">
+             <div id="nav-buttons" class="flex items-center space-x-2 mb-4 md:mb-0">
+                <button id="prev-btn" class="bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">Previous</button>
+                <span id="slide-counter" class="text-gray-600 font-semibold px-2"></span>
+                <button id="next-btn" class="bg-[#4A90E2] text-white font-bold py-2 px-4 rounded-lg hover:bg-[#357ABD] transition-colors">Next</button>
+            </div>
+            <div class="flex items-center space-x-2">
+                 <button id="download-html-btn" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">Download Work</button>
+                 <button id="download-pdf-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors">Download PDF</button>
+            </div>
+        </footer>
+        
+        <!-- Completion Modal -->
+        <div id="completion-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+            <div class="bg-white p-8 rounded-lg shadow-xl text-center">
+                <h2 class="text-2xl font-bold mb-4">Great work! Your report is ready.</h2>
+                <p class="mb-6">You've completed the Final Inspection.</p>
+                <button id="admin-btn" class="text-sm text-gray-500 hover:underline">Admin</button>
+            </div>
+        </div>
+
+        <!-- Teacher Score View Modal -->
+        <div id="score-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+            <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+                <h2 class="text-2xl font-bold mb-4">Score Summary</h2>
+                <div id="score-summary-content" class="text-left"></div>
+                <button id="close-score-modal-btn" class="mt-6 bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student progress data will be injected here for saving -->
+    <script id="progress-data" type="application/json"></script>
+
+<script>
+const App = {
+    //
+    // --- 1. INITIALIZATION & STATE ---
+    //
+    state: {
+        currentView: 'lesson', // 'lesson' or 'assessment'
+        lesson: {
+            currentSlide: 0,
+            slides: [],
+        },
+        assessment: {
+            currentSlide: 0,
+            slides: [],
+            streak: 0,
+            completed: false,
+        },
+        userAnswers: {},
+        customImages: {},
+    },
+
+    init() {
+        this.loadData();
+        this.hydrateState();
+        this.render();
+        this.attachEventListeners();
+        if ('speechSynthesis' in window) {
+            console.log("Speech Synthesis supported.");
+        } else {
+            console.error("Speech Synthesis not supported.");
+        }
+    },
+
+    //
+    // --- 2. DATA & STATE MANAGEMENT ---
+    //
+    lessonData: {
+        // ... (data will be populated by loadData)
+    },
+
+    loadData() {
+        // Normally this would be a fetch, but here it's embedded
+        this.lessonData = {
+            lessonSlides: [
+                { type: 'title', title: 'Hook: A Mathematical Misunderstanding', section: 'hook', content: `<p class="text-lg">Two students, Alex and Ben, were asked to solve this problem:</p><blockquote class="my-4 p-4 border-l-4 border-[#4A90E2] bg-blue-50"><i>'Start with 20. Subtract the product of 4 and 2, then divide the result by 3.'</i></blockquote><p>Alex wrote <code>(20 - 4) X 2 / 3</code> and got 10.66. Ben wrote <code>(20 - (4 X 2)) / 3</code> and got 4.</p><p class="mt-4 font-bold">Who is correct, and why is the other student's expression a misinterpretation of the instructions?</p>` },
+                { type: 'title', title: 'Demonstration & Discussion', section: 'demo', content: `<p>Mathematical expressions are <b>algorithms</b>—a set of precise instructions. Parentheses <code>()</code> are our most powerful tool for controlling the order of those instructions.</p><p class="mt-2">We use <b>abstraction</b> to simplify complex problems. For 'Buy 3 games at $15 each and use a $10 coupon', we can think of the total cost <code>C = 3 X 15</code> first. The final expression becomes <code>C - 10</code>, or <code>(3 X 15) - 10</code>.</p><hr class="my-4 border-gray-200"><h3 class="text-xl font-bold text-[#F5A623] mb-2">A Great Strategy: Story -> Number Sentence -> Answer</h3><p>To architect a solid solution, we'll use a three-phase approach that focuses on understanding before calculating.</p><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2 p-4 bg-blue-50 rounded-lg"><div><h4 class="font-bold text-[#4A90E2]">1. Understand the Story</h4><p class="text-sm">Read the entire problem. What is happening? What is the final question? Identify all the pieces of information and the sequence of events.</p></div><div><h4 class="font-bold text-[#4A90E2]">2. Create the Number Sentence</h4><p class="text-sm">Translate the story into a single mathematical expression. Use parentheses <code>()</code> to group the parts of the story that need to be solved first.</p></div><div><h4 class="font-bold text-[#4A90E2]">3. Solve for the Answer</h4><p class="text-sm">Once your number sentence accurately represents the story, perform the calculations to find the final answer.</p></div></div>` },
+                ...[
+                  { id: "d1_id_q1", type: "text-box", prompt: "A coding team scores 150 points, but gets 2 penalties of 10 points each. The final score is split among 3 team members. What is the final expression?", visual: "", data: { size: 30 }, correct: "(150 - (2 X 10)) / 3" },
+                  { id: "d1_id_q2", type: "text-box", prompt: "STORY: 'A family bought 4 movie tickets for $12 each and a popcorn for $8. They paid with a $100 bill.' FLAWED EXPRESSION: `100 - 4 X 12 + 8`. What is the correct expression?", visual: "", data: { size: 30 }, correct: "100 - ((4 X 12) + 8)" },
+                  { id: "d1_id_q3", type: "text-box", prompt: "Write the most direct expression for this: 'Calculate the total students in a school with 10 classrooms of 25 students and 12 classrooms of 20 students.'", visual: "", data: { size: 30 }, correct: "(10 X 25) + (12 X 20)" }
+                ].map(q => ({...q, questionType: q.type, type: 'question', section: 'ido'})),
+                ...[
+                  { id: "d1_wd_q1", type: "text-box", prompt: "Write a single expression to find the average of three test scores: 88, 92, and 100.", visual: "", data: { size: 25 }, correct: "(88 + 92 + 100) / 3" },
+                  { id: "d1_wd_q2", type: "mc", prompt: "Which expression finds the cost per person if 5 friends share the bill for 3 pizzas at $15 each and 5 drinks at $2 each?", visual: "", data: { options: ["(3 X 15 + 5 X 2) / 5", "3 X 15 / 5 + 5 X 2", "3 X 15 + 5 X 2 / 5"] }, correct: "(3 X 15 + 5 X 2) / 5" },
+                  { id: "d1_wd_q3", type: "true-false", prompt: "The expression `5 X (100 / 4 - 2)` will produce the same result as `(5 X 100) / 4 - 2`.", visual: "", data: { options: ["True", "False"] }, correct: "False" },
+                  { id: "d1_wd_q4", type: "text-box", prompt: "Correct the expression `(50 - 10) / 2 + 3` to match the story: 'Start with 50, subtract 10, then divide the result by the sum of 2 and 3.'", visual: "", data: { size: 20 }, correct: "(50 - 10) / (2 + 3)" },
+                  { id: "d1_wd_q5", type: "drag-drop-match", prompt: "Match the complex story to the correct expression.", visual: "", data: { draggables: ["From a 100-foot rope, cut 4 pieces that are each 8 feet long. How much rope is left?", "Split a $100 prize among 4 people, but first subtract an $8 processing fee."], dropTargets: ["100 - (4 X 8)", "(100 - 8) / 4"] }, correct: { "From a 100-foot rope, cut 4 pieces that are each 8 feet long. How much rope is left?": "100 - (4 X 8)", "Split a $100 prize among 4 people, but first subtract an $8 processing fee.": "(100 - 8) / 4" } },
+                  { id: "d1_wd_q6", type: "text-box", prompt: "Evaluate: `(60 / (10 + 2)) X 4`", visual: "", data: { size: 10 }, correct: "20" },
+                  { id: "d1_wd_q7", type: "text-box", prompt: "What is the positive difference in the results of `(3 + 7) X (10 / 2)` and `3 + 7 X 10 / 2`?", visual: "", data: { size: 10 }, correct: "12" },
+                  { id: "d1_wd_q8", type: "mc", prompt: "A problem states: 'Find the combined area of two rectangles. One is 5 by 12, the other is 7 by 12.' Which expression is the MOST efficient model based on the distributive property?", visual: "", data: { options: ["(5 X 12) + (7 X 12)", "12 X (5 + 7)"] }, correct: "12 X (5 + 7)" },
+                  { id: "d1_wd_q9", type: "true-false", prompt: "Parentheses are always required to make sure multiplication is done before addition.", visual: "", data: { options: ["True", "False"] }, correct: "False" },
+                  { id: "d1_wd_q10", type: "text-box", prompt: "Write a story problem about earning and spending money that can be modeled by the expression `(50 + 25) - (5 X 3)`.", visual: "", data: { size: 150 }, correct: "I earned $50 from my job and got $25 for my birthday. Then I bought 5 comic books that cost $3 each. How much money do I have left?" }
+                ].map(q => ({...q, questionType: q.type, type: 'question', section: 'wedo'})),
+                ...[
+                  { id: "d1_yd_q1", type: "text-box", prompt: "Write the expression for: 'Start with 500. Subtract the quantity of 15 groups of 10. Then, divide the result by 5.'", visual: "", data: { size: 30 }, correct: "(500 - (15 X 10)) / 5" },
+                  { id: "d1_yd_q2", type: "mc", prompt: "A baker starts with 100 lbs of flour. He uses 10 lbs for bread and then uses the rest to make 15 batches of muffins. Which expression represents the amount of flour in each batch of muffins?", visual: "", data: { options: ["(100 - 10) / 15", "100 - 10 / 15", "100 / 15 - 10"] }, correct: "(100 - 10) / 15" },
+                  { id: "d1_yd_q3", type: "text-box", prompt: "Evaluate: `200 - ((4 X 20) + (3 X 10))`", visual: "", data: { size: 10 }, correct: "90" },
+                  { id: "d1_yd_q4_revised", type: "true-false", prompt: "Consider the common misconception: `c / (a + b) = c/a + c/b`. Is this statement true for any numbers a, b, and c (where denominators are not zero)?", visual: "", data: { options: ["True", "False"] }, correct: "False" },
+                  { id: "d1_yd_q5", type: "text-box", prompt: "A plant started at 8 cm. It grew 2 cm per day for 30 days, but then a storm broke off 5 cm. Write a single expression for the plant's final height and solve it.", visual: "", data: { size: 30 }, correct: "(8 + 2 X 30) - 5 = 63" }
+                ].map(q => ({...q, questionType: q.type, type: 'question', section: 'youdo'})),
+                { type: 'final', title: 'Lesson Complete!', section: 'youdo', content: `<p class="text-lg">You have completed the lesson. You are now ready for the Final Inspection.</p>` }
+            ],
+            assessmentSlides: [
+                ...[
+                    { id: "d1_as_q1", type: "mc", prompt: "A gaming company sells a character pack for $25. They offer a launch-day deal where you get a $5 discount, but you must pay a one-time $2 transaction fee. Which expression calculates the final cost for a group of 4 friends buying the pack together under this deal?", visual: "", data: { options: ["(25 - 5 + 2) X 4", "(25 - (5 + 2)) X 4", "4 X (25 - 5) + 2", "4 X 25 - 5 + 2"] }, correct: "4 X (25 - 5) + 2" },
+                    { id: "d1_as_q2", type: "mc", prompt: "Part A: A school library has a budget of $2,000. It purchases 50 hardcover books at $18 each and 120 paperback books at $8 each. Which expression represents the remaining budget?", visual: "", data: { options: ["2000 - (50 X 18) + (120 X 8)", "(2000 - 50 X 18) - (120 X 8)", "2000 - (50 X 18 + 120 X 8)", "2000 - 50 + 120 X 18 + 8"] }, correct: "2000 - (50 X 18 + 120 X 8)" },
+                    { id: "d1_as_q2b", type: "mc", prompt: "Part B: Which mathematical principle provides the reasoning for the structure of the correct expression in Part A?", visual: "", data: { options: ["The algorithm requires finding the total cost of all purchases first before subtracting it from the initial budget.", "The order of operations dictates that division must happen before subtraction.", "The associative property allows for regrouping the numbers in any order.", "The abstraction of the problem requires separating the hardcover and paperback calculations into two expressions."] }, correct: "The algorithm requires finding the total cost of all purchases first before subtracting it from the initial budget." },
+                    { id: "d1_as_q3", type: "multi-select", prompt: "The expression `(60 - 12) / (3 + 3)` is used to solve a problem. Which of the following story problems could this expression accurately model? Select **two** correct answers.", visual: "", data: { options: ["A 60-gallon tank has a 12-gallon leak. The remaining water is drained equally by 3 pumps and 3 hoses.", "You have 60 marbles and give 12 away. You then split the rest into 3 bags, plus you find 3 more marbles.", "An item costs $60 but has a $12 discount. The final price is split evenly between two groups of 3 people.", "A 60-minute TV show has 12 minutes of commercials. The remaining show time is split into 3 segments for the first half and 3 segments for the second half.", "A farmer has 60 eggs, breaks 12, and then divides the rest equally into cartons that hold 3 eggs each."] }, correct: ["A 60-gallon tank has a 12-gallon leak. The remaining water is drained equally by 3 pumps and 3 hoses.", "An item costs $60 but has a $12 discount. The final price is split evenly between two groups of 3 people."] },
+                    { id: "d1_as_q4", type: "text-box", prompt: "A student wrote `24 + 18 + 30 + 22 / 4` to find the average of four game scores (24, 18, 30, 22). Explain their error and write the correct expression.", visual: "", data: { size: 150 }, correct: "The student only divided the last number by 4. To find an average, you must sum all numbers first. Correct expression: (24 + 18 + 30 + 22) / 4" },
+                    { id: "d1_as_q5", type: "drag-drop-sort", prompt: "Sort the story problems under the numerical expression that correctly models them.", visual: "", data: { items: ["Start with 100 stickers. Give 5 away. Then, multiply your remaining stickers by 8.", "You have $100 and you buy 5 books that cost $8 each.", "A team had 100 points, but lost 5 points. The judges then multiplied their final score by a bonus of 8.", "A store has 100 hats. They sell 5 boxes that contain 8 hats each."], categories: ["100 - (5 X 8)", "(100 - 5) X 8"] }, correct: { "100 - (5 X 8)": ["You have $100 and you buy 5 books that cost $8 each.", "A store has 100 hats. They sell 5 boxes that contain 8 hats each."], "(100 - 5) X 8": ["Start with 100 stickers. Give 5 away. Then, multiply your remaining stickers by 8.", "A team had 100 points, but lost 5 points. The judges then multiplied their final score by a bonus of 8."] } }
+                ].map(q => ({...q, questionType: q.type, type: 'question'}))
+            ]
+        };
+        this.state.lesson.slides = this.lessonData.lessonSlides;
+        this.state.assessment.slides = this.lessonData.assessmentSlides;
+    },
+
+    hydrateState() {
+        // Hydrate from <script> tag first, then localStorage
+        const dataScript = document.getElementById('progress-data');
+        let savedState = null;
+        if (dataScript && dataScript.textContent) {
+            try {
+                savedState = JSON.parse(dataScript.textContent);
+            } catch (e) {
+                console.error("Failed to parse progress data from script tag:", e);
+                savedState = this.loadFromLocalStorage();
+            }
+        } else {
+             savedState = this.loadFromLocalStorage();
+        }
+
+        if (savedState) {
+            this.state = { ...this.state, ...savedState };
+            console.log("State hydrated from storage.");
+        }
+    },
+
+    saveState() {
+        try {
+            localStorage.setItem('mathArchitectProgress', JSON.stringify(this.state));
+        } catch (e) {
+            console.error("Could not save to localStorage:", e);
+        }
+    },
+    
+    loadFromLocalStorage() {
+        try {
+            const saved = localStorage.getItem('mathArchitectProgress');
+            return saved ? JSON.parse(saved) : null;
+        } catch (e) {
+            console.error("Could not load from localStorage:", e);
+            return null;
+        }
+    },
+    
+    updateAnswer(id, answer) {
+        this.state.userAnswers[id] = answer;
+        this.saveState();
+    },
+
+    updateCustomImage(id, base64) {
+        // This function is no longer used but kept to avoid breaking other parts if called.
+    },
+
+    //
+    // --- 3. RENDERING & UI ---
+    //
+    render() {
+        this.renderCurrentSlide();
+        this.updateProgressBar();
+        this.updateNavButtons();
+        this.updateHeader();
+    },
+
+    renderCurrentSlide() {
+        const view = this.state.currentView;
+        const slides = this.state[view].slides;
+        const currentSlideIndex = this.state[view].currentSlide;
+        const slideData = slides[currentSlideIndex];
+        const containerId = view === 'lesson' ? 'lesson-slides-container' : 'assessment-slides-container';
+        const container = document.getElementById(containerId);
+
+        container.innerHTML = this.generateSlideHTML(slideData);
+        this.attachSlideEventListeners(slideData);
+    },
+
+    generateSlideHTML(slide) {
+        if (slide.type === 'title' || slide.type === 'final') {
+            const buttonHTML = slide.type === 'final' ? `<button id="start-assessment-btn" class="mt-8 bg-[#F5A623] text-white font-bold py-3 px-6 rounded-lg text-lg hover:bg-[#d9901a] transition-colors">Go to Assessment</button>` : '';
+            return `<div class="slide active bg-white p-8 rounded-lg shadow-lg text-center animate-fade-in">
+                        <h2 class="text-3xl font-bold text-[#4A90E2] mb-4">${slide.title}</h2>
+                        <div class="text-left text-gray-700 space-y-4">${slide.content}</div>
+                        ${buttonHTML}
+                    </div>`;
+        }
+        
+        if (slide.type === 'question') {
+            let questionHTML = '';
+            const userAnswer = this.state.userAnswers[slide.id];
+            
+            switch (slide.questionType || slide.type) { // Legacy support for slide.type
+                case 'mc':
+                case 'true-false':
+                    questionHTML = slide.data.options.map(option => `
+                        <button class="option-btn w-full text-left p-4 my-2 border-2 rounded-lg ${userAnswer === option ? 'selected' : 'border-gray-300'}" data-option="${option}">
+                             ${this.state.currentView === 'assessment' ? `<i class="fas fa-volume-up read-aloud-option-icon cursor-pointer mr-3" data-text="${option}"></i>` : ''}
+                            ${option}
+                        </button>
+                    `).join('');
+                    break;
+                case 'multi-select':
+                     questionHTML = slide.data.options.map(option => `
+                        <label class="flex items-center p-4 my-2 border-2 rounded-lg cursor-pointer ${userAnswer && userAnswer.includes(option) ? 'selected border-[#4A90E2] bg-blue-50' : 'border-gray-300'}">
+                            <input type="checkbox" class="h-5 w-5 rounded text-[#4A90E2] focus:ring-[#4A90E2]" value="${option}" ${userAnswer && userAnswer.includes(option) ? 'checked' : ''}>
+                            <span class="ml-4">${option}</span>
+                        </label>
+                    `).join('');
+                    break;
+                case 'text-box':
+                    questionHTML = `<textarea class="w-full p-2 border-2 border-gray-300 rounded-lg text-lg" rows="3" style="min-height: 80px; resize: vertical;" maxlength="${slide.data.size}">${userAnswer || ''}</textarea>`;
+                    break;
+                case 'drag-drop-match':
+                    const draggables = slide.data.draggables.map(d => `<div class="draggable bg-blue-100 p-3 rounded-lg my-2" draggable="true" data-item="${d}">${d}</div>`).join('');
+                    const dropTargets = slide.data.dropTargets.map(t => `<div class="mb-4"><strong class="font-semibold text-gray-600">${t}</strong><div class="drop-target min-h-[60px] p-2 mt-1 rounded-lg bg-gray-50" data-target="${t}"></div></div>`).join('');
+                    questionHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div><h3 class="font-bold mb-2">Drag from here:</h3>${draggables}</div><div><h3 class="font-bold mb-2">Drop here:</h3>${dropTargets}</div></div>`;
+                    break;
+                case 'drag-drop-sort':
+                    const items = slide.data.items.map(i => `<div class="sortable-item draggable bg-blue-100" draggable="true" data-item="${i}">${i}</div>`).join('');
+                    const categories = slide.data.categories.map(c => `<div class="flex-1"><h3 class="font-bold text-center mb-2">${c}</h3><div class="drop-target min-h-[150px] p-2 bg-gray-50 rounded-lg" data-target="${c}"></div></div>`).join('');
+                    questionHTML = `<div><h3 class="font-bold mb-2 text-center">Unsorted Items</h3><div id="sort-source" class="flex flex-wrap gap-2 justify-center p-2 rounded-lg bg-gray-100 min-h-[80px] mb-6">${items}</div><div class="flex gap-4">${categories}</div></div>`;
+                    break;
+            }
+
+            return `<div class="slide active bg-white p-8 rounded-lg shadow-lg" data-question-id="${slide.id}">
+                        <div>
+                            <div class="flex items-start">
+                                 <p class="text-xl font-semibold flex-1">${slide.prompt}</p>
+                                 ${this.state.currentView === 'assessment' ? `<i class="fas fa-volume-up text-2xl text-[#4A90E2] cursor-pointer ml-4 read-aloud-prompt-icon" data-text="${slide.prompt}"></i>` : ''}
+                            </div>
+                            <div class="mt-4">${questionHTML}</div>
+                        </div>
+                        <div class="mt-6 text-right">
+                            <button class="verify-btn bg-[#F5A623] text-white font-bold py-2 px-6 rounded-lg hover:bg-[#d9901a] transition-colors">Verify Plan</button>
+                        </div>
+                        <div class="feedback mt-4 text-lg font-semibold opacity-0 h-0 transition-all"></div>
+                    </div>`;
+        }
+    },
+
+    updateProgressBar() {
+        if(this.state.currentView !== 'lesson') return;
+        const sections = ['hook', 'demo', 'ido', 'wedo', 'youdo'];
+        const currentSection = this.state.lesson.slides[this.state.lesson.currentSlide].section;
+        const currentSectionIndex = sections.indexOf(currentSection);
+
+        sections.forEach((section, index) => {
+            const el = document.getElementById(`progress-${section}`);
+            if (el) {
+                el.classList.toggle('completed', index <= currentSectionIndex);
+            }
+        });
+    },
+
+    updateNavButtons() {
+        const view = this.state.currentView;
+        const { slides, currentSlide } = this.state[view];
+        
+        document.getElementById('prev-btn').disabled = currentSlide === 0;
+        document.getElementById('prev-btn').classList.toggle('opacity-50', currentSlide === 0);
+        
+        document.getElementById('next-btn').disabled = currentSlide >= slides.length - 1;
+        document.getElementById('next-btn').classList.toggle('opacity-50', currentSlide >= slides.length - 1);
+        
+        document.getElementById('slide-counter').textContent = `Slide ${currentSlide + 1} of ${slides.length}`;
+    },
+    
+    updateHeader() {
+        const btn = document.getElementById('mode-toggle-btn');
+        if (this.state.currentView === 'lesson') {
+            document.getElementById('lesson-view').classList.remove('hidden');
+            document.getElementById('assessment-view').classList.add('hidden');
+            btn.textContent = 'Go to Assessment';
+        } else {
+            document.getElementById('lesson-view').classList.add('hidden');
+            document.getElementById('assessment-view').classList.remove('hidden');
+            btn.textContent = 'Back to Lesson';
+        }
+    },
+    
+    //
+    // --- 4. EVENT LISTENERS ---
+    //
+    attachEventListeners() {
+        document.getElementById('prev-btn').addEventListener('click', () => this.navigate(-1));
+        document.getElementById('next-btn').addEventListener('click', () => this.navigate(1));
+        document.getElementById('mode-toggle-btn').addEventListener('click', () => this.toggleView());
+        document.getElementById('download-html-btn').addEventListener('click', () => this.downloadHTML());
+        document.getElementById('download-pdf-btn').addEventListener('click', () => this.downloadPDF());
+        document.getElementById('admin-btn').addEventListener('click', () => this.handleAdminClick());
+        document.getElementById('close-score-modal-btn').addEventListener('click', () => document.getElementById('score-modal').classList.add('hidden'));
+    },
+
+    attachSlideEventListeners(slide) {
+        const slideElement = document.querySelector(`[data-question-id="${slide.id}"]`);
+        if (!slideElement) {
+             if (slide.type === 'final') {
+                 document.getElementById('start-assessment-btn').addEventListener('click', () => this.toggleView('assessment'));
+             }
+            return;
+        }
+
+        // Verify button
+        slideElement.querySelector('.verify-btn').addEventListener('click', (e) => this.handleCheckAnswer(e));
+
+        // Read Aloud
+        slideElement.querySelector('.read-aloud-prompt-icon')?.addEventListener('click', (e) => this.readAloud(e.target.dataset.text));
+        slideElement.querySelectorAll('.read-aloud-option-icon').forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.readAloud(e.target.dataset.text);
+            });
+        });
+
+        // Question type specific listeners
+        switch (slide.questionType || slide.type) {
+            case 'mc':
+            case 'true-false':
+                slideElement.querySelectorAll('.option-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        slideElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        this.updateAnswer(slide.id, btn.dataset.option);
+                    });
+                });
+                break;
+            case 'multi-select':
+                slideElement.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.addEventListener('change', () => {
+                        const selected = Array.from(slideElement.querySelectorAll('input:checked')).map(cb => cb.value);
+                        this.updateAnswer(slide.id, selected);
+                        checkbox.closest('label').classList.toggle('selected', checkbox.checked);
+                        checkbox.closest('label').classList.toggle('border-[#4A90E2]', checkbox.checked);
+                        checkbox.closest('label').classList.toggle('bg-blue-50', checkbox.checked);
+
+                    });
+                });
+                break;
+            case 'text-box':
+                slideElement.querySelector('textarea').addEventListener('input', (e) => {
+                    this.updateAnswer(slide.id, e.target.value);
+                    // Auto-grow textarea
+                    e.target.style.height = 'auto';
+                    e.target.style.height = (e.target.scrollHeight) + 'px';
+                });
+                break;
+             case 'drag-drop-match':
+             case 'drag-drop-sort':
+                 this.initDragDrop(slideElement, slide);
+                 break;
+        }
+    },
+
+    //
+    // --- 5. CORE LOGIC & ACTIONS ---
+    //
+    navigate(direction) {
+        const view = this.state.currentView;
+        const { slides } = this.state[view];
+        let newIndex = this.state[view].currentSlide + direction;
+
+        if (newIndex >= 0 && newIndex < slides.length) {
+            this.state[view].currentSlide = newIndex;
+            this.render();
+        }
+    },
+
+    toggleView(forceView = null) {
+        if (forceView) {
+            this.state.currentView = forceView;
+        } else {
+            this.state.currentView = this.state.currentView === 'lesson' ? 'assessment' : 'lesson';
+        }
+        this.render();
+    },
+
+    handleCheckAnswer(e) {
+        const questionElement = e.target.closest('[data-question-id]');
+        const id = questionElement.dataset.questionId;
+        const view = this.state.currentView;
+        const slideData = this.state[view].slides.find(s => s.id === id);
+        const userAnswer = this.state.userAnswers[id];
+        const feedbackEl = questionElement.querySelector('.feedback');
+        let isCorrect = false;
+
+        // Validation logic
+        switch (slideData.questionType || slideData.type) {
+            case 'mc':
+            case 'true-false':
+            case 'text-box':
+                // Normalize by replacing X with * for validation
+                const normalizedUserAnswer = userAnswer ? userAnswer.trim().toLowerCase().replace(/\s*x\s*/g, ' * ') : '';
+                const normalizedCorrectAnswer = slideData.correct.trim().toLowerCase().replace(/\s*x\s*/g, ' * ');
+                isCorrect = normalizedUserAnswer == normalizedCorrectAnswer;
+                
+                if(slideData.id === 'd1_yd_q5') { // Special case for expression + answer
+                     const normalizedUserAnswerForQ5 = userAnswer ? userAnswer.replace(/\s*x\s*/g, ' * ') : '';
+                     isCorrect = userAnswer && (normalizedUserAnswerForQ5.includes('(8 + 2 * 30) - 5') && normalizedUserAnswerForQ5.includes('63'));
+                }
+                break;
+            case 'multi-select':
+                isCorrect = userAnswer && userAnswer.length === slideData.correct.length && userAnswer.every(val => slideData.correct.includes(val));
+                break;
+            case 'drag-drop-match':
+                 if (!userAnswer) break;
+                 isCorrect = true;
+                 for (const key in slideData.correct) {
+                     if (userAnswer[key] !== slideData.correct[key]) {
+                         isCorrect = false;
+                         break;
+                     }
+                 }
+                 break;
+            case 'drag-drop-sort':
+                if (!userAnswer) break;
+                isCorrect = true;
+                for (const category in slideData.correct) {
+                    if (!userAnswer[category] || userAnswer[category].length !== slideData.correct[category].length || !userAnswer[category].every(item => slideData.correct[category].includes(item))) {
+                        isCorrect = false;
+                        break;
+                    }
+                }
+                break;
+        }
+
+        // Show feedback
+        const positiveFeedback = ["Blueprint accepted! Your logic is flawless.", "Perfectly constructed!", "Excellent work, Architect!"];
+        feedbackEl.style.height = 'auto';
+        feedbackEl.style.opacity = '1';
+
+        if (isCorrect) {
+            feedbackEl.textContent = positiveFeedback[Math.floor(Math.random() * positiveFeedback.length)];
+            feedbackEl.className = 'feedback mt-4 text-lg font-semibold text-green-600';
+            if(view === 'assessment') {
+                this.state.assessment.streak++;
+            }
+        } else {
+            feedbackEl.textContent = "Not quite. Re-examine the sequence and try again.";
+            feedbackEl.className = 'feedback mt-4 text-lg font-semibold text-red-600';
+             if(view === 'assessment') {
+                this.state.assessment.streak = 0;
+            }
+        }
+        
+        if(view === 'assessment') {
+            document.getElementById('streak-counter').textContent = this.state.assessment.streak;
+            const answeredQuestions = Object.keys(this.state.userAnswers).filter(k => k.startsWith('d1_as_')).length;
+            if(answeredQuestions >= this.state.assessment.slides.length && !this.state.assessment.completed) {
+                this.state.assessment.completed = true;
+                document.getElementById('completion-modal').classList.remove('hidden');
+                document.getElementById('completion-modal').classList.add('flex');
+            }
+        }
+
+        this.saveState();
+    },
+
+    readAloud(text) {
+        if (!('speechSynthesis' in window)) {
+            alert("Sorry, your browser doesn't support text-to-speech.");
+            return;
+        }
+        speechSynthesis.cancel(); // Cancel any previous speech
+        const utterance = new SpeechSynthesisUtterance(text);
+        speechSynthesis.speak(utterance);
+    },
+
+    initDragDrop(slideElement, slide) {
+        const draggables = slideElement.querySelectorAll('.draggable');
+        const dropTargets = slideElement.querySelectorAll('.drop-target');
+        let draggedItem = null;
+
+        draggables.forEach(draggable => {
+            draggable.addEventListener('dragstart', (e) => {
+                draggedItem = e.target;
+                setTimeout(() => e.target.classList.add('opacity-50'), 0);
+            });
+
+            draggable.addEventListener('dragend', (e) => {
+                setTimeout(() => e.target.classList.remove('opacity-50'), 0);
+                draggedItem = null;
+            });
+        });
+
+        dropTargets.forEach(target => {
+            target.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.target.classList.add('drag-over');
+            });
+            target.addEventListener('dragleave', (e) => {
+                e.target.classList.remove('drag-over');
+            });
+            target.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.target.classList.remove('drag-over');
+                if (draggedItem) {
+                    // For match, only one item allowed. For sort, multiple.
+                    if (slide.type === 'drag-drop-match' || slide.questionType === 'drag-drop-match') {
+                        // Return any existing item to source
+                        if (target.children.length > 0) {
+                             document.getElementById('sort-source')?.appendChild(target.children[0]);
+                        }
+                        target.innerHTML = '';
+                    }
+                    target.appendChild(draggedItem);
+                    
+                    // Update state after drop
+                    const answer = {};
+                    if(slide.type === 'drag-drop-sort' || slide.questionType === 'drag-drop-sort') {
+                         slide.data.categories.forEach(cat => {
+                            const catTarget = slideElement.querySelector(`[data-target="${cat}"]`);
+                            answer[cat] = Array.from(catTarget.children).map(child => child.dataset.item);
+                        });
+                    } else {
+                        slide.data.dropTargets.forEach(dt => {
+                            const dropTargetEl = slideElement.querySelector(`[data-target="${dt}"]`);
+                            if(dropTargetEl && dropTargetEl.children.length > 0) {
+                                answer[dropTargetEl.children[0].dataset.item] = dt;
+                            }
+                        });
+                    }
+                    this.updateAnswer(slide.id, answer);
+                }
+            });
+        });
+
+        // For sort, handle returning items to the source container
+        const sourceContainer = document.getElementById('sort-source');
+        if(sourceContainer) {
+            sourceContainer.addEventListener('dragover', e => e.preventDefault());
+            sourceContainer.addEventListener('drop', e => {
+                if(draggedItem) sourceContainer.appendChild(draggedItem);
+            });
+        }
+    },
+    
+    //
+    // --- 6. EXPORT & UTILITIES ---
+    //
+    downloadHTML() {
+        const currentState = JSON.stringify(this.state);
+        const dataScript = `<script id="progress-data" type="application/json">${currentState}<\/script>`;
+        
+        const currentHtml = document.documentElement.outerHTML;
+        // Replace existing script tag or add a new one before </body>
+        const updatedHtml = currentHtml.includes('<script id="progress-data"') 
+            ? currentHtml.replace(/<script id="progress-data".*?<\/script>/, dataScript)
+            : currentHtml.replace('</body>', `${dataScript}</body>`);
+            
+        const blob = new Blob([updatedHtml], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'architects-of-order-progress.html';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    },
+
+    async downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const mainContent = document.getElementById('main-content');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        // Create a clone for printing
+        const printableContainer = document.createElement('div');
+        printableContainer.className = 'printable-content';
+        
+        const allSlides = [...this.state.lesson.slides, ...this.state.assessment.slides];
+        
+        allSlides.forEach(slide => {
+             const slideClone = document.createElement('div');
+             slideClone.className = "p-8 bg-white printable-slide w-[210mm]"; // A4 width
+             slideClone.innerHTML = this.getStaticSlideHTML(slide);
+             printableContainer.appendChild(slideClone);
+        });
+
+        document.body.appendChild(printableContainer);
+
+        const canvas = await html2canvas(printableContainer, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        let heightLeft = imgHeight;
+        let position = 0;
+        
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+        heightLeft -= pdfHeight;
+
+        while (heightLeft > 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+            heightLeft -= pdfHeight;
+        }
+
+        pdf.save('architects-of-order-work.pdf');
+        document.body.removeChild(printableContainer);
+    },
+
+    getStaticSlideHTML(slide) {
+        // Return a static, non-interactive version of the slide for PDF
+         if (slide.type === 'title' || slide.type === 'final') {
+            return `<div><h2 class="text-2xl font-bold text-black mb-4">${slide.title}</h2><div class="text-gray-800">${slide.content}</div></div>`;
+        }
+        
+        if (slide.type === 'question') {
+            let answerRepresentation = '<p class="mt-4 p-2 bg-gray-100 rounded"><strong>Answer:</strong> ';
+            const userAnswer = this.state.userAnswers[slide.id];
+
+            if (userAnswer) {
+                 switch(slide.questionType || slide.type) {
+                     case 'mc':
+                     case 'true-false':
+                         answerRepresentation += `<i>${userAnswer}</i>`;
+                         break;
+                     case 'multi-select':
+                         answerRepresentation += `<i>${userAnswer.join(', ')}</i>`;
+                         break;
+                     case 'text-box':
+                         answerRepresentation += `<pre class="whitespace-pre-wrap font-sans">${userAnswer}</pre>`;
+                         break;
+                     case 'drag-drop-match':
+                        answerRepresentation += '<ul>';
+                        for(const key in userAnswer) {
+                            answerRepresentation += `<li><b>${key}</b> matched with <b>${userAnswer[key]}</b></li>`;
+                        }
+                        answerRepresentation += '</ul>';
+                        break;
+                     case 'drag-drop-sort':
+                        answerRepresentation += '<ul>';
+                        for(const cat in userAnswer) {
+                            answerRepresentation += `<li><b>${cat}:</b> ${userAnswer[cat].join(', ')}</li>`;
+                        }
+                        answerRepresentation += '</ul>';
+                        break;
+                     default: 
+                         answerRepresentation += 'No answer recorded.';
+                 }
+            } else {
+                 answerRepresentation += '<i>Not answered.</i>';
+            }
+            answerRepresentation += '</p>';
+
+            return `<div>
+                        <p class="font-bold mb-2">${slide.prompt}</p>
+                        ${answerRepresentation}
+                    </div>`;
+        }
+        return '';
+    },
+
+    handleAdminClick() {
+        const password = prompt("Enter teacher password:");
+        if (password === "2026") {
+            this.showScoreSummary();
+        } else {
+            alert("Incorrect password.");
+        }
+    },
+    
+    showScoreSummary() {
+        const scoreContent = document.getElementById('score-summary-content');
+        let html = '<ul class="space-y-4">';
+        let correctCount = 0;
+        
+        this.state.assessment.slides.forEach((slide, index) => {
+             if(slide.type !== 'question') return;
+             
+             const userAnswer = this.state.userAnswers[slide.id];
+             let isCorrect = false;
+             // Simplified validation check
+             if (slide.type === 'mc' || slide.type === 'true-false') isCorrect = userAnswer === slide.correct;
+             if (slide.type === 'multi-select') isCorrect = userAnswer && userAnswer.length === slide.correct.length && userAnswer.every(v => slide.correct.includes(v));
+
+            if (isCorrect) correctCount++;
+             
+             html += `<li class="border-b pb-2">
+                        <p class="font-semibold">Q${index + 1}: ${slide.prompt.substring(0, 50)}...</p>
+                        <p>Student Answer: <span class="font-mono">${JSON.stringify(userAnswer) || 'N/A'}</span></p>
+                        <p>Correctness: <span class="${isCorrect ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}">${isCorrect ? 'Correct' : 'Incorrect'}</span></p>
+                     </li>`;
+        });
+        
+        const autoGradableCount = this.state.assessment.slides.filter(s => ['mc', 'true-false', 'multi-select'].includes(s.type)).length;
+        html += `</ul><p class="mt-6 text-xl font-bold text-center">Total Score: ${correctCount} / ${autoGradableCount} (auto-graded)</p>`;
+        
+        scoreContent.innerHTML = html;
+        document.getElementById('completion-modal').classList.add('hidden');
+        document.getElementById('score-modal').classList.remove('hidden');
+        document.getElementById('score-modal').classList.add('flex');
+    },
+};
+
+document.addEventListener('DOMContentLoaded', () => App.init());
+
+</script>
+</body>
+</html>
+
+
+
+
