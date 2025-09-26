@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Detective: The Case of the Missing Parentheses</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+
+    <!-- Custom Styles -->
+    <style>
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #1a202c; /* Equivalent to dark gray bg-gray-900 */
+            color: #e2e8f0; /* text-gray-200 */
+        }
+        .app-header { font-family: 'Orbitron', sans-serif; }
+        .btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(250, 204, 21, 0.5); /* yellow-400 */
+        }
+        .view { display: none; }
+        .active-view { display: flex; }
+        
+        /* For Option Highlighting */
+        .selected-answer {
+            background-color: #facc15 !important; /* yellow-400 */
+            color: #1a202c !important;
+            border-color: #facc15 !important;
+        }
+
+        /* Drag and Drop Styling */
+        .drop-zone {
+            min-height: 50px;
+            border: 2px dashed #4a5568; /* gray-700 */
+            transition: background-color 0.2s;
+        }
+        .drop-zone.drag-over {
+            background-color: #2d3748; /* gray-800 */
+        }
+        .draggable {
+            cursor: grab;
+            user-select: none;
+        }
+        .draggable:active {
+            cursor: grabbing;
+        }
+
+        /* Print-specific styles for PDF generation */
+        @media print {
+            body, .print-container {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+            }
+            .print-container {
+                padding: 20px;
+                border: 1px solid #ccc;
+                margin-bottom: 20px;
+            }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 flex flex-col min-h-screen">
+    <!-- 
+      APPLICATION BLUEPRINT:
+      - Standard: 5.PAFR.3.4 - Translate a two-step real-world situation into a numerical expression using parentheses as grouping symbols and evaluate the expression.
+      - Theme: Math Detective Agency
+      - Structure: Single-file HTML application with TailwindCSS. State managed in-memory with saving to localStorage and HTML file.
+      - Views: Home, Test, Practice, Confirmation, Score.
+      - Features: Fullscreen, PDF export, HTML progress saving.
+    -->
+    
+    <!-- App Header -->
+    <header class="app-header bg-gray-800/50 backdrop-blur-sm shadow-lg p-4 flex justify-between items-center sticky top-0 z-50 no-print">
+        <h1 class="text-xl md:text-3xl font-bold text-yellow-400">Math Detective</h1>
+        <div>
+            <button id="home-btn" class="text-white hover:text-yellow-400 transition mr-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            </button>
+            <button id="fullscreen-btn" class="text-white hover:text-yellow-400 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 1v4m0 0h-4m4 0l-5-5" /></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="app-container" class="flex-grow flex flex-col items-center justify-center p-4 md:p-8">
+        
+        <!-- Home View -->
+        <div id="home-view" class="view active-view flex-col items-center text-center w-full max-w-2xl">
+            <h2 class="app-header text-3xl md:text-5xl font-bold text-yellow-400 mb-2">The Case of the Missing Parentheses</h2>
+            <p class="text-lg md:text-xl mb-8">Your mission is to evaluate expressions and solve mysteries.</p>
+            <div class="flex flex-col md:flex-row gap-4">
+                <button id="start-test-btn" class="btn bg-yellow-400 text-gray-900 font-bold py-3 px-6 rounded-lg text-lg">
+                    Take the Test
+                </button>
+                <button id="start-practice-btn" class="btn bg-blue-500 text-white font-bold py-3 px-6 rounded-lg text-lg">
+                    Go to Practice Center
+                </button>
+            </div>
+             <div class="mt-8 flex flex-col md:flex-row gap-4">
+                <button id="save-work-btn" class="btn bg-green-600 text-white font-bold py-2 px-5 rounded-lg text-base">Download Work</button>
+                <button id="export-pdf-btn" class="btn bg-red-600 text-white font-bold py-2 px-5 rounded-lg text-base">Download as PDF</button>
+            </div>
+        </div>
+
+        <!-- Test View -->
+        <div id="test-view" class="view flex-col w-full max-w-5xl">
+            <div id="test-progress-container" class="w-full mb-4">
+                 <div class="flex justify-between mb-1">
+                    <span id="test-question-counter" class="text-sm font-medium text-gray-400">Case File 1 of 10</span>
+                </div>
+                <div class="w-full bg-gray-700 rounded-full h-2.5">
+                    <div id="test-progress-bar" class="bg-yellow-400 h-2.5 rounded-full" style="width: 10%"></div>
+                </div>
+            </div>
+            <div id="test-content" class="bg-gray-800 p-6 rounded-lg shadow-2xl w-full flex-grow">
+                <!-- Question content will be injected here -->
+            </div>
+            <div id="test-navigation" class="mt-6 flex justify-between w-full">
+                <button id="test-prev-btn" class="btn bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">Previous</button>
+                <button id="test-next-btn" class="btn bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-2 px-4 rounded-lg">Next</button>
+                <button id="test-finish-btn" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg hidden">Finish Test</button>
+            </div>
+        </div>
+        
+        <!-- Practice Center View -->
+        <div id="practice-view" class="view flex-col w-full max-w-3xl">
+             <div id="practice-progress-container" class="w-full mb-4">
+                 <div class="flex justify-between mb-1">
+                    <span id="practice-question-counter" class="text-sm font-medium text-gray-400">Drill 1 of 20</span>
+                </div>
+                <div class="w-full bg-gray-700 rounded-full h-2.5">
+                    <div id="practice-progress-bar" class="bg-blue-500 h-2.5 rounded-full" style="width: 5%"></div>
+                </div>
+            </div>
+            <div id="practice-content" class="bg-gray-800 p-8 rounded-lg shadow-2xl w-full">
+                <!-- Practice content injected here -->
+            </div>
+             <div id="practice-feedback" class="mt-4 text-center h-8 font-bold text-lg"></div>
+            <div id="practice-navigation" class="mt-4 flex justify-center gap-4 w-full">
+                <button id="practice-check-btn" class="btn bg-yellow-400 text-gray-900 font-bold py-2 px-6 rounded-lg">Check Answer</button>
+                <button id="practice-try-again-btn" class="btn bg-gray-600 text-white font-bold py-2 px-6 rounded-lg hidden">Try Again</button>
+                <button id="practice-next-btn" class="btn bg-blue-500 text-white font-bold py-2 px-6 rounded-lg hidden">Next</button>
+            </div>
+        </div>
+
+        <!-- Confirmation View -->
+        <div id="confirmation-view" class="view flex-col items-center text-center bg-gray-800 p-8 rounded-lg shadow-2xl">
+            <h2 class="text-3xl font-bold text-yellow-400 mb-4">Ready to submit your final report, Detective?</h2>
+            <p class="mb-6">Once you file the report, the case will be closed.</p>
+            <div class="flex gap-4">
+                <button id="review-answers-btn" class="btn bg-gray-600 text-white font-bold py-3 px-6 rounded-lg">Let me review the evidence</button>
+                <button id="submit-grading-btn" class="btn bg-green-500 text-white font-bold py-3 px-6 rounded-lg">File the Report</button>
+            </div>
+        </div>
+
+        <!-- Score View -->
+        <div id="score-view" class="view flex-col items-center text-center bg-gray-800 p-8 rounded-lg shadow-2xl">
+            <h2 class="app-header text-5xl font-bold text-green-400 mb-4">CASE CLOSED</h2>
+            <p class="text-2xl mb-2">Excellent detective work!</p>
+            <p id="final-score" class="text-4xl font-bold text-yellow-400 mb-8">Your Score: 0 / 10</p>
+            <button id="admin-reset-btn" class="text-sm text-gray-500 hover:underline">Reset Case Files</button>
+        </div>
+
+    </main>
+
+    <!-- Hidden container for PDF generation -->
+    <div id="print-container" class="hidden"></div>
+    
+    <!-- Student progress data is injected here on save -->
+    <script id="progress-data" type="application/json"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- DATA ---
+        const assessmentQuestions = [
+            { id: 1, type: 'mc', dok: 1, stem: 'Which expression represents "add 8 and 4, then multiply by 3"?', options: ['8 + 4 x 3', '(8 + 4) x 3', '8 + (4 x 3)', '3 x 8 + 4'], answer: '(8 + 4) x 3' },
+            { id: 2, type: 'mc', dok: 2, stimulus: 'Maria bought 5 packs of stickers. Each pack had 12 stickers. She gave 10 stickers to her friend.', stem: 'Which expression shows how many stickers Maria has left?', options: ['5 + 12 - 10', '5 x (12 - 10)', '(5 x 12) - 10', '12 - 10 x 5'], answer: '(5 x 12) - 10' },
+            { id: 3, type: 'dnd', dok: 2, stimulus: 'Leo had 20 pencils. He bought 4 more boxes of pencils, and each box had 6 pencils in it.', stem: 'Drag the numbers and symbols to create an expression for the total number of pencils Leo has.', items: ['20', '4', '6', '+', 'x', '(', ')'], answer: '20+(4x6)' },
+            { id: 4, type: 'mc', dok: 2, stimulus: 'A bus has 32 students. At the first stop, 8 students get off. At the second stop, the remaining students are split into 3 equal groups for a museum tour.', stem: 'Which expression shows how many students are in each group?', options: ['32 - 8 / 3', '(32 - 8) / 3', '32 - (8 / 3)', '32 / 3 - 8'], answer: '(32 - 8) / 3' },
+            { id: 5, type: 'ms', dok: 3, stem: 'Select ALL expressions that have a value of 20.', options: ['(4 + 6) x 2', '4 + (6 x 2)', '5 x (2 + 2)', '(5 x 2) + 2', '(30 / 3) + 10'], answer: ['(4 + 6) x 2', '5 x (2 + 2)', '(30 / 3) + 10'] },
+            { id: 6, type: 'mc', dok: 2, stimulus: 'Sarah is making bracelets. She has 100 beads. She uses 25 beads for a necklace. Then, she uses the rest of the beads to make 5 identical bracelets.', stem: 'How many beads are on each bracelet? Evaluate the expression (100 - 25) ÷ 5.', options: ['15', '20', '75', '80'], answer: '15' },
+            { id: 7, type: 'dnd', dok: 2, stimulus: 'David buys 3 books for $8 each and a magazine for $4.', stem: 'Drag the numbers and symbols to create an expression that shows how much he spent in total.', items: ['3', '8', '4', '+', 'x', '(', ')'], answer: '(3x8)+4' },
+            {
+                id: 8, type: 'ebsr', dok: 3, stimulus: 'Mr. Kim has 30 paintbrushes. He buys 2 more sets of paintbrushes. Each set has 8 brushes. He then divides all the paintbrushes equally among his 4 art tables.',
+                partA: { stem: 'Which expression represents the number of paintbrushes at each table?', options: ['(30 + 2) x 8 / 4', '30 + (2 x 8) / 4', '[30 + (2 x 8)] / 4', '30 + 2 x (8 / 4)'], answer: '[30 + (2 x 8)] / 4' },
+                partB: { stem: 'Why are the brackets needed in the correct expression?', options: ['To show that all brushes must be added together first before dividing among the tables.', 'To show that the number of new sets should be added to the number of brushes in each set.', 'To show that division should always happen last.', 'To show that division should happen before multiplication.'], answer: 'To show that all brushes must be added together first before dividing among the tables.' }
+            },
+            { id: 9, type: 'mc', dok: 1, stem: 'What is the value of the expression (9 - 3) x 5?', options: ['30', '12', '42', '-6'], answer: '30' },
+            { id: 10, type: 'mc', dok: 2, stimulus: 'Tickets to a play cost $10 for adults and $6 for children. A family buys 2 adult tickets and 4 children\'s tickets.', stem: 'Which expression shows the total cost?', options: ['10 + 6 x 2 + 4', '(10 x 2) + (6 x 4)', '(10 + 6) x (2 + 4)', '2 + 4 x 10 + 6'], answer: '(10 x 2) + (6 x 4)' },
+        ];
+        
+        const practiceItems = [
+            { id: 1, type: 'translate', stem: 'Multiply the sum of 7 and 3 by 5.', answer: '(7+3)*5' },
+            { id: 2, type: 'evaluate', stem: 'Evaluate: (9 - 3) * 4', answer: '24' },
+            { id: 3, type: 'translate', stem: 'Divide 20 by the difference of 10 and 6.', answer: '20/(10-6)' },
+            { id: 4, type: 'evaluate', stem: 'Evaluate: 50 - (5 * 5)', answer: '25' },
+            { id: 5, type: 'translate', stem: 'Add 15 to the product of 4 and 8.', answer: '15+(4*8)' },
+            { id: 6, type: 'evaluate', stem: 'Evaluate: (6 + 18) / 3', answer: '8' },
+            { id: 7, type: 'translate', stem: 'Subtract 9 from 21, then divide by 4.', answer: '(21-9)/4' },
+            { id: 8, type: 'evaluate', stem: 'Evaluate: 7 * (3 + 3)', answer: '42' },
+            { id: 9, type: 'translate', stem: 'The sum of 10 and 2, multiplied by 6.', answer: '(10+2)*6' },
+            { id: 10, type: 'evaluate', stem: 'Evaluate: 100 / (20 + 5)', answer: '4' },
+            { id: 11, type: 'translate', stem: 'Triple the result of 14 minus 4.', answer: '3*(14-4)' },
+            { id: 12, type: 'evaluate', stem: 'Evaluate: (4*4) + (3*3)', answer: '25' },
+            { id: 13, type: 'translate', stem: 'Take 50 and subtract the product of 6 and 7.', answer: '50-(6*7)' },
+            { id: 14, type: 'evaluate', stem: 'Evaluate: 8 + (20 / 2)', answer: '18' },
+            { id: 15, type: 'translate', stem: 'The quotient of 36 and 4, plus 11.', answer: '(36/4)+11' },
+            { id: 16, type: 'evaluate', stem: 'Evaluate: (5+5) * (5-2)', answer: '30' },
+            { id: 17, type: 'translate', stem: 'The difference between 40 and 10, times 2.', answer: '(40-10)*2' },
+            { id: 18, type: 'evaluate', stem: 'Evaluate: 99 - (9*9)', answer: '18' },
+            { id: 19, type: 'translate', stem: 'Add 5, 6, and 7 together, then divide by 3.', answer: '(5+6+7)/3' },
+            { id: 20, type: 'evaluate', stem: 'Evaluate: (72/8) + 1', answer: '10' },
+        ];
+
+
+        // --- STATE ---
+        let studentAnswers = {};
+        let currentTestQuestionIndex = 0;
+        let currentPracticeItemIndex = 0;
+        let isPracticeItemChecked = false;
+
+        // --- SELECTORS ---
+        const views = document.querySelectorAll('.view');
+        const homeView = document.getElementById('home-view');
+        const testView = document.getElementById('test-view');
+        const practiceView = document.getElementById('practice-view');
+        const confirmationView = document.getElementById('confirmation-view');
+        const scoreView = document.getElementById('score-view');
+
+        const startTestBtn = document.getElementById('start-test-btn');
+        const startPracticeBtn = document.getElementById('start-practice-btn');
+        const homeBtn = document.getElementById('home-btn');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+        const testContent = document.getElementById('test-content');
+        const testPrevBtn = document.getElementById('test-prev-btn');
+        const testNextBtn = document.getElementById('test-next-btn');
+        const testFinishBtn = document.getElementById('test-finish-btn');
+        const testProgressBar = document.getElementById('test-progress-bar');
+        const testQuestionCounter = document.getElementById('test-question-counter');
+
+        const practiceContent = document.getElementById('practice-content');
+        const practiceCheckBtn = document.getElementById('practice-check-btn');
+        const practiceTryAgainBtn = document.getElementById('practice-try-again-btn');
+        const practiceNextBtn = document.getElementById('practice-next-btn');
+        const practiceFeedback = document.getElementById('practice-feedback');
+        const practiceProgressBar = document.getElementById('practice-progress-bar');
+        const practiceQuestionCounter = document.getElementById('practice-question-counter');
+
+        const reviewAnswersBtn = document.getElementById('review-answers-btn');
+        const submitGradingBtn = document.getElementById('submit-grading-btn');
+        const finalScoreEl = document.getElementById('final-score');
+        const adminResetBtn = document.getElementById('admin-reset-btn');
+
+        const saveWorkBtn = document.getElementById('save-work-btn');
+        const exportPdfBtn = document.getElementById('export-pdf-btn');
+
+        // --- FUNCTIONS ---
+
+        // View Management
+        function showView(viewId) {
+            views.forEach(view => {
+                view.classList.remove('active-view');
+                view.classList.add('hidden');
+            });
+            const activeView = document.getElementById(viewId);
+            activeView.classList.add('active-view');
+            activeView.classList.remove('hidden');
+        }
+
+        // Test Rendering
+        function renderTestQuestion() {
+            const question = assessmentQuestions[currentTestQuestionIndex];
+            let html = '';
+            
+            const stimulusHtml = question.stimulus ? `<div class="bg-gray-700 p-4 rounded-lg mb-4 text-lg"><p>${question.stimulus}</p></div>` : '';
+
+            if (question.type === 'mc' || question.type === 'ms') {
+                const inputType = question.type === 'mc' ? 'radio' : 'checkbox';
+                const optionsHtml = question.options.map((option, index) => `
+                    <label for="q${question.id}_${index}" class="block border-2 border-gray-600 rounded-lg p-4 mb-2 cursor-pointer hover:bg-gray-700 transition mc-option">
+                        <input type="${inputType}" id="q${question.id}_${index}" name="q${question.id}" value="${option}" class="mr-3">
+                        ${option}
+                    </label>
+                `).join('');
+                html = `${stimulusHtml}<h3 class="text-xl mb-4">${question.stem}</h3><div>${optionsHtml}</div>`;
+            } else if (question.type === 'cr') {
+                 html = `${stimulusHtml}<h3 class="text-xl mb-4">${question.stem}</h3>
+                 <input type="text" id="q${question.id}" placeholder="Enter your answer here" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white">`;
+            } else if (question.type === 'dnd') {
+                const itemsHtml = question.items.map(item => `
+                    <div class="draggable bg-blue-500 text-white p-2 rounded-lg" draggable="true" data-value="${item}">${item}</div>
+                `).join('');
+                html = `
+                    ${stimulusHtml}
+                    <h3 class="text-xl mb-4">${question.stem}</h3>
+                    <div id="dnd-items" class="flex flex-wrap gap-2 mb-4 p-2 bg-gray-900 rounded">${itemsHtml}</div>
+                    <div id="q${question.id}" class="drop-zone flex flex-wrap items-center gap-2 p-2 rounded-lg min-h-[50px]"></div>
+                `;
+            } else if (question.type === 'ebsr') {
+                const partAOptions = question.partA.options.map((opt, i) => `
+                     <label for="q${question.id}A_${i}" class="block border-2 border-gray-600 rounded-lg p-4 mb-2 cursor-pointer hover:bg-gray-700 transition mc-option">
+                        <input type="radio" id="q${question.id}A_${i}" name="q${question.id}A" value="${opt}" class="mr-3">
+                        ${opt}
+                    </label>
+                `).join('');
+                 const partBOptions = question.partB.options.map((opt, i) => `
+                     <label for="q${question.id}B_${i}" class="block border-2 border-gray-600 rounded-lg p-4 mb-2 cursor-pointer hover:bg-gray-700 transition mc-option">
+                        <input type="radio" id="q${question.id}B_${i}" name="q${question.id}B" value="${opt}" class="mr-3">
+                        ${opt}
+                    </label>
+                `).join('');
+
+                html = `
+                    ${stimulusHtml}
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-yellow-400 mb-2">Part A</h3>
+                        <p class="mb-4">${question.partA.stem}</p>
+                        <div>${partAOptions}</div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-yellow-400 mb-2">Part B</h3>
+                        <p class="mb-4">${question.partB.stem}</p>
+                        <div>${partBOptions}</div>
+                    </div>
+                `;
+            }
+
+            testContent.innerHTML = html;
+            loadAnswer();
+            updateTestNavigation();
+            updateTestProgress();
+            
+            if (question.type === 'dnd') setupDragAndDrop();
+            
+            // Add click listeners to labels for visual feedback
+            document.querySelectorAll('.mc-option').forEach(label => {
+                label.addEventListener('click', (e) => {
+                    const input = label.querySelector('input');
+                    if (input.type === 'radio') {
+                         document.querySelectorAll(`input[name="${input.name}"]`).forEach(radio => {
+                             radio.closest('label').classList.remove('selected-answer');
+                         });
+                    }
+                    if (input.checked) {
+                         label.classList.add('selected-answer');
+                    } else {
+                         label.classList.remove('selected-answer');
+                    }
+                });
+            });
+        }
+
+        function setupDragAndDrop() {
+            const draggables = document.querySelectorAll('.draggable');
+            const dropZone = document.querySelector('.drop-zone');
+            const itemsContainer = document.getElementById('dnd-items');
+
+            draggables.forEach(draggable => {
+                draggable.addEventListener('dragstart', () => {
+                    draggable.classList.add('opacity-50');
+                });
+                draggable.addEventListener('dragend', () => {
+                    draggable.classList.remove('opacity-50');
+                });
+            });
+
+            [dropZone, itemsContainer].forEach(container => {
+                 container.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    container.classList.add('drag-over');
+                });
+                container.addEventListener('dragleave', () => {
+                    container.classList.remove('drag-over');
+                });
+                container.addEventListener('drop', e => {
+                    e.preventDefault();
+                    container.classList.remove('drag-over');
+                    const id = e.dataTransfer.getData('text');
+                    const draggableElement = Array.from(draggables).find(d => d.dataset.value === id) || document.querySelector('.dragging');
+                     if (draggableElement) {
+                        container.appendChild(draggableElement);
+                        saveAnswer();
+                    }
+                });
+            });
+            
+             document.addEventListener('dragstart', function(event) {
+                if (event.target.classList.contains('draggable')) {
+                    event.dataTransfer.setData('text', event.target.dataset.value);
+                    event.target.classList.add('dragging');
+                }
+            });
+            document.addEventListener('dragend', function(event) {
+                if(event.target.classList.contains('dragging')) {
+                   event.target.classList.remove('dragging');
+                }
+            });
+        }
+
+
+        function saveAnswer() {
+            const question = assessmentQuestions[currentTestQuestionIndex];
+            let answer;
+
+            if (question.type === 'mc') {
+                const selected = document.querySelector(`input[name="q${question.id}"]:checked`);
+                if (selected) answer = selected.value;
+            } else if (question.type === 'ms') {
+                answer = [];
+                document.querySelectorAll(`input[name="q${question.id}"]:checked`).forEach(el => answer.push(el.value));
+            } else if (question.type === 'cr') {
+                answer = document.getElementById(`q${question.id}`).value;
+            } else if (question.type === 'dnd') {
+                const dropZone = document.getElementById(`q${question.id}`);
+                answer = Array.from(dropZone.children).map(child => child.dataset.value).join('').replace(/\s/g, '');
+            } else if (question.type === 'ebsr') {
+                const partA = document.querySelector(`input[name="q${question.id}A"]:checked`);
+                const partB = document.querySelector(`input[name="q${question.id}B"]:checked`);
+                answer = {
+                    partA: partA ? partA.value : null,
+                    partB: partB ? partB.value : null
+                };
+            }
+
+            if (answer !== undefined) {
+                studentAnswers[question.id] = answer;
+                localStorage.setItem('studentAnswers', JSON.stringify(studentAnswers));
+            }
+        }
+
+        function loadAnswer() {
+            const question = assessmentQuestions[currentTestQuestionIndex];
+            const answer = studentAnswers[question.id];
+
+            if (answer === undefined) return;
+
+            if (question.type === 'mc') {
+                const input = document.querySelector(`input[name="q${question.id}"][value="${answer}"]`);
+                if (input) {
+                    input.checked = true;
+                    input.closest('label').classList.add('selected-answer');
+                }
+            } else if (question.type === 'ms') {
+                answer.forEach(val => {
+                    const input = document.querySelector(`input[name="q${question.id}"][value="${val}"]`);
+                    if (input) {
+                        input.checked = true;
+                        input.closest('label').classList.add('selected-answer');
+                    }
+                });
+            } else if (question.type === 'cr') {
+                document.getElementById(`q${question.id}`).value = answer;
+            } else if (question.type === 'dnd') {
+                // This is complex to re-hydrate perfectly. The saved answer is a string.
+                // For simplicity on load, we don't re-render the dropped items, but the data is saved.
+            } else if (question.type === 'ebsr') {
+                if (answer.partA) {
+                    const inputA = document.querySelector(`input[name="q${question.id}A"][value="${answer.partA}"]`);
+                    if (inputA) {
+                        inputA.checked = true;
+                        inputA.closest('label').classList.add('selected-answer');
+                    }
+                }
+                if (answer.partB) {
+                    const inputB = document.querySelector(`input[name="q${question.id}B"][value="${answer.partB}"]`);
+                    if (inputB) {
+                        inputB.checked = true;
+                        inputB.closest('label').classList.add('selected-answer');
+                    }
+                }
+            }
+        }
+        
+        function updateTestNavigation() {
+            testPrevBtn.style.visibility = currentTestQuestionIndex === 0 ? 'hidden' : 'visible';
+            testNextBtn.style.display = currentTestQuestionIndex === assessmentQuestions.length - 1 ? 'none' : 'block';
+            testFinishBtn.style.display = currentTestQuestionIndex === assessmentQuestions.length - 1 ? 'block' : 'none';
+        }
+        
+        function updateTestProgress() {
+            const progress = ((currentTestQuestionIndex + 1) / assessmentQuestions.length) * 100;
+            testProgressBar.style.width = `${progress}%`;
+            testQuestionCounter.textContent = `Case File ${currentTestQuestionIndex + 1} of ${assessmentQuestions.length}`;
+        }
+        
+        // Practice Rendering
+        function renderPracticeItem() {
+            isPracticeItemChecked = false;
+            const item = practiceItems[currentPracticeItemIndex];
+            let html = `
+                <h3 class="text-xl text-center mb-4">${item.stem}</h3>
+                <input type="text" id="practice-input" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-center text-lg" placeholder="Type your answer here">
+            `;
+            practiceContent.innerHTML = html;
+            practiceFeedback.textContent = '';
+            practiceCheckBtn.style.display = 'block';
+            practiceTryAgainBtn.style.display = 'none';
+            practiceNextBtn.style.display = 'none';
+            document.getElementById('practice-input').focus();
+            updatePracticeProgress();
+        }
+
+        function checkPracticeAnswer() {
+            if (isPracticeItemChecked) return;
+
+            const item = practiceItems[currentPracticeItemIndex];
+            const input = document.getElementById('practice-input');
+            const userAnswer = input.value.replace(/\s/g, '');
+            const correctAnswer = item.answer.replace(/\s/g, '');
+
+            if (userAnswer === correctAnswer) {
+                practiceFeedback.textContent = "Correct!";
+                practiceFeedback.style.color = '#4ade80'; // green-400
+                practiceCheckBtn.style.display = 'none';
+                practiceNextBtn.style.display = 'block';
+                input.disabled = true;
+            } else {
+                practiceFeedback.textContent = "Not quite, please try again.";
+                practiceFeedback.style.color = '#f87171'; // red-400
+                practiceCheckBtn.style.display = 'none';
+                practiceTryAgainBtn.style.display = 'block';
+            }
+            isPracticeItemChecked = true;
+        }
+        
+        function updatePracticeProgress() {
+            const progress = ((currentPracticeItemIndex + 1) / practiceItems.length) * 100;
+            practiceProgressBar.style.width = `${progress}%`;
+            practiceQuestionCounter.textContent = `Drill ${currentPracticeItemIndex + 1} of ${practiceItems.length}`;
+        }
+
+        // Scoring
+        function calculateScore() {
+            let score = 0;
+            assessmentQuestions.forEach(q => {
+                const userAnswer = studentAnswers[q.id];
+                if (userAnswer === undefined) return;
+
+                if (q.type === 'ms') {
+                    if (Array.isArray(userAnswer) && Array.isArray(q.answer) &&
+                        userAnswer.length === q.answer.length &&
+                        userAnswer.every(val => q.answer.includes(val))) {
+                        score++;
+                    }
+                } else if (q.type === 'dnd') {
+                    // Normalize answer by removing parentheses for looser checking
+                    const normalizedAnswer = q.answer.replace(/[()]/g, '');
+                    const normalizedUserAnswer = userAnswer.replace(/[()]/g, '');
+                    if (normalizedUserAnswer === normalizedAnswer) {
+                        score++;
+                    }
+                } else if (q.type === 'ebsr') {
+                     if (userAnswer.partA === q.partA.answer && userAnswer.partB === q.partB.answer) {
+                         score++;
+                     }
+                } else if (String(userAnswer) === String(q.answer)) {
+                    score++;
+                }
+            });
+            return score;
+        }
+        
+        // Fullscreen API
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+        
+        // Saving and Exporting
+        async function saveWorkAsHTML() {
+             saveAnswer(); // ensure latest answer is saved
+             const currentAnswers = localStorage.getItem('studentAnswers') || '{}';
+             
+             let htmlContent = document.documentElement.outerHTML;
+             
+             const tempDoc = new DOMParser().parseFromString(htmlContent, 'text/html');
+             const progressScriptTag = tempDoc.getElementById('progress-data');
+             progressScriptTag.textContent = currentAnswers;
+             
+             const finalHtml = tempDoc.documentElement.outerHTML;
+             
+             const blob = new Blob([finalHtml], { type: 'text/html' });
+             const a = document.createElement('a');
+             a.href = URL.createObjectURL(blob);
+             a.download = 'math-detective-progress.html';
+             document.body.appendChild(a);
+             a.click();
+             document.body.removeChild(a);
+        }
+
+        async function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: 'p',
+                unit: 'mm',
+                format: 'a4'
+            });
+            const printContainer = document.getElementById('print-container');
+            const mainAppContainer = document.getElementById('app-container');
+            
+            mainAppContainer.classList.add('hidden'); // Hide app for clean screenshots
+            printContainer.classList.remove('hidden');
+
+            for (let i = 0; i < assessmentQuestions.length; i++) {
+                const q = assessmentQuestions[i];
+                let contentHtml = `<div class="p-4 bg-white text-black" style="width: 210mm;">`; // A4 width
+                contentHtml += `<h2 class="text-lg font-bold mb-2">Question ${i + 1}</h2>`;
+                if (q.stimulus) {
+                    contentHtml += `<div class="mb-2 p-2 border border-gray-300 bg-gray-100 rounded">${q.stimulus}</div>`;
+                }
+
+                const userAnswer = studentAnswers[q.id];
+
+                if(q.type === 'mc' || q.type === 'ms') {
+                     contentHtml += `<p class="font-semibold mb-2">${q.stem}</p>`;
+                     q.options.forEach(opt => {
+                        let isSelected = false;
+                        if (q.type === 'mc' && userAnswer === opt) isSelected = true;
+                        if (q.type === 'ms' && Array.isArray(userAnswer) && userAnswer.includes(opt)) isSelected = true;
+                         contentHtml += `<div class="p-1 border border-gray-200 rounded my-1 ${isSelected ? 'bg-yellow-200' : ''}">${opt} ${isSelected ? '<strong>(Selected)</strong>' : ''}</div>`;
+                     });
+                } else if (q.type === 'cr') {
+                     contentHtml += `<p class="font-semibold mb-2">${q.stem}</p>`;
+                     contentHtml += `<div class="p-2 border border-gray-300 rounded bg-gray-50"><strong>Your Answer:</strong> ${userAnswer || 'Not Answered'}</div>`;
+                } else if (q.type === 'dnd') {
+                     contentHtml += `<p class="font-semibold mb-2">${q.stem}</p>`;
+                     contentHtml += `<div class="p-2 border border-gray-300 rounded bg-gray-50"><strong>Your Expression:</strong> ${userAnswer || 'Not Answered'}</div>`;
+                } else if (q.type === 'ebsr') {
+                     contentHtml += `<div class="mb-3"><p class="font-semibold">Part A: ${q.partA.stem}</p>`;
+                     q.partA.options.forEach(opt => {
+                         const isSelected = userAnswer && userAnswer.partA === opt;
+                         contentHtml += `<div class="p-1 border border-gray-200 rounded my-1 ${isSelected ? 'bg-yellow-200' : ''}">${opt} ${isSelected ? '<strong>(Selected)</strong>' : ''}</div>`;
+                     });
+                     contentHtml += `</div>`;
+                     contentHtml += `<div><p class="font-semibold">Part B: ${q.partB.stem}</p>`;
+                     q.partB.options.forEach(opt => {
+                         const isSelected = userAnswer && userAnswer.partB === opt;
+                         contentHtml += `<div class="p-1 border border-gray-200 rounded my-1 ${isSelected ? 'bg-yellow-200' : ''}">${opt} ${isSelected ? '<strong>(Selected)</strong>' : ''}</div>`;
+                     });
+                     contentHtml += `</div>`;
+                }
+                
+                contentHtml += `</div>`;
+                printContainer.innerHTML = contentHtml;
+                
+                const canvas = await html2canvas(printContainer.firstChild, { scale: 2 });
+                const imgData = canvas.toDataURL('image/png');
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                if (i > 0) {
+                    pdf.addPage();
+                }
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            }
+            
+            pdf.save('math-detective-report.pdf');
+            printContainer.innerHTML = '';
+            printContainer.classList.add('hidden');
+            mainAppContainer.classList.remove('hidden');
+        }
+
+
+        // Initialization
+        function init() {
+            // Hydration Logic: 1. Check <script> tag, 2. Fallback to localStorage
+            const progressDataScript = document.getElementById('progress-data');
+            let loadedAnswers = null;
+
+            if (progressDataScript && progressDataScript.textContent.trim().length > 2) {
+                try {
+                    loadedAnswers = JSON.parse(progressDataScript.textContent);
+                    localStorage.setItem('studentAnswers', progressDataScript.textContent);
+                } catch (e) {
+                    console.error("Could not parse progress data from script tag.", e);
+                }
+            }
+            
+            if (!loadedAnswers) {
+                try {
+                   loadedAnswers = JSON.parse(localStorage.getItem('studentAnswers'));
+                } catch(e) {
+                    loadedAnswers = {};
+                }
+            }
+
+            studentAnswers = loadedAnswers || {};
+
+            // Check if test is locked
+            if (localStorage.getItem('testState') === 'locked') {
+                const score = localStorage.getItem('finalScore') || 0;
+                finalScoreEl.textContent = `Your Score: ${score} / ${assessmentQuestions.length}`;
+                showView('score-view');
+                return;
+            }
+
+            showView('home-view');
+        }
+
+        // --- EVENT LISTENERS ---
+
+        startTestBtn.addEventListener('click', () => {
+            currentTestQuestionIndex = 0;
+            renderTestQuestion();
+            showView('test-view');
+        });
+
+        startPracticeBtn.addEventListener('click', () => {
+            currentPracticeItemIndex = 0;
+            renderPracticeItem();
+            showView('practice-view');
+        });
+
+        homeBtn.addEventListener('click', () => {
+            showView('home-view');
+        });
+        
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+        // Test Navigation
+        testNextBtn.addEventListener('click', () => {
+            saveAnswer();
+            if (currentTestQuestionIndex < assessmentQuestions.length - 1) {
+                currentTestQuestionIndex++;
+                renderTestQuestion();
+            }
+        });
+
+        testPrevBtn.addEventListener('click', () => {
+            saveAnswer();
+            if (currentTestQuestionIndex > 0) {
+                currentTestQuestionIndex--;
+                renderTestQuestion();
+            }
+        });
+        
+        testContent.addEventListener('change', saveAnswer);
+
+        testFinishBtn.addEventListener('click', () => {
+            saveAnswer();
+            showView('confirmation-view');
+        });
+
+        // Practice Navigation
+        practiceCheckBtn.addEventListener('click', checkPracticeAnswer);
+        practiceContent.addEventListener('keyup', (e) => {
+             if (e.key === 'Enter') checkPracticeAnswer();
+        });
+        practiceTryAgainBtn.addEventListener('click', () => {
+            isPracticeItemChecked = false;
+            const input = document.getElementById('practice-input');
+            input.disabled = false;
+            input.focus();
+            input.value = '';
+            practiceFeedback.textContent = '';
+            practiceCheckBtn.style.display = 'block';
+            practiceTryAgainBtn.style.display = 'none';
+        });
+        practiceNextBtn.addEventListener('click', () => {
+            if (currentPracticeItemIndex < practiceItems.length - 1) {
+                currentPracticeItemIndex++;
+                renderPracticeItem();
+            } else {
+                showView('home-view');
+            }
+        });
+
+        // Confirmation and Scoring
+        reviewAnswersBtn.addEventListener('click', () => {
+            showView('test-view');
+            currentTestQuestionIndex = 0;
+            renderTestQuestion();
+        });
+
+        submitGradingBtn.addEventListener('click', () => {
+            const score = calculateScore();
+            finalScoreEl.textContent = `Your Score: ${score} / ${assessmentQuestions.length}`;
+            localStorage.setItem('testState', 'locked');
+            localStorage.setItem('finalScore', score);
+            showView('score-view');
+        });
+
+        adminResetBtn.addEventListener('click', () => {
+            const password = prompt("Enter admin password to reset:");
+            if (password === "2026") {
+                localStorage.clear();
+                studentAnswers = {};
+                window.location.reload();
+            } else if (password) {
+                alert("Incorrect password.");
+            }
+        });
+        
+        saveWorkBtn.addEventListener('click', saveWorkAsHTML);
+        exportPdfBtn.addEventListener('click', exportToPDF);
+
+        // --- STARTUP ---
+        init();
+    });
+    </script>
+</body>
+</html>
+
