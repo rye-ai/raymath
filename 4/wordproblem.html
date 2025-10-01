@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Spy Adventure: Code Breakers</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #1a1a2e;
+            --primary-color: #16213e;
+            --secondary-color: #0f3460;
+            --accent-color: #e94560;
+            --glow-color: #53d9d9;
+            --font-header: 'Orbitron', sans-serif;
+            --font-body: 'Roboto', sans-serif;
+            --player-health: #53d9d9;
+            --bot-health: #e94560;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--bg-color);
+            color: #dcdcdc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+            background-image: radial-gradient(var(--primary-color) 1px, transparent 1px);
+            background-size: 15px 15px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+
+        /* SCREENS */
+        .screen {
+            width: 100%;
+            max-width: 900px;
+            background: linear-gradient(145deg, #16213e, #0f3460);
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(83, 217, 217, 0.3);
+            border: 3px solid var(--glow-color);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* START SCREEN */
+        #start-screen {
+            padding: 2rem 3rem;
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+        }
+        
+        #start-screen h1 {
+            font-family: var(--font-header);
+            font-size: 3rem;
+            color: var(--glow-color);
+            text-shadow: 0 0 10px var(--glow-color);
+            margin: 0;
+        }
+        
+        #start-screen p {
+            font-size: 1.1rem;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+        
+        .avatar-customization {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            background-color: rgba(0,0,0,0.3);
+            padding: 1.5rem;
+            border-radius: 15px;
+        }
+        
+        #avatar-preview {
+            width: 120px;
+            height: 120px;
+            border-radius: 15px;
+            background-color: var(--bg-color);
+            border: 3px solid var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        #avatar-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .custom-file-upload {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: var(--secondary-color);
+            color: var(--glow-color);
+            border-radius: 8px;
+            font-weight: 600;
+            border: 1px solid var(--glow-color);
+        }
+        
+        #avatar-upload {
+            display: none;
+        }
+
+        #start-game-button {
+            font-family: var(--font-header);
+            font-size: 1.8rem;
+            padding: 15px 40px;
+            border-radius: 15px;
+            cursor: pointer;
+            color: var(--bg-color);
+            background-color: var(--accent-color);
+            border: none;
+            box-shadow: 0 0 15px var(--accent-color);
+            transition: all 0.2s ease;
+            margin-top: 1rem;
+        }
+        
+        #start-game-button:hover {
+            transform: scale(1.05);
+        }
+        
+        /* MAP & GAME SCREENS */
+        #map-screen-container,
+        #game-container,
+        #final-challenge-screen {
+            aspect-ratio: 16 / 9;
+        }
+
+        #map-screen-container {
+            padding: 1.5rem;
+        }
+
+        #map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        #map-title {
+            font-family: var(--font-header);
+            font-size: 2rem;
+            margin: 0;
+            color: var(--glow-color);
+        }
+        
+        #score-display {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background-color: rgba(0,0,0,0.3);
+            padding: 5px 15px;
+            border-radius: 10px;
+        }
+
+        #codes-display {
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            min-height: 24px;
+        }
+        
+        #map-container {
+            width: 100%;
+            flex-grow: 1;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            position: relative;
+        }
+        
+        .stage-node {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background-color: var(--secondary-color);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 0.8rem;
+            padding: 5px;
+            border: 3px solid var(--glow-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px var(--glow-color);
+        }
+        
+        .stage-node.locked {
+            border-color: #555;
+            cursor: not-allowed;
+            filter: grayscale(1);
+            box-shadow: none;
+        }
+        
+        .stage-node.completed {
+            background-color: var(--glow-color);
+            color: var(--bg-color);
+            font-weight: bold;
+        }
+        
+        .stage-node.unlocked:not(.completed):hover {
+            transform: scale(1.1);
+            background-color: var(--accent-color);
+        }
+
+        /* BATTLE SCREEN */
+        #battle-screen {
+            flex-grow: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 2% 5%;
+            position: relative;
+        }
+
+        .character-container {
+            width: 30%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        .health-bar {
+            width: 100%;
+            height: 25px;
+            background-color: #111;
+            border-radius: 15px;
+            border: 2px solid var(--glow-color);
+            padding: 3px;
+        }
+
+        .health-bar-inner {
+            height: 100%;
+            width: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease-in-out;
+        }
+        #player-health { background-color: var(--player-health); }
+        #bot-health { background-color: var(--bot-health); }
+        
+        .health-text {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 5px;
+            color: white;
+            text-shadow: 1px 1px 3px black;
+        }
+
+        .character-sprite {
+            width: 180px;
+            height: 180px;
+            position: relative;
+            transition: transform 0.2s ease;
+        }
+        
+        /* UI & QUESTION AREA */
+        #ui-panel {
+            height: 45%;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-top: 3px solid var(--glow-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            gap: 0.5rem;
+        }
+        
+        #problem-table-container {
+            width: 90%;
+            padding: 0.5rem;
+            font-size: 1rem;
+            line-height: 1.4;
+            text-align: center;
+        }
+
+        #word-problem-container {
+            width: 90%;
+            background-color: rgba(0,0,0,0.3);
+            padding: 0.5rem;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        #answer-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        #answer-input {
+            width: 180px;
+            height: 50px;
+            font-family: var(--font-header);
+            font-size: 2rem;
+            text-align: center;
+            background-color: #dcdcdc;
+            color: var(--bg-color);
+            border: 3px solid transparent;
+            border-radius: 10px;
+            outline: none;
+        }
+
+        #submit-button {
+            font-family: var(--font-header);
+            font-size: 1.2rem;
+            padding: 10px 20px;
+            height: 50px;
+            border-radius: 10px;
+            cursor: pointer;
+            color: #fff;
+            background-color: var(--accent-color);
+            border: none;
+        }
+        
+        /* FINAL CHALLENGE SCREEN */
+        #final-challenge-screen {
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            gap: 1.5rem;
+            padding: 2rem;
+        }
+        #final-challenge-screen h2 { font-family: var(--font-header); font-size: 2.5rem; }
+        
+        #code-inputs { display: flex; gap: 10px; }
+        .code-input {
+            width: 50px; height: 70px; font-size: 3rem; text-align: center; font-family: var(--font-header);
+            text-transform: uppercase; background-color: #dcdcdc; color: var(--bg-color); border-radius: 10px; border: 3px solid transparent;
+        }
+        #unlock-button { font-family: var(--font-header); font-size: 1.5rem; padding: 10px 30px; border-radius: 10px; cursor: pointer; background-color: var(--glow-color); color: var(--bg-color); border: none; }
+
+        /* MESSAGE OVERLAY */
+        #message-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center;
+            text-align: center; opacity: 0; visibility: hidden; transition: all 0.5s; z-index: 100;
+        }
+        #message-overlay.visible { opacity: 1; visibility: visible; }
+        #message-box { padding: 2rem; }
+        #message-box h2 { font-family: var(--font-header); font-size: 3rem; }
+        #message-box button { font-family: var(--font-header); font-size: 1.5rem; margin-top: 1rem; padding: 10px 30px;
+            border-radius: 10px; cursor: pointer; color: var(--bg-color); background-color: #dcdcdc; border: none;
+        }
+        
+        table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; background: rgba(0,0,0,0.2);}
+        th, td { border: 1px solid var(--glow-color); padding: 8px; text-align: center;}
+        th { background-color: var(--secondary-color); }
+
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="screen">
+        <h1>Math Spy Adventure</h1>
+        <h2>Code Breakers</h2>
+        <p>Welcome, Agent. Your mission, should you choose to accept it, is to infiltrate the network of the rogue AI, 'Calculus'. It has protected its servers with Code Scrambler Bots. Solve their complex data riddles to decrypt the network and find the final shutdown code. The fate of the world's data is in your hands.</p>
+        <div class="avatar-customization">
+            <div id="avatar-preview"></div>
+            <label for="avatar-upload" class="custom-file-upload">Upload Avatar</label>
+            <input type="file" id="avatar-upload" accept="image/*">
+        </div>
+        <button id="start-game-button">Accept Mission</button>
+    </div>
+    
+    <div id="map-screen-container" class="screen hidden">
+        <div id="map-header">
+            <h2 id="map-title">Mission Network</h2>
+            <div id="score-display">Score: 0</div>
+        </div>
+        <div id="codes-display">Password Fragments: </div>
+        <div id="map-container"></div>
+    </div>
+
+    <div id="game-container" class="screen hidden">
+        <div id="battle-screen">
+            <div id="player-container" class="character-container">
+                <div class="health-bar">
+                    <div id="player-health" class="health-bar-inner"></div>
+                </div>
+                <div id="player-health-text" class="health-text"></div>
+                <div id="player-sprite" class="character-sprite"></div>
+            </div>
+            <div id="bot-container" class="character-container">
+                <div class="health-bar">
+                    <div id="bot-health" class="health-bar-inner"></div>
+                </div>
+                <div id="bot-health-text" class="health-text"></div>
+                <div id="bot-sprite" class="character-sprite"></div>
+            </div>
+        </div>
+        <div id="ui-panel">
+            <div id="problem-table-container"></div>
+            <div id="word-problem-container"></div>
+            <div id="answer-container">
+                <input type="number" id="answer-input" maxlength="7" />
+                <button id="submit-button">Decrypt</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="final-challenge-screen" class="screen hidden">
+        <h2>Master Server Shutdown</h2>
+        <p>You've reached the core. Enter the password fragments to shut down Calculus!</p>
+        <div id="code-inputs"></div>
+        <button id="unlock-button">Shutdown</button>
+    </div>
+    
+    <div id="message-overlay">
+        <div id="message-box">
+            <h2 id="message-title"></h2>
+            <p id="message-body"></p>
+            <button id="message-button"></button>
+        </div>
+    </div>
+
+    <script type="application/json" id="game-spec">
+    {
+        "player": {
+            "maxHealth": 100,
+            "decryptPower": 40
+        },
+        "finalCode": "SOLVE",
+        "prizes": [
+            "Access to the 'Top Secret' meme archive!",
+            "A 5-minute break to watch a funny cat video!",
+            "An official 'Master Code Breaker' digital certificate!"
+        ],
+        "map": {
+            "stages": [
+                { "id": 1, "name": "Data Farm", "botIndex": 0, "position": {"top": "75%", "left": "10%"}, "code": "S" },
+                { "id": 2, "name": "Firewall Hub", "botIndex": 1, "position": {"top": "60%", "left": "30%"}, "code": "O" },
+                { "id": 3, "name": "Server Maze", "botIndex": 2, "position": {"top": "45%", "left": "50%"}, "code": "L" },
+                { "id": 4, "name": "AI Core", "botIndex": 3, "position": {"top": "30%", "left": "70%"}, "code": "V" },
+                { "id": 5, "name": "Mainframe", "botIndex": 4, "position": {"top": "15%", "left": "90%"}, "code": "E" }
+            ]
+        },
+        "story": {
+            "stage1": "Mission Start: Infiltrate the Data Farm. A 'Scrambler v1' bot is corrupting the information flow.",
+            "stage2": "You've reached the network's Firewall Hub. A heavily shielded 'Guardian' bot blocks access.",
+            "stage3": "Navigating the Server Maze is tricky. A swift 'Hunter' bot is patrolling the digital corridors.",
+            "stage4": "You're getting close to the AI Core. An advanced 'Warden' bot defends this critical sector.",
+            "stage5": "You've reached the Mainframe. The master bot, 'Calculus Prime', stands between you and victory!"
+        },
+        "bots": [
+            { "name": "Scrambler v1", "maxHealth": 80, "attackPower": 15, "points": 1000 },
+            { "name": "Guardian Bot", "maxHealth": 100, "attackPower": 20, "points": 1500 },
+            { "name": "Hunter Bot", "maxHealth": 120, "attackPower": 25, "points": 2000 },
+            { "name": "Warden Bot", "maxHealth": 140, "attackPower": 25, "points": 2500 },
+            { "name": "Calculus Prime", "maxHealth": 200, "attackPower": 30, "points": 5000 }
+        ],
+        "questions": [
+            { 
+                "table": "<thead><tr><th>Theater</th><th>Attendance</th></tr></thead><tbody><tr><td>Month 1</td><td>3,544</td></tr><tr><td>Month 2</td><td>2,465</td></tr><tr><td>Month 3</td><td>2,212</td></tr></tbody>",
+                "prompt": "How many people attended the theater in all 3 months?", 
+                "correct": "8221", "type": "add" 
+            },
+            { 
+                "table": "<thead><tr><th>Day</th><th>Visitors</th></tr></thead><tbody><tr><td>Friday</td><td>3,875</td></tr><tr><td>Sunday</td><td>5,252</td></tr></tbody>",
+                "prompt": "How many more people attended the National Zoo on Sunday than on Friday?", 
+                "correct": "1377", "type": "sub" 
+            },
+            { 
+                "table": "<thead><tr><th>Item</th><th>Calories</th></tr></thead><tbody><tr><td>Hamburger</td><td>680</td></tr><tr><td>Soda</td><td>238</td></tr><tr><td>Soup</td><td>356</td></tr></tbody>",
+                "prompt": "How many total calories are in the three menu items?", 
+                "correct": "1274", "type": "add" 
+            },
+            { 
+                "table": "<thead><tr><th>Grade</th><th>Pages Read</th></tr></thead><tbody><tr><td>3rd</td><td>1,342</td></tr><tr><td>4th</td><td>2,761</td></tr><tr><td>5th</td><td>2,104</td></tr></tbody>",
+                "prompt": "How many total pages did the 3rd and 4th graders read?", 
+                "correct": "4103", "type": "add" 
+            },
+             { 
+                "table": "<thead><tr><th>Grade</th><th>Pages Read</th></tr></thead><tbody><tr><td>4th</td><td>2,761</td></tr><tr><td>5th</td><td>2,104</td></tr></tbody>",
+                "prompt": "How many more pages did the 4th grade read than the 5th grade?", 
+                "correct": "657", "type": "sub" 
+            },
+            { 
+                "table": "",
+                "prompt": "A trip from Washington, D.C. to Los Angeles is 2,671 miles. A trip from D.C. to Seattle is 3,314 miles. What is the difference between these two distances?", 
+                "correct": "643", "type": "sub" 
+            },
+            { 
+                "table": "",
+                "prompt": "What is the sum of 3,283 and 2,648?", 
+                "correct": "5931", "type": "add" 
+            },
+            { 
+                "table": "",
+                "prompt": "What is the value of 334,172 − 184,675?", 
+                "correct": "149497", "type": "sub" 
+            },
+            { 
+                "table": "",
+                "prompt": "A semi-truck has a load of boxes weighing 902 pounds. At a warehouse, 234 pounds of boxes are removed. What is the weight of the boxes remaining on the truck?", 
+                "correct": "668", "type": "sub" 
+            },
+            { 
+                "table": "<thead><tr><th>Arena</th><th>Seats</th></tr></thead><tbody><tr><td>Springfield</td><td>58,726</td></tr><tr><td>Fort Charles</td><td>131,068</td></tr></tbody>",
+                "prompt": "How many more seats does Fort Charles Stadium have than Springfield Arena?", 
+                "correct": "72342", "type": "sub" 
+            }
+        ]
+    }
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const gameSpec = JSON.parse(document.getElementById('game-spec').textContent);
+
+        // --- DOM Elements ---
+        const screens = {
+            start: document.getElementById('start-screen'),
+            map: document.getElementById('map-screen-container'),
+            game: document.getElementById('game-container'),
+            final: document.getElementById('final-challenge-screen')
+        };
+        const startGameButton = document.getElementById('start-game-button');
+        const avatarUpload = document.getElementById('avatar-upload');
+        const avatarPreview = document.getElementById('avatar-preview');
+        const mapContainer = document.getElementById('map-container');
+        const scoreDisplay = document.getElementById('score-display');
+        const codesDisplay = document.getElementById('codes-display');
+        
+        const playerSprite = document.getElementById('player-sprite');
+        const botSprite = document.getElementById('bot-sprite');
+        const playerHealthBar = document.getElementById('player-health');
+        const botHealthBar = document.getElementById('bot-health');
+        const playerHealthText = document.getElementById('player-health-text');
+        const botHealthText = document.getElementById('bot-health-text');
+        const problemTableContainer = document.getElementById('problem-table-container');
+        const wordProblemContainer = document.getElementById('word-problem-container');
+        const answerInput = document.getElementById('answer-input');
+        const submitButton = document.getElementById('submit-button');
+        const messageOverlay = document.getElementById('message-overlay');
+        const messageTitle = document.getElementById('message-title');
+        const messageBody = document.getElementById('message-body');
+        const messageButton = document.getElementById('message-button');
+        const codeInputsContainer = document.getElementById('code-inputs');
+        const unlockButton = document.getElementById('unlock-button');
+
+        // --- Game State ---
+        let gameState, player, bot, currentQuestion, questionsPool, currentStageId;
+        let isBattleOver = false;
+        let playerAvatarURL = null;
+
+        // --- SVG & Animation Engine ---
+        const visualEngine = {
+            drawPlayer: () => {
+                if (playerAvatarURL) {
+                    return `<svg viewBox="0 0 100 100"><defs><clipPath id="avatarClip"><rect x="0" y="0" width="100" height="100" rx="15" /></clipPath></defs><image href="${playerAvatarURL}" width="100" height="100" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice" /></svg>`;
+                }
+                return `<svg viewBox="0 0 100 100"><g transform="translate(0, 10)"><path d="M 50 15 A 15 15 0 1 1 50 45 A 15 15 0 1 1 50 15 Z" fill="#dcdcdc"/><path d="M 30 50 L 70 50 L 60 80 L 40 80 Z" fill="#333" /><rect x="45" y="25" width="10" height="5" fill="#53d9d9" /></g></svg>`;
+            },
+            drawBot: (b) => {
+                return `<svg viewBox="0 0 100 100"><path d="M 20 20 L 80 20 L 80 80 L 20 80 Z" fill="#555" rx="10" /><circle cx="50" cy="50" r="15" fill="${getComputedStyle(document.documentElement).getPropertyValue('--bot-health')}" /><path d="M 50 35 L 50 65" stroke="black" stroke-width="3" /></svg>`;
+            },
+        };
+
+        // --- Game Flow & State Management ---
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.add('hidden'));
+            screens[screenName].classList.remove('hidden');
+        }
+
+        function saveState() {
+            localStorage.setItem('mathSpyAdventureState', JSON.stringify(gameState));
+        }
+
+        function loadState() {
+            const savedState = localStorage.getItem('mathSpyAdventureState');
+            gameState = savedState ? JSON.parse(savedState) : { unlockedStage: 1, score: 0, collectedCodes: [], usedQuestions: [] };
+            // Ensure usedQuestions exists for older save states
+            if (!gameState.usedQuestions) {
+                gameState.usedQuestions = [];
+            }
+            playerAvatarURL = localStorage.getItem('mathSpyAvatar') || null;
+        }
+
+        function setupHomepage() {
+            avatarPreview.innerHTML = playerAvatarURL ? `<img src="${playerAvatarURL}" alt="Player Avatar">` : visualEngine.drawPlayer();
+            avatarUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        playerAvatarURL = e.target.result;
+                        localStorage.setItem('mathSpyAvatar', playerAvatarURL);
+                        avatarPreview.innerHTML = `<img src="${playerAvatarURL}" alt="Player Avatar">`;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            startGameButton.addEventListener('click', showMapScreen);
+        }
+        
+        function showMapScreen() {
+            switchScreen('map');
+            scoreDisplay.textContent = `Score: ${gameState.score}`;
+            codesDisplay.textContent = `Password Fragments: ${gameState.collectedCodes.join('')}`;
+            mapContainer.innerHTML = '';
+            gameSpec.map.stages.forEach(stage => {
+                const node = document.createElement('div');
+                node.className = 'stage-node';
+                node.textContent = stage.name;
+                node.style.top = stage.position.top;
+                node.style.left = stage.position.left;
+                
+                if (stage.id < gameState.unlockedStage) {
+                    node.classList.add('completed');
+                } else if (stage.id === gameState.unlockedStage) {
+                    node.classList.add('unlocked');
+                    node.addEventListener('click', () => showPreBattleStory(stage.id));
+                } else {
+                    node.classList.add('locked');
+                }
+                mapContainer.appendChild(node);
+            });
+        }
+        
+        function showPreBattleStory(stageId) {
+            const storyText = gameSpec.story[`stage${stageId}`];
+            showMessage(`Mission: Stage ${stageId}`, storyText, "Engage", () => initBattle(stageId));
+        }
+
+        function initBattle(stageId) {
+            currentStageId = stageId;
+            switchScreen('game');
+            const stage = gameSpec.map.stages.find(s => s.id === stageId);
+            const botIndex = stage.botIndex;
+            
+            player = { ...gameSpec.player, currentHealth: gameSpec.player.maxHealth };
+            bot = { ...gameSpec.bots[botIndex], currentHealth: gameSpec.bots[botIndex].maxHealth };
+            
+            // Create a pool of only unused questions
+            let availableQuestions = gameSpec.questions.filter(q => !gameState.usedQuestions.includes(q.prompt));
+            
+            // If we run out of unique questions, reset the list and use all of them
+            if (availableQuestions.length === 0) {
+                gameState.usedQuestions = [];
+                availableQuestions = [...gameSpec.questions];
+                // We don't save here, only when a question is answered. This is a temporary reset.
+            }
+            
+            questionsPool = availableQuestions.sort(() => 0.5 - Math.random());
+            isBattleOver = false;
+            
+            playerSprite.innerHTML = visualEngine.drawPlayer();
+            botSprite.innerHTML = visualEngine.drawBot(bot);
+            updateUI();
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            if (isBattleOver) return;
+
+            if (questionsPool.length === 0) {
+                // This case should ideally not be hit if battles are short, but as a fallback:
+                isBattleOver = true;
+                setTimeout(() => showMessage('System Error', 'No more unique questions for this battle. The bot has been disabled as a precaution.', 'Return to Map', showMapScreen), 500);
+                return;
+            }
+
+            currentQuestion = questionsPool.pop();
+            // Add the question to used list as soon as it's shown
+            gameState.usedQuestions.push(currentQuestion.prompt);
+            saveState();
+            
+            problemTableContainer.innerHTML = currentQuestion.table ? `<table>${currentQuestion.table}</table>` : '';
+            wordProblemContainer.textContent = currentQuestion.prompt;
+            answerInput.value = '';
+            answerInput.focus();
+            submitButton.disabled = false;
+        }
+
+        function handleSubmit() {
+            if (isBattleOver || answerInput.value === '') return;
+            submitButton.disabled = true;
+            
+            const isCorrect = answerInput.value === currentQuestion.correct;
+
+            if (isCorrect) {
+                const damage = player.decryptPower;
+                bot.currentHealth = Math.max(0, bot.currentHealth - damage);
+            } else {
+                const damage = bot.attackPower;
+                player.currentHealth = Math.max(0, player.currentHealth - damage);
+            }
+            // A short delay for visual feedback before checking status
+            setTimeout(() => {
+                updateUI();
+                checkBattleStatus();
+            }, 300);
+        }
+
+        function checkBattleStatus() {
+            if (bot.currentHealth <= 0) {
+                isBattleOver = true;
+                gameState.score += bot.points;
+                gameState.unlockedStage = Math.max(gameState.unlockedStage, currentStageId + 1);
+
+                const stage = gameSpec.map.stages.find(s => s.id === currentStageId);
+                const code = stage.code;
+                if (!gameState.collectedCodes.includes(code)) {
+                    gameState.collectedCodes.push(code);
+                }
+                saveState();
+                
+                const victoryMessage = `Bot disabled! You recovered a password fragment: ${code}`;
+                
+                if (currentStageId >= gameSpec.map.stages.length) {
+                     setTimeout(() => showMessage('Success!', victoryMessage, 'Final Challenge', showFinalChallenge), 500);
+                } else {
+                    setTimeout(() => showMessage('Success!', victoryMessage, 'Return to Network Map', showMapScreen), 500);
+                }
+            } else if (player.currentHealth <= 0) {
+                isBattleOver = true;
+                setTimeout(() => showEndGame(), 500);
+            } else {
+                setTimeout(nextQuestion, 1000);
+            }
+        }
+
+        function showFinalChallenge() {
+            switchScreen('final');
+            codeInputsContainer.innerHTML = '';
+            for (let i = 0; i < gameSpec.finalCode.length; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.maxLength = 1;
+                input.className = 'code-input';
+                input.addEventListener('input', (e) => {
+                    if (e.target.value && i < gameSpec.finalCode.length - 1) {
+                        codeInputsContainer.children[i + 1].focus();
+                    }
+                });
+                codeInputsContainer.appendChild(input);
+            }
+        }
+        
+        function handleUnlockAttempt() {
+            let enteredCode = Array.from(codeInputsContainer.querySelectorAll('.code-input')).map(i => i.value.toUpperCase()).join('');
+            if (enteredCode === gameSpec.finalCode) {
+                const prize = gameSpec.prizes[Math.floor(Math.random() * gameSpec.prizes.length)];
+                showMessage('Mission Accomplished!', `Calculus is shut down! Your reward: ${prize}`, 'Play Again', resetGame);
+            } else {
+                showMessage('Access Denied', 'Incorrect password. Recalculate and try again.', 'Retry', () => {});
+            }
+        }
+
+        function resetGame() {
+            gameState = { unlockedStage: 1, score: 0, collectedCodes: [], usedQuestions: [] };
+            saveState();
+            showMapScreen();
+        }
+
+        function showEndGame() {
+            showMessage('Mission Failed', 'The bots have locked you out of the system. Re-engage when ready.', 'Restart Mission', resetGame);
+        }
+
+        function updateUI() {
+            playerHealthBar.style.width = `${(player.currentHealth / player.maxHealth) * 100}%`;
+            playerHealthText.textContent = `FIREWALL: ${player.currentHealth}%`;
+            botHealthBar.style.width = `${(bot.currentHealth / bot.maxHealth) * 100}%`;
+            botHealthText.textContent = `ENCRYPTION: ${bot.currentHealth}%`;
+        }
+        
+        function showMessage(title, body, buttonText, callback) {
+            messageTitle.textContent = title;
+            messageBody.textContent = body;
+            messageButton.textContent = buttonText;
+            messageOverlay.classList.add('visible');
+            messageButton.onclick = () => {
+                messageOverlay.classList.remove('visible');
+                if(callback) callback();
+            };
+        }
+
+        // --- INITIALIZE ---
+        loadState();
+        setupHomepage();
+        submitButton.addEventListener('click', handleSubmit);
+        unlockButton.addEventListener('click', handleUnlockAttempt);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !isBattleOver && !screens.game.classList.contains('hidden')) {
+                handleSubmit();
+            }
+        });
+    });
+    </script>
+</body>
+</html>
+
