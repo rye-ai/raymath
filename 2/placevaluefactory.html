@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Number Factory Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden; /* Prevent scrolling */
+        }
+        .slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .slide.active {
+            display: flex;
+            opacity: 1;
+        }
+        .base-ten {
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            border: 2px solid #6b4f4f;
+        }
+        .one-block {
+            width: 2rem;
+            height: 2rem;
+            background-color: #fde68a; /* yellow-200 */
+        }
+        .ten-rod {
+            width: 2rem;
+            height: 20rem; /* 10 blocks high + spacing */
+            background-color: #6ee7b7; /* emerald-300 */
+        }
+        .block-grid {
+            display: grid;
+            gap: 0.5rem;
+            grid-template-columns: repeat(5, 1fr);
+        }
+        /* Animation is applied when the slide becomes active */
+        .active .pop-in {
+            animation: pop-in 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+        }
+        @keyframes pop-in {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center h-screen">
+
+    <!-- Main Presentation Container -->
+    <div id="presentation-container" class="w-full h-full max-w-6xl max-h-[800px] bg-white rounded-2xl shadow-2xl flex flex-col relative overflow-hidden">
+
+        <!-- Slide 1: Title -->
+        <div class="slide active w-full h-full flex-col items-center justify-center text-center p-8 bg-blue-500 text-white">
+            <h1 class="text-6xl md:text-8xl font-bold pop-in">Welcome to the</h1>
+            <h2 class="text-7xl md:text-9xl font-bold text-yellow-300 pop-in" style="animation-delay: 0.2s;">Number Factory!</h2>
+            <div class="flex space-x-4 mt-8 text-6xl pop-in" style="animation-delay: 0.4s;">
+                <span>⚙️</span>
+                <span>🏭</span>
+                <span>🔩</span>
+            </div>
+            <p class="mt-4 text-xl md:text-2xl pop-in" style="animation-delay: 0.6s;">Your job: Build numbers the right way!</p>
+        </div>
+
+        <!-- Slide 2: The BIG Rule -->
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-red-500 text-white">
+            <div class="pop-in bg-white text-red-500 rounded-full w-48 h-48 flex items-center justify-center mb-6 shadow-lg">
+                 <!-- FIX: Replaced emoji with a simple, universally supported character to prevent rendering errors. -->
+                 <span class="text-9xl font-bold">!</span>
+            </div>
+            <h1 class="text-5xl md:text-7xl font-bold pop-in" style="animation-delay: 0.2s;">The "BIG RULE"</h1>
+            <p class="mt-4 text-2xl md:text-4xl max-w-3xl pop-in" style="animation-delay: 0.4s;">The Ones Department can <span class="font-bold text-yellow-300">NEVER</span> have more than 9 single blocks!</p>
+             <p class="mt-2 text-xl md:text-2xl pop-in" style="animation-delay: 0.6s;">When you get 10 ones, you MUST trade them!</p>
+        </div>
+
+        <!-- Slide 3: Meet the Team -->
+        <div class="slide w-full h-full flex-col items-center justify-center p-8 bg-yellow-400">
+            <h1 class="text-5xl md:text-7xl font-bold text-gray-800 mb-8 pop-in">Meet the Team!</h1>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
+                <!-- Banker -->
+                <div class="bg-white p-6 rounded-xl shadow-lg text-center pop-in" style="animation-delay: 0.2s;">
+                    <div class="text-7xl">🏦</div>
+                    <h2 class="text-3xl font-bold text-blue-600 mt-2">The Banker</h2>
+                    <p class="mt-2 text-md text-gray-700">You are in charge of the blocks. You count out the starting ones and manage the final built number.</p>
+                </div>
+                <!-- Delivery Driver -->
+                <div class="bg-white p-6 rounded-xl shadow-lg text-center pop-in" style="animation-delay: 0.4s;">
+                    <div class="text-7xl">🚚</div>
+                    <h2 class="text-3xl font-bold text-red-600 mt-2">The Delivery Driver</h2>
+                    <p class="mt-2 text-md text-gray-700">You are the speedy mover! You carry bundles of 10 ones to the Builder, and bring ten rods back.</p>
+                </div>
+                <!-- Builder -->
+                <div class="bg-white p-6 rounded-xl shadow-lg text-center pop-in" style="animation-delay: 0.6s;">
+                    <div class="text-7xl">🔨</div>
+                    <h2 class="text-3xl font-bold text-green-600 mt-2">The Builder</h2>
+                    <p class="mt-2 text-md text-gray-700">You are the trading expert! You trade the bundles of 10 ones for a single, powerful ten rod.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Slide 4: How to Play -->
+        <div class="slide w-full h-full flex-col items-center justify-center p-8 bg-gray-700 text-white">
+            <h1 class="text-5xl md:text-7xl font-bold mb-6 pop-in">How to Play</h1>
+            <ol class="text-left text-lg md:text-xl space-y-2 max-w-2xl">
+                <li class="pop-in" style="animation-delay: 0.1s;"><span class="font-bold bg-white text-gray-800 rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">1</span> Get your number order card.</li>
+                <li class="pop-in" style="animation-delay: 0.2s;"><span class="font-bold bg-white text-gray-800 rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">2</span> <span class="text-blue-300 font-bold">Banker</span> counts out the single blocks (ones).</li>
+                <li class="pop-in" style="animation-delay: 0.3s;"><span class="font-bold bg-white text-gray-800 rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">3</span> Check the "Big Rule"! If you have more than 9, make a bundle of 10.</li>
+                <li class="pop-in" style="animation-delay: 0.4s;"><span class="font-bold bg-white text-gray-800 rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">4</span> Call the <span class="text-red-300 font-bold">Delivery Driver</span>!</li>
+                <li class="pop-in" style="animation-delay: 0.5s;"><span class="font-bold bg-white text-gray-800 rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">5</span> Driver takes the bundle to the <span class="text-green-300 font-bold">Builder</span>.</li>
+                <li class="pop-in" style="animation-delay: 0.6s;"><span class="font-bold bg-white text-gray-800 rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">6</span> <span class="text-green-300 font-bold">Builder</span> makes the trade: 10 ones for 1 ten rod.</li>
+                <li class="pop-in" style="animation-delay: 0.7s;"><span class="font-bold bg-white text-gray-800 rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">7</span> Driver returns the ten rod to the <span class="text-blue-300 font-bold">Banker</span>.</li>
+                <li class="pop-in" style="animation-delay: 0.8s;"><span class="font-bold bg-white text-gray-800 rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">8</span> Still more than 9 ones left? Go back to step 3!</li>
+                <li class="pop-in" style="animation-delay: 0.9s;"><span class="font-bold bg-white text-gray-800 rounded-full w-8 h-8 inline-flex items-center justify-center mr-2">9</span> <span class="font-bold text-yellow-300">Job Done!</span> when the Banker has fewer than 10 ones.</li>
+            </ol>
+        </div>
+
+        <!-- Slide 5: Let's Practice -->
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-green-400 text-white">
+            <h1 class="text-5xl md:text-7xl font-bold pop-in">Let's Practice!</h1>
+            <p class="text-2xl md:text-4xl mt-4 pop-in" style="animation-delay: 0.2s;">Our first order is for the number:</p>
+            <div class="my-8 bg-white text-green-500 font-bold text-9xl rounded-2xl px-12 py-6 shadow-xl pop-in" style="animation-delay: 0.4s;">24</div>
+        </div>
+
+        <!-- Slide 6: Step 1 -->
+        <div class="slide w-full h-full flex-col items-center justify-center p-8 bg-gray-800 text-white">
+            <h2 class="text-2xl md:text-3xl font-bold bg-blue-500 px-4 py-2 rounded-lg mb-4 pop-in">Step 1: Banker Counts</h2>
+            <div class="w-full max-w-lg p-6 bg-gray-700 rounded-xl">
+                <div class="block-grid pop-in" style="animation-delay: 0.2s;">
+                    <!-- 24 one-blocks -->
+                    <div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                    <div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                    <div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                    <div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                    <div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                </div>
+            </div>
+            <p class="mt-6 text-xl md:text-2xl pop-in" style="animation-delay: 0.4s;">The Banker counts out 24 single blocks.</p>
+        </div>
+        
+        <!-- Slide 7: Step 2 -->
+        <div class="slide w-full h-full flex-col items-center justify-center p-8 bg-gray-800 text-white">
+            <h2 class="text-2xl md:text-3xl font-bold bg-red-500 px-4 py-2 rounded-lg mb-4 pop-in">Step 2: Check the "Big Rule"!</h2>
+            <div class="w-full max-w-lg p-6 bg-gray-700 rounded-xl">
+                 <div class="block-grid pop-in" style="animation-delay: 0.2s;">
+                    <!-- 10 highlighted blocks -->
+                    <div class="one-block base-ten ring-4 ring-yellow-300"></div><div class="one-block base-ten ring-4 ring-yellow-300"></div><div class="one-block base-ten ring-4 ring-yellow-300"></div><div class="one-block base-ten ring-4 ring-yellow-300"></div><div class="one-block base-ten ring-4 ring-yellow-300"></div>
+                    <div class="one-block base-ten ring-4 ring-yellow-300"></div><div class="one-block base-ten ring-4 ring-yellow-300"></div><div class="one-block base-ten ring-4 ring-yellow-300"></div><div class="one-block base-ten ring-4 ring-yellow-300"></div><div class="one-block base-ten ring-4 ring-yellow-300"></div>
+                    <!-- 14 other blocks -->
+                    <div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                    <div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                    <div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                </div>
+            </div>
+            <p class="mt-6 text-xl md:text-2xl pop-in" style="animation-delay: 0.4s;"><span class="font-bold">Uh oh! 24 is more than 9!</span> Time to make a bundle of 10.</p>
+        </div>
+
+        <!-- Slide 8: Step 3 & 4 -->
+        <div class="slide w-full h-full flex-col items-center justify-center p-8 bg-gray-200">
+            <h2 class="text-2xl md:text-3xl font-bold bg-yellow-500 px-4 py-2 rounded-lg mb-6 pop-in">Step 3 & 4: Delivery and Trade!</h2>
+            <div class="flex items-center justify-around w-full max-w-4xl pop-in" style="animation-delay: 0.2s;">
+                <!-- Banker Station -->
+                <div class="text-center">
+                    <div class="text-7xl">🏦</div>
+                    <p class="font-bold">Banker</p>
+                    <div class="p-2 bg-gray-300 rounded-lg mt-2">
+                        <div class="one-block base-ten ring-4 ring-yellow-300 opacity-30"></div>
+                    </div>
+                </div>
+                
+                <!-- Arrow -->
+                <div class="text-center text-gray-500">
+                    <p class="font-bold text-xl">10 ones</p>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                    <div class="text-5xl mt-2">🚚</div>
+                </div>
+
+                <!-- Builder Station -->
+                <div class="text-center">
+                    <div class="text-7xl">🔨</div>
+                    <p class="font-bold">Builder</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-around w-full max-w-4xl mt-12 pop-in" style="animation-delay: 0.4s;">
+                 <!-- Builder Station -->
+                 <div class="text-center">
+                    <div class="text-7xl">🔨</div>
+                    <p class="font-bold">Builder</p>
+                     <div class="p-2 bg-gray-300 rounded-lg mt-2">
+                        <div class="ten-rod base-ten ring-4 ring-green-400 opacity-30 h-20"></div>
+                    </div>
+                </div>
+                
+                <!-- Arrow -->
+                <div class="text-center text-gray-500">
+                    <p class="font-bold text-xl">1 ten</p>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                    <div class="text-5xl mt-2">🚚</div>
+                </div>
+                
+                 <!-- Banker Station -->
+                <div class="text-center">
+                    <div class="text-7xl">🏦</div>
+                    <p class="font-bold">Banker</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Slide 9: Are We Done? -->
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-indigo-400 text-white">
+            <h1 class="text-5xl md:text-7xl font-bold pop-in">Are we done yet?</h1>
+            <p class="text-xl md:text-3xl mt-4 pop-in" style="animation-delay: 0.2s;">Let's check the Banker's station:</p>
+            <div class="flex items-end justify-center gap-8 mt-8 p-6 bg-white/20 rounded-xl pop-in" style="animation-delay: 0.4s;">
+                <!-- Ten Rod -->
+                <div>
+                    <div class="ten-rod base-ten h-40"></div>
+                    <p class="text-2xl font-bold mt-2">1 Ten</p>
+                </div>
+                <!-- One Blocks -->
+                <div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                        <div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                        <div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                        <div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                        <div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                    </div>
+                     <p class="text-2xl font-bold mt-2">14 Ones</p>
+                </div>
+            </div>
+            <p class="mt-8 text-2xl md:text-4xl font-bold bg-red-500 rounded-lg px-4 py-2 pop-in" style="animation-delay: 0.6s;">NO! We still have more than 9 ones! Let's trade again!</p>
+        </div>
+
+        <!-- Slide 10: Job Complete! -->
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-teal-400 text-white">
+            <h1 class="text-5xl md:text-7xl font-bold pop-in">Job Complete!</h1>
+             <p class="text-xl md:text-3xl mt-4 pop-in" style="animation-delay: 0.2s;">After the second trade, the Banker has:</p>
+            <div class="flex items-end justify-center gap-8 mt-8 p-6 bg-white/20 rounded-xl pop-in" style="animation-delay: 0.4s;">
+                <!-- Ten Rods -->
+                <div class="flex items-end gap-4">
+                    <div>
+                        <div class="ten-rod base-ten h-40"></div>
+                    </div>
+                     <div>
+                        <div class="ten-rod base-ten h-40"></div>
+                    </div>
+                </div>
+                <!-- One Blocks -->
+                <div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                        <div class="one-block base-ten"></div><div class="one-block base-ten"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 text-3xl md:text-5xl font-bold bg-white text-teal-500 rounded-lg px-6 py-3 shadow-lg pop-in" style="animation-delay: 0.6s;">
+                2 Tens + 4 Ones = 24
+            </div>
+        </div>
+        
+        <!-- Slide 11: Get Ready for Your Orders -->
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-sky-500 text-white">
+            <h1 class="text-5xl md:text-7xl font-bold pop-in">Get Ready!</h1>
+            <p class="mt-4 text-xl md:text-3xl pop-in" style="animation-delay: 0.2s;">Here are your factory orders.</p>
+            <p class="mt-2 text-lg md:text-xl pop-in" style="animation-delay: 0.4s;">Click "Next" to see each new order.</p>
+        </div>
+
+        <!-- Order Slides -->
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #1</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">18</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #2</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">25</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #3</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">31</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #4</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">46</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #5</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">29</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #6</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">37</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #7</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">14</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #8</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">42</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #9</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">22</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #10</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">35</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #11</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">48</div>
+        </div>
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-gray-800 text-white">
+            <h2 class="text-3xl md:text-4xl font-bold text-yellow-300 pop-in">Factory Order #12</h2>
+            <div class="my-8 bg-white text-gray-800 font-bold text-9xl rounded-2xl px-16 py-8 shadow-xl pop-in" style="animation-delay: 0.2s;">19</div>
+        </div>
+
+        <!-- Final Slide: Your Turn -->
+        <div class="slide w-full h-full flex-col items-center justify-center text-center p-8 bg-purple-500 text-white">
+            <h1 class="text-6xl md:text-8xl font-bold pop-in">Your Turn!</h1>
+            <p class="mt-4 text-2xl md:text-4xl max-w-2xl pop-in" style="animation-delay: 0.2s;">Excellent work! Your teams are ready.</p>
+            <h2 class="text-5xl md:text-7xl font-bold text-yellow-300 mt-10 pop-in" style="animation-delay: 0.4s;">It's time to open your factories!</h2>
+            <div class="text-8xl mt-8 pop-in" style="animation-delay: 0.6s;">🎉</div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="absolute bottom-5 left-1/2 -translate-x-1/2 flex space-x-4">
+            <button id="prevBtn" class="bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold py-3 px-6 rounded-full shadow-lg transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                &larr; Previous
+            </button>
+            <button id="nextBtn" class="bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-bold py-3 px-6 rounded-full shadow-lg transition-transform transform hover:scale-105">
+                Next &rarr;
+            </button>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="absolute top-0 left-0 w-full h-2 bg-gray-200">
+            <div id="progressBar" class="h-2 bg-blue-500 transition-all duration-300"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        let currentSlide = 0;
+
+        function showSlide(index) {
+            slides.forEach((slide) => {
+                slide.classList.remove('active');
+            });
+            
+            if (slides[index]) {
+                slides[index].classList.add('active');
+            }
+            
+            updateNavigation();
+        }
+        
+        function updateNavigation() {
+            progressBar.style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+            prevBtn.disabled = currentSlide === 0;
+
+            if (currentSlide === totalSlides - 1) {
+                nextBtn.innerHTML = 'Play Again?';
+            } else {
+                nextBtn.innerHTML = 'Next &rarr;';
+            }
+        }
+
+        nextBtn.addEventListener('click', () => {
+            if (currentSlide === totalSlides - 1) {
+                currentSlide = 0;
+            } else {
+                currentSlide++;
+            }
+            showSlide(currentSlide);
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentSlide > 0) {
+                currentSlide--;
+                showSlide(currentSlide);
+            }
+        });
+
+        // Initial setup on page load.
+        showSlide(currentSlide);
+    </script>
+</body>
+</html>
+
