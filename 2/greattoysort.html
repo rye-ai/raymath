@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Great Toy Sort!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .slide-container {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .slide-container.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .draggable {
+            cursor: grab;
+            user-select: none;
+        }
+        .drop-target, .ones-grouping-zone {
+            border: 2px dashed #9ca3af;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .drop-target.drag-over, .ones-grouping-zone.drag-over {
+            background-color: #dbeafe;
+            border-color: #3b82f6;
+        }
+        .feedback-correct {
+            border: 3px solid #22c55e;
+            animation: pulse-green 1s;
+        }
+        .feedback-incorrect {
+            border: 3px solid #ef4444;
+            animation: shake 0.5s;
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        /* Print-friendly styles */
+        @media print {
+            .no-print { display: none !important; }
+            body, .printable-content { margin: 0; padding: 0; box-shadow: none; border: none; }
+        }
+        #print-container {
+            display: none;
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            width: 8.5in; /* A4-ish width */
+        }
+        .print-slide {
+            padding: 20px;
+            border-bottom: 1px solid #ccc;
+            page-break-inside: avoid;
+        }
+        .print-slide .question-prompt { font-size: 16px; font-weight: bold; }
+        .print-slide .user-answer-static { margin-top: 10px; padding: 10px; background-color: #e5e7eb; border-radius: 8px; }
+
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col min-h-screen items-center p-4">
+
+    <!-- Main Application Container -->
+    <div id="app" class="w-full max-w-4xl bg-white rounded-xl shadow-lg flex flex-col overflow-hidden">
+        
+        <!-- Header -->
+        <header class="bg-blue-600 text-white p-4 flex justify-between items-center no-print">
+            <h1 class="text-2xl font-bold">The Great Toy Sort!</h1>
+            <button id="mode-toggle-btn" class="bg-yellow-400 hover:bg-yellow-500 text-blue-800 font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105"></button>
+        </header>
+        
+        <!-- Progress Bar -->
+        <div id="progress-bar-container" class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 no-print">
+            <div id="progress-bar" class="bg-green-500 h-2.5 rounded-full" style="width: 0%; transition: width 0.5s;"></div>
+        </div>
+
+        <!-- Content Area -->
+        <main id="content-container" class="p-6 md:p-8 flex-grow overflow-y-auto">
+            <!-- Dynamic content will be rendered here -->
+        </main>
+
+        <!-- Navigation Footer -->
+        <footer id="footer-nav" class="bg-gray-100 p-4 flex justify-between items-center border-t no-print">
+            <button id="prev-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-arrow-left"></i> Previous
+            </button>
+            <div class="flex space-x-2">
+                <button id="download-html-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105">
+                    <i class="fas fa-download"></i> Download Work
+                </button>
+                <button id="download-pdf-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105">
+                    <i class="fas fa-file-pdf"></i> Download PDF
+                </button>
+            </div>
+            <button id="next-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105">
+                Next <i class="fas fa-arrow-right"></i>
+            </button>
+        </footer>
+    </div>
+    
+    <!-- Container for PDF generation -->
+    <div id="print-container"></div>
+
+    <!-- Student work data script tag -->
+    <script id="progress-data" type="application/json"></script>
+    
+    <!-- Main Application Logic -->
+    <script type="module">
+        // --- DATA ---
+        const lessonPlan = [
+            { id: 'hook', type: 'info', section: 'Hook', title: "A Big Pile of Blocks!", content: "Oh wow! Look at this big jumble of 27 toy blocks. My friend asked me to count them, but it looks like it will take a long time to count them one by one. Does anyone have an idea for a faster way to count them? Let's go to the next slide to learn a trick!", visual: "SVG_COMMAND:render_messy_blocks?count=27" },
+            { id: 'interactive_demo', type: 'custom-interactive-tens', section: 'Demonstration', title: 'Build a Ten!', prompt: "Let's see the magic of grouping! Drag the single blue cubes into the 'Grouping Zone'. Watch what happens when you get exactly 10 cubes in the zone!", visual: '' },
+            // I Do Section
+            { id: 'd1_ido_1', type: 'custom-decompose-builder', section: 'I Do', prompt: "The number is 34. Drag all the cubes into the boxes. Group the cubes by ten to make ten rods.", data: { number: 34 } },
+            { id: 'd1_ido_2', type: 'text-box', section: 'I Do', prompt: "This picture shows 2 ten rods and 5 one cubes. What equation does this show?", visual: "SVG_COMMAND:render_base_ten_blocks?tens=2&ones=5", data: { size: 10 }, correct: "20 + 5 = 25" },
+            { id: 'd1_ido_3', type: 'true-false', section: 'I Do', prompt: "This picture shows the number 16. Is that correct?", visual: "SVG_COMMAND:render_base_ten_blocks?tens=1&ones=6", data: { options: ["True", "False"] }, correct: "True" },
+            // We Do Section
+            { id: 'd1_wedo_1', type: 'mc', section: 'We Do', prompt: "Which picture shows the number 23?", visual: "icon:fa-solid fa-cubes", data: { options: ["1 ten, 3 ones", "2 tens, 3 ones", "3 tens, 2 ones"] }, correct: "2 tens, 3 ones" },
+            { id: 'd1_wedo_2', type: 'text-box', section: 'We Do', prompt: "Count the blocks and write the total number.", visual: "SVG_COMMAND:render_base_ten_blocks?tens=4&ones=1", data: { size: 2 }, correct: "41" },
+            { id: 'd1_wedo_3', type: 'true-false', section: 'We Do', prompt: "Does this picture show the number 52?", visual: "SVG_COMMAND:render_base_ten_blocks?tens=2&ones=5", data: { options: ["True", "False"] }, correct: "False" },
+            { id: 'd1_wedo_4', type: 'drag-drop-match', section: 'We Do', prompt: "Match the number to the correct group of blocks.", visual: "", data: { draggables: ["35", "53"], dropTargets: ["5 tens, 3 ones", "3 tens, 5 ones"] }, correct: { "35": "3 tens, 5 ones", "53": "5 tens, 3 ones" } },
+            { id: 'd1_wedo_5', type: 'mc', section: 'We Do', prompt: "What does the number 68 break apart into?", visual: "emoji:🤔", data: { options: ["6 + 8", "60 + 8", "80 + 6"] }, correct: "60 + 8" },
+            { id: 'd1_wedo_6', type: 'text-box', section: 'We Do', prompt: "You have 12 one cubes. How many ten rods can you make and how many ones are left over?", visual: "SVG_COMMAND:render_one_cubes?count=12", data: { size: 20 }, correct: "1 ten, 2 ones" },
+            { id: 'd1_wedo_7', type: 'true-false', section: 'We Do', prompt: "1 ten and 15 ones is the same as 2 tens and 5 ones.", visual: "SVG_COMMAND:render_base_ten_blocks?tens=1&ones=15", data: { options: ["True", "False"] }, correct: "True" },
+            { id: 'd1_wedo_8', type: 'mc', section: 'We Do', prompt: "Which number is the same as 80 + 9?", visual: "emoji:➕", data: { options: ["89", "98", "809"] }, correct: "89" },
+            { id: 'd1_wedo_9', type: 'text-box', section: 'We Do', prompt: "Write the equation that matches the picture.", visual: "SVG_COMMAND:render_base_ten_blocks?tens=7&ones=4", data: { size: 10 }, correct: "70 + 4 = 74" },
+            { id: 'd1_wedo_10', type: 'custom-decompose-builder', section: 'We Do', prompt: "Drag the blocks to build the number 46.", data: { number: 46 } },
+            // You Do Section
+            { id: 'd1_youdo_1', type: 'mc', section: 'You Do', prompt: "Which set of blocks shows the number 55?", visual: "icon:fa-solid fa-eye", data: { options: ["5 tens, 0 ones", "4 tens, 5 ones", "5 tens, 5 ones"] }, correct: "5 tens, 5 ones" },
+            { id: 'd1_youdo_2', type: 'text-box', section: 'You Do', prompt: "Look at the blocks and write the number.", visual: "SVG_COMMAND:render_base_ten_blocks?tens=6&ones=2", data: { size: 2 }, correct: "62" },
+            { id: 'd1_youdo_3', type: 'true-false', section: 'You Do', prompt: "The number 19 is made of 1 ten and 9 ones.", visual: "", data: { options: ["True", "False"] }, correct: "True" },
+            { id: 'd1_youdo_4', type: 'mc', section: 'You Do', prompt: "How would you write 9 tens and 3 ones as an equation?", visual: "icon:fa-solid fa-equals", data: { options: ["9 + 3 = 12", "90 + 3 = 93", "30 + 9 = 39"] }, correct: "90 + 3 = 93" },
+            { id: 'd1_youdo_5', type: 'custom-decompose-builder', section: 'You Do', prompt: "Drag the blocks to build the number 71.", data: { number: 71 } },
+        ];
+
+        const assessmentPlan = [
+            { id: "d1_assess_1", type: "mc", prompt: "Look at the picture. Which number does it show?", visual: "SVG_COMMAND:render_base_ten_blocks?tens=3&ones=8", data: { options: ["83", "38", "11"] }, correct: "38" },
+            { id: "d1_assess_2", type: "drag-drop-match", prompt: "Drag the number to the set of blocks that it matches.", visual: "", data: { draggables: ["64", "46"], dropTargets: ["SVG_COMMAND:render_base_ten_blocks?tens=4&ones=6", "SVG_COMMAND:render_base_ten_blocks?tens=6&ones=4"] }, correct: { "64": "SVG_COMMAND:render_base_ten_blocks?tens=6&ones=4", "46": "SVG_COMMAND:render_base_ten_blocks?tens=4&ones=6" } },
+            { id: "d1_assess_3", type: "multi-select", prompt: "Which of these are other ways to show the number 42? (Choose ALL correct answers)", visual: "emoji:✅", data: { options: ["40 + 2", "3 tens and 12 ones", "2 tens and 4 ones", "4 tens and 2 ones"] }, correct: ["40 + 2", "3 tens and 12 ones", "4 tens and 2 ones"] },
+            { id: "d1_assess_4", type: "text-box", prompt: "Sam has 2 ten rods and 14 one cubes. Maria says he has the number 24. Is Maria correct? Explain why or why not.", visual: "icon:fa-solid fa-user-friends", data: { size: 100 }, correct: "No, Maria is not correct. He has 34 because 10 of the 14 ones make another ten." },
+            { id: "d1_assess_5a", type: "mc", prompt: "Part A: A number has more tens than ones. The digit in the tens place is 5. What could the number be?", visual: "emoji:🔍", data: { options: ["25", "58", "53"] }, correct: "53" },
+            { id: "d1_assess_5b", type: "mc", prompt: "Part B: Which statement explains why your answer in Part A is correct?", visual: "emoji:🔍", data: { options: ["Because 8 is bigger than 5.", "Because 3 is smaller than 5.", "Because 2 is smaller than 5."] }, correct: "Because 3 is smaller than 5." },
+        ];
+        
+        // --- STATE MANAGEMENT ---
+        let appState = {
+            currentView: 'lesson', // 'lesson' or 'assessment'
+            currentLessonSlide: 0,
+            currentAssessmentItem: 0,
+            userAnswers: {}, // { "questionId": { answer: "...", isCorrect: true/false } }
+        };
+
+        // --- DOM ELEMENTS ---
+        const contentContainer = document.getElementById('content-container');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const modeToggleBtn = document.getElementById('mode-toggle-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const progressBarContainer = document.getElementById('progress-bar-container');
+        const downloadHtmlBtn = document.getElementById('download-html-btn');
+        const downloadPdfBtn = document.getElementById('download-pdf-btn');
+        const footerNav = document.getElementById('footer-nav');
+
+        // --- CORE LOGIC ---
+        function init() {
+            loadProgress();
+            renderApp();
+            setupEventListeners();
+        }
+
+        function renderApp() {
+            contentContainer.innerHTML = '';
+            if (appState.currentView === 'lesson') {
+                renderLesson();
+                progressBarContainer.style.display = 'block';
+                footerNav.style.display = 'flex';
+
+            } else {
+                renderAssessment();
+                 progressBarContainer.style.display = 'none';
+                 footerNav.style.display = 'none';
+            }
+            updateModeToggleButton();
+            updateProgressBar();
+            saveProgress();
+        }
+        
+        function updateProgressBar() {
+            if (appState.currentView === 'lesson') {
+                const totalSlides = lessonPlan.length;
+                const progress = totalSlides > 0 ? ((appState.currentLessonSlide + 1) / totalSlides) * 100 : 0;
+                progressBar.style.width = `${progress}%`;
+            }
+        }
+        
+        function renderLesson() {
+            const slideData = lessonPlan[appState.currentLessonSlide];
+            const slideElement = createSlideElement(slideData);
+            contentContainer.appendChild(slideElement);
+            updateLessonNavButtons();
+            if (slideData.type.startsWith('drag-drop')) {
+                initializeDragAndDrop(slideElement);
+            }
+            if (slideData.type === 'custom-interactive-tens') {
+                initializeTensBuilder(slideElement);
+            }
+            if (slideData.type === 'custom-decompose-builder') {
+                initializeDecomposeBuilder(slideElement, slideData.data.number);
+            }
+        }
+        
+        function renderAssessment() {
+            const totalItems = assessmentPlan.length;
+            const currentItemIndex = appState.currentAssessmentItem;
+
+            if (currentItemIndex >= totalItems) {
+                renderAssessmentCompletion();
+                return;
+            }
+
+            const itemData = assessmentPlan[currentItemIndex];
+            const itemElement = createSlideElement(itemData, true); // isAssessment = true
+            contentContainer.appendChild(itemElement);
+             if (itemData.type.startsWith('drag-drop')) {
+                initializeDragAndDrop(itemElement);
+            }
+            // Add custom assessment navigation
+            const assessmentNav = document.createElement('div');
+            assessmentNav.className = 'mt-8 flex justify-between items-center';
+            assessmentNav.innerHTML = `
+                <button id="assessment-prev-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-arrow-left"></i> Previous
+                </button>
+                <span class="text-gray-600">${currentItemIndex + 1} / ${totalItems}</span>
+                <button id="assessment-next-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105">
+                     ${currentItemIndex === totalItems - 1 ? 'Finish' : 'Next'} <i class="fas fa-arrow-right"></i>
+                </button>
+            `;
+            contentContainer.appendChild(assessmentNav);
+
+            document.getElementById('assessment-prev-btn').disabled = currentItemIndex === 0;
+            document.getElementById('assessment-prev-btn').addEventListener('click', () => navigateAssessment(-1));
+            document.getElementById('assessment-next-btn').addEventListener('click', () => navigateAssessment(1));
+        }
+
+        function renderAssessmentCompletion() {
+            const totalQuestions = assessmentPlan.length;
+            const correctAnswers = Object.values(appState.userAnswers).filter(a => a.isCorrect && assessmentPlan.some(q => q.id === a.id)).length;
+
+            contentContainer.innerHTML = `
+                <div class="text-center p-8">
+                    <h2 class="text-3xl font-bold text-green-600 mb-4">Great work!</h2>
+                    <p class="text-lg mb-6">You have completed the assessment.</p>
+                    <div id="teacher-view-container">
+                        <button id="show-teacher-view" class="text-sm text-gray-500 hover:underline">Admin</button>
+                    </div>
+                    <div id="score-summary" class="hidden mt-6 p-4 bg-gray-100 rounded-lg">
+                        <h3 class="text-xl font-bold mb-2">Score Summary</h3>
+                        <p class="text-2xl">${correctAnswers} / ${totalQuestions} Correct</p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('show-teacher-view').addEventListener('click', () => {
+                const password = prompt("Enter teacher password:");
+                if (password === "2026") {
+                    document.getElementById('score-summary').classList.remove('hidden');
+                } else if(password) {
+                    alert("Incorrect password.");
+                }
+            });
+        }
+
+
+        function createSlideElement(slideData, isAssessment = false) {
+            const container = document.createElement('div');
+            container.id = `slide-${slideData.id}`;
+            container.className = 'p-4 rounded-lg';
+
+            let promptHtml = '';
+            if(isAssessment){
+                promptHtml = `<h2 class="text-2xl font-bold mb-4 flex items-center">
+                ${slideData.prompt}
+                <button class="ml-4 text-blue-500 hover:text-blue-700 read-aloud-btn" data-text="${slideData.prompt}"><i class="fas fa-volume-up"></i></button>
+                </h2>`;
+            } else {
+                 promptHtml = slideData.title ? `<h2 class="text-2xl font-bold text-blue-700 mb-2">${slideData.section}: ${slideData.title}</h2><p class="text-lg mb-4">${slideData.content || slideData.prompt}</p>` : `<h2 class="text-xl font-bold mb-4">${slideData.prompt}</h2>`;
+            }
+
+            const visualElement = generateVisual(slideData.visual, slideData.id);
+            
+            let interactionHtml = '';
+            switch (slideData.type) {
+                case 'mc':
+                case 'true-false':
+                    interactionHtml = slideData.data.options.map((opt, i) => `
+                        <label class="flex items-center space-x-3 p-3 my-2 bg-gray-100 rounded-lg hover:bg-blue-100 cursor-pointer border-2 border-transparent">
+                            <input type="radio" name="option-${slideData.id}" value="${opt}" class="form-radio h-5 w-5 text-blue-600">
+                            <span class="text-lg">${opt}</span>
+                            ${isAssessment ? `<button class="ml-auto text-blue-500 hover:text-blue-700 read-aloud-btn" data-text="${opt}"><i class="fas fa-volume-up"></i></button>` : ''}
+                        </label>
+                    `).join('');
+                    break;
+                case 'multi-select':
+                     interactionHtml = slideData.data.options.map((opt, i) => `
+                        <label class="flex items-center space-x-3 p-3 my-2 bg-gray-100 rounded-lg hover:bg-blue-100 cursor-pointer border-2 border-transparent">
+                            <input type="checkbox" name="option-${slideData.id}" value="${opt}" class="form-checkbox h-5 w-5 text-blue-600 rounded">
+                            <span class="text-lg">${opt}</span>
+                        </label>
+                    `).join('');
+                    break;
+                case 'text-box':
+                    interactionHtml = `<textarea maxlength="${slideData.data.size}" class="w-full p-2 border border-gray-300 rounded-lg text-lg" rows="2" placeholder="Type your answer here..."></textarea>`;
+                    break;
+                case 'custom-interactive-tens':
+                    interactionHtml = `
+                        <div class="flex flex-col md:flex-row gap-6 p-4 bg-gray-50 rounded-lg">
+                            <div class="w-full md:w-1/4 border-r pr-4">
+                                <h3 class="font-bold text-center mb-2">Available Cubes</h3>
+                                <div class="available-cubes flex flex-wrap gap-2 justify-center h-48 overflow-y-auto bg-white p-2 rounded"></div>
+                            </div>
+                            <div class="w-full md:w-1/2 flex flex-col items-center">
+                                <h3 class="font-bold text-lg">Grouping Zone</h3>
+                                <p class="text-sm text-gray-500 mb-2">Drop 10 cubes here!</p>
+                                <div class="grouping-zone w-full h-48 bg-blue-100 rounded-lg border-2 border-dashed border-blue-400 p-2 flex flex-wrap gap-2 content-start"></div>
+                                <div class="counter text-xl font-bold mt-2">0 / 10</div>
+                            </div>
+                            <div class="w-full md:w-1/4 border-l pl-4">
+                                <h3 class="font-bold text-center mb-2">Ten Rods Made</h3>
+                                <div class="tens-rod-area flex flex-col items-center gap-2"></div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'custom-decompose-builder':
+                    interactionHtml = `
+                        <div class="flex flex-col md:flex-row gap-6 p-4 bg-gray-50 rounded-lg">
+                            <div class="w-full md:w-1/3 border-r pr-4">
+                                <h3 class="font-bold text-center mb-2">Available Cubes (${slideData.data.number})</h3>
+                                <div class="source-cubes flex flex-wrap gap-2 justify-center h-48 overflow-y-auto bg-white p-2 rounded"></div>
+                            </div>
+                            <div class="w-full md:w-2/3 flex flex-col md:flex-row gap-4">
+                                <div class="w-full md:w-1/2 flex flex-col items-center">
+                                     <h3 class="font-bold text-lg">Tens Box</h3>
+                                     <p class="text-sm text-gray-500 mb-2">Ten rods appear here!</p>
+                                     <div class="tens-output-area w-full h-48 bg-amber-100 rounded-lg border-2 border-dashed border-amber-400 p-2 flex flex-col items-center gap-2"></div>
+                                </div>
+                                <div class="w-full md:w-1/2 flex flex-col items-center">
+                                    <h3 class="font-bold text-lg">Ones Box</h3>
+                                    <p class="text-sm text-gray-500 mb-2">Drop cubes here to group them!</p>
+                                    <div class="ones-grouping-zone w-full h-48 bg-blue-100 rounded-lg p-2 flex flex-wrap gap-2 content-start"></div>
+                                    <div class="ones-counter text-xl font-bold mt-2">0 / 10</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'drag-drop-match':
+                     interactionHtml = `
+                        <div class="grid grid-cols-2 gap-4 items-start">
+                            <div class="flex flex-col gap-2">
+                                <h3 class="font-bold text-center">Items</h3>
+                                ${slideData.data.draggables.map(item => `<div class="draggable bg-yellow-300 p-3 rounded-lg text-center" draggable="true" data-item="${item}">${item}</div>`).join('')}
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <h3 class="font-bold text-center">Matching Targets</h3>
+                                ${slideData.data.dropTargets.map(target => {
+                                    const visualHTML = target.startsWith('SVG_COMMAND') ? generateVisual(target, '').innerHTML : target;
+                                    return `<div class="drop-target bg-gray-200 p-3 rounded-lg min-h-[50px] flex items-center justify-center" data-target="${target}">${visualHTML}</div>`
+                                }).join('')}
+                            </div>
+                        </div>`;
+                    break;
+                 case 'drag-drop-sort':
+                    interactionHtml = `
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <div class="w-full md:w-1/3 bg-gray-100 p-2 rounded">
+                                <h3 class="font-bold text-center mb-2">Available Blocks</h3>
+                                <div id="source-${slideData.id}" class="flex flex-wrap gap-2 justify-center">
+                                    ${slideData.data.items.map(item => `<div class="draggable bg-yellow-300 p-2 rounded-lg text-center text-sm" draggable="true" data-item="${item}">${item}</div>`).join('')}
+                                </div>
+                            </div>
+                            <div class="w-full md:w-2/3 grid grid-cols-${slideData.data.categories.length} gap-4">
+                                ${slideData.data.categories.map(cat => `
+                                    <div class="bg-blue-50 p-2 rounded">
+                                        <h3 class="font-bold text-center mb-2">${cat}</h3>
+                                        <div class="drop-target min-h-[100px] p-2 flex flex-wrap gap-2 content-start" data-target="${cat}"></div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>`;
+                    break;
+            }
+
+            const checkAnswerButton = slideData.type !== 'info' && !isAssessment && slideData.type !== 'custom-decompose-builder' ? `<button class="check-answer-btn mt-6 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105" data-id="${slideData.id}">Check Answer</button>` : '';
+
+            container.innerHTML = `
+                ${promptHtml}
+                <div class="visual-wrapper my-6 flex justify-center items-center min-h-[150px]"></div>
+                <div class="interaction-wrapper">${interactionHtml}</div>
+                <div class="feedback-wrapper text-center">
+                    ${checkAnswerButton}
+                    <div class="feedback-message mt-4 text-lg font-bold"></div>
+                </div>
+            `;
+            
+            container.querySelector('.visual-wrapper').appendChild(visualElement);
+
+
+            // Restore answers
+            const savedAnswer = appState.userAnswers[slideData.id];
+            if (savedAnswer) {
+                // ... logic to populate inputs/draggables with savedAnswer.answer
+            }
+             if (container.querySelector('.read-aloud-btn')) {
+                container.querySelectorAll('.read-aloud-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        speak(e.currentTarget.dataset.text);
+                    });
+                });
+            }
+
+            return container;
+        }
+
+        // --- VISUAL GENERATION ---
+        function generateVisual(visualString, questionId) {
+            let visualElement = document.createElement('div'); // Default empty div
+
+            if (visualString && visualString.startsWith('emoji:')) {
+                visualElement = document.createElement('span');
+                visualElement.className = 'text-7xl';
+                visualElement.textContent = visualString.substring(6);
+            } else if (visualString && visualString.startsWith('icon:')) {
+                visualElement = document.createElement('i');
+                visualElement.className = `${visualString.substring(5)} text-7xl text-blue-500`;
+            } else if (visualString && visualString.startsWith('SVG_COMMAND:')) {
+                const command = visualString.substring(12);
+                if (command.startsWith('render_base_ten_blocks')) {
+                    const params = new URLSearchParams(command.split('?')[1]);
+                    visualElement = createBaseTenBlocksSVG(parseInt(params.get('tens')), parseInt(params.get('ones')));
+                } else if (command.startsWith('render_one_cubes')) {
+                     const params = new URLSearchParams(command.split('?')[1]);
+                     visualElement = createBaseTenBlocksSVG(0, parseInt(params.get('count')));
+                } else if (command.startsWith('render_messy_blocks')) {
+                    const params = new URLSearchParams(command.split('?')[1]);
+                    visualElement = createMessyBlocksSVG(parseInt(params.get('count')));
+                }
+            }
+            
+            return visualElement;
+        }
+
+        function createBaseTenBlocksSVG(tens = 0, ones = 0) {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+
+            const blockSize = 10;
+            const rodSpacing = 5;
+            const groupSpacing = 15;
+            const cubeSpacing = 2;
+
+            const onesPerColumn = 10;
+            const numOnesColumns = (ones > 0) ? Math.ceil(ones / onesPerColumn) : 0;
+
+            const tensWidth = tens * (blockSize + rodSpacing);
+            const onesWidth = numOnesColumns * (blockSize + rodSpacing);
+            const totalWidth = tensWidth + (tens > 0 && ones > 0 ? groupSpacing : 0) + onesWidth;
+            const svgHeight = 120;
+
+            svg.setAttribute("width", totalWidth + 10); // Add padding
+            svg.setAttribute("height", svgHeight);
+            svg.setAttribute("viewBox", `0 0 ${totalWidth + 10} ${svgHeight}`);
+
+            let xOffset = 5;
+
+            // Draw tens rods
+            for (let i = 0; i < tens; i++) {
+                for (let j = 0; j < 10; j++) {
+                    const rect = document.createElementNS(svgNS, "rect");
+                    rect.setAttribute("x", xOffset);
+                    rect.setAttribute("y", 10 + j * (blockSize + 1));
+                    rect.setAttribute("width", blockSize);
+                    rect.setAttribute("height", blockSize);
+                    rect.setAttribute("fill", "#f59e0b");
+                    rect.setAttribute("stroke", "#b45309");
+                    rect.setAttribute("stroke-width", "1");
+                    svg.appendChild(rect);
+                }
+                xOffset += blockSize + rodSpacing;
+            }
+
+            // Add space between groups
+            if (tens > 0 && ones > 0) {
+                xOffset += groupSpacing - rodSpacing;
+            }
+
+            // Draw ones cubes
+            for (let i = 0; i < ones; i++) {
+                const col = Math.floor(i / onesPerColumn);
+                const row = i % onesPerColumn;
+                
+                const currentX = xOffset + col * (blockSize + rodSpacing);
+                const currentY = 10 + row * (blockSize + cubeSpacing);
+
+                const rect = document.createElementNS(svgNS, "rect");
+                rect.setAttribute("x", currentX);
+                rect.setAttribute("y", currentY);
+                rect.setAttribute("width", blockSize);
+                rect.setAttribute("height", blockSize);
+                rect.setAttribute("fill", "#3b82f6");
+                rect.setAttribute("stroke", "#1e40af");
+                rect.setAttribute("stroke-width", "1");
+                svg.appendChild(rect);
+            }
+
+            return svg;
+        }
+
+        function createMessyBlocksSVG(count) {
+             const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            const svgWidth = 300;
+            const svgHeight = 150;
+            svg.setAttribute("width", svgWidth);
+            svg.setAttribute("height", svgHeight);
+            svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+
+            for(let i=0; i<count; i++){
+                const rect = document.createElementNS(svgNS, "rect");
+                rect.setAttribute("x", Math.random() * (svgWidth - 20));
+                rect.setAttribute("y", Math.random() * (svgHeight - 20));
+                rect.setAttribute("width", 10);
+                rect.setAttribute("height", 10);
+                rect.setAttribute("fill", "#3b82f6");
+                rect.setAttribute("stroke", "#1e40af");
+                rect.setAttribute("stroke-width", "1");
+                rect.setAttribute("transform", `rotate(${Math.random() * 90}, ${rect.x.baseVal.value + 5}, ${rect.y.baseVal.value + 5})`);
+                svg.appendChild(rect);
+            }
+            return svg;
+        }
+
+        // --- EVENT HANDLERS & SETUP ---
+        function setupEventListeners() {
+            prevBtn.addEventListener('click', () => navigateLesson(-1));
+            nextBtn.addEventListener('click', () => navigateLesson(1));
+            modeToggleBtn.addEventListener('click', toggleView);
+            downloadHtmlBtn.addEventListener('click', downloadHTML);
+            downloadPdfBtn.addEventListener('click', downloadPDF);
+
+            // Event delegation for dynamic elements
+            contentContainer.addEventListener('click', e => {
+                const target = e.target;
+                if (target.closest('.check-answer-btn')) {
+                    const id = target.closest('.check-answer-btn').dataset.id;
+                    handleCheckAnswer(id);
+                }
+            });
+        }
+        
+        function navigateLesson(direction) {
+            const newIndex = appState.currentLessonSlide + direction;
+            const totalSlides = lessonPlan.length;
+
+            if (newIndex >= 0 && newIndex < totalSlides) {
+                appState.currentLessonSlide = newIndex;
+                renderApp();
+            } else if (newIndex === totalSlides) {
+                 // Special case for 'Go to Assessment' button on the last lesson slide
+                 toggleView();
+            }
+        }
+
+        function navigateAssessment(direction) {
+            const newIndex = appState.currentAssessmentItem + direction;
+            if (newIndex >= 0 && newIndex <= assessmentPlan.length) {
+                // Before moving, save the current answer
+                const currentQuestion = assessmentPlan[appState.currentAssessmentItem];
+                if (currentQuestion) {
+                     handleCheckAnswer(currentQuestion.id, true); // silent check
+                }
+                
+                appState.currentAssessmentItem = newIndex;
+                renderApp();
+            }
+        }
+
+        function updateLessonNavButtons() {
+            const totalSlides = lessonPlan.length;
+            prevBtn.disabled = appState.currentLessonSlide === 0;
+            if (appState.currentLessonSlide === totalSlides - 1) {
+                nextBtn.innerHTML = 'Go to Assessment <i class="fas fa-rocket"></i>';
+            } else {
+                nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right"></i>';
+            }
+        }
+
+        function updateModeToggleButton() {
+            if (appState.currentView === 'lesson') {
+                modeToggleBtn.textContent = 'Go to Assessment';
+            } else {
+                modeToggleBtn.textContent = 'Back to Lesson';
+            }
+        }
+
+        function toggleView() {
+            appState.currentView = appState.currentView === 'lesson' ? 'assessment' : 'lesson';
+            renderApp();
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                speechSynthesis.cancel(); // Cancel any previous speech
+                speechSynthesis.speak(utterance);
+            } else {
+                alert("Sorry, your browser doesn't support text-to-speech.");
+            }
+        }
+        
+        function handleCheckAnswer(id, isSilent = false) {
+            const slide = lessonPlan.find(s => s.id === id) || assessmentPlan.find(s => s.id === id);
+            const slideElement = document.getElementById(`slide-${id}`);
+            if (!slide || !slideElement) return;
+
+            let userAnswer;
+            let isCorrect = false;
+
+            const interactionWrapper = slideElement.querySelector('.interaction-wrapper');
+            const feedbackMessage = slideElement.querySelector('.feedback-message');
+            
+            switch (slide.type) {
+                case 'mc':
+                case 'true-false':
+                     const selectedRadio = interactionWrapper.querySelector('input[type="radio"]:checked');
+                     userAnswer = selectedRadio ? selectedRadio.value : null;
+                     isCorrect = userAnswer === slide.correct;
+                     break;
+                case 'multi-select':
+                    const selectedChecks = Array.from(interactionWrapper.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+                    userAnswer = selectedChecks;
+                    isCorrect = selectedChecks.length === slide.correct.length && selectedChecks.every(val => slide.correct.includes(val));
+                    break;
+                case 'text-box':
+                    const textarea = interactionWrapper.querySelector('textarea');
+                    userAnswer = textarea.value.trim();
+                    // Simple correct check for now, can be improved with regex
+                    isCorrect = userAnswer.toLowerCase() === slide.correct.toLowerCase();
+                    break;
+                 case 'drag-drop-sort':
+                    userAnswer = {};
+                    let totalCorrectItems = 0;
+                    slide.data.categories.forEach(cat => {
+                        const dropTarget = interactionWrapper.querySelector(`.drop-target[data-target="${cat}"]`);
+                        const items = Array.from(dropTarget.querySelectorAll('.draggable')).map(d => d.dataset.item);
+                        userAnswer[cat] = items;
+                        // Check if items match the correct items for this category
+                        const correctItemsForCat = slide.correct[cat] || [];
+                        items.forEach(item => {
+                            if (correctItemsForCat.includes(item)) {
+                                totalCorrectItems++;
+                            }
+                        });
+                    });
+                    isCorrect = totalCorrectItems === slide.data.items.length;
+                    break;
+                 case 'drag-drop-match':
+                    userAnswer = {};
+                    isCorrect = true;
+                     interactionWrapper.querySelectorAll('.drop-target').forEach(target => {
+                        const droppedItem = target.querySelector('.draggable');
+                        const targetValue = target.dataset.target;
+                        if(droppedItem) {
+                            const itemValue = droppedItem.dataset.item;
+                            userAnswer[itemValue] = targetValue;
+                            if (slide.correct[itemValue] !== targetValue) {
+                                isCorrect = false;
+                            }
+                        } else {
+                            isCorrect = false; // Not all targets filled
+                        }
+                    });
+                     break;
+            }
+            
+            appState.userAnswers[id] = { id: id, answer: userAnswer, isCorrect: isCorrect };
+            
+            if (isSilent) {
+                saveProgress();
+                return;
+            }
+
+            const feedbackWrapper = slideElement.querySelector('.feedback-wrapper');
+            feedbackWrapper.classList.remove('feedback-correct', 'feedback-incorrect');
+
+            const positiveFeedback = ["Superstar!", "You're a Math Whiz!", "Amazing Job!", "Brain Power!", "Correctamundo!"];
+            const randomPraise = positiveFeedback[Math.floor(Math.random() * positiveFeedback.length)];
+
+            if (isCorrect) {
+                feedbackMessage.textContent = randomPraise;
+                feedbackMessage.className = 'feedback-message mt-4 text-lg font-bold text-green-600';
+                feedbackWrapper.classList.add('feedback-correct');
+            } else {
+                feedbackMessage.textContent = "Not quite, give it another try!";
+                feedbackMessage.className = 'feedback-message mt-4 text-lg font-bold text-red-600';
+                feedbackWrapper.classList.add('feedback-incorrect');
+            }
+             saveProgress();
+        }
+        
+        // --- INTERACTIVE DEMO LOGIC ---
+        function initializeTensBuilder(container) {
+            const sourceContainer = container.querySelector('.available-cubes');
+            const groupingZone = container.querySelector('.grouping-zone');
+            const tensRodArea = container.querySelector('.tens-rod-area');
+            const counterElement = container.querySelector('.counter');
+            let currentCount = 0;
+
+            // Populate source container with draggable cubes
+            for (let i = 0; i < 20; i++) {
+                const cube = document.createElement('div');
+                cube.className = 'draggable w-6 h-6 bg-blue-500 border-2 border-blue-700 rounded-sm cursor-grab';
+                cube.draggable = true;
+                cube.dataset.item = `one-cube-${i}`;
+                cube.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', e.target.dataset.item);
+                    e.target.classList.add('opacity-50');
+                });
+                cube.addEventListener('dragend', (e) => {
+                    e.target.classList.remove('opacity-50');
+                });
+                sourceContainer.appendChild(cube);
+            }
+            
+            groupingZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (currentCount < 10) {
+                    groupingZone.classList.add('drag-over');
+                }
+            });
+
+            groupingZone.addEventListener('dragleave', () => {
+                groupingZone.classList.remove('drag-over');
+            });
+
+            groupingZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                groupingZone.classList.remove('drag-over');
+                
+                const data = e.dataTransfer.getData('text/plain');
+                const droppedElement = sourceContainer.querySelector(`[data-item="${data}"]`);
+
+                if (droppedElement && currentCount < 10) {
+                    groupingZone.appendChild(droppedElement);
+                    currentCount++;
+                    counterElement.textContent = `${currentCount} / 10`;
+
+                    if (currentCount === 10) {
+                        // Trigger the transformation!
+                        setTimeout(() => {
+                            groupingZone.classList.add('bg-yellow-300', 'border-yellow-500', 'transition-all', 'duration-300');
+                            setTimeout(() => {
+                                groupingZone.innerHTML = ''; // Clear out the one cubes
+                                groupingZone.classList.remove('bg-yellow-300', 'border-yellow-500');
+                                
+                                const tenRodSVG = createBaseTenBlocksSVG(1, 0);
+                                tenRodSVG.classList.add('m-2');
+                                tensRodArea.appendChild(tenRodSVG);
+
+                                currentCount = 0;
+                                counterElement.textContent = `${currentCount} / 10`;
+                            }, 500);
+                        }, 200);
+                    }
+                }
+            });
+        }
+
+        function initializeDecomposeBuilder(container, number) {
+            const sourceContainer = container.querySelector('.source-cubes');
+            const onesZone = container.querySelector('.ones-grouping-zone');
+            const tensArea = container.querySelector('.tens-output-area');
+            const counterElement = container.querySelector('.ones-counter');
+
+            // 1. Populate source with 'number' of cubes
+            for (let i = 0; i < number; i++) {
+                const cube = document.createElement('div');
+                cube.className = 'draggable w-5 h-5 bg-blue-500 border border-blue-700 rounded-sm cursor-grab';
+                cube.draggable = true;
+                cube.dataset.item = `source-cube-${i}`;
+                cube.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', e.target.dataset.item);
+                    e.target.classList.add('opacity-50');
+                });
+                cube.addEventListener('dragend', (e) => {
+                    e.target.classList.remove('opacity-50');
+                });
+                sourceContainer.appendChild(cube);
+            }
+
+            // 2. Set up drop zone listeners
+            onesZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                onesZone.classList.add('drag-over');
+            });
+
+            onesZone.addEventListener('dragleave', () => {
+                onesZone.classList.remove('drag-over');
+            });
+
+            onesZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                onesZone.classList.remove('drag-over');
+                
+                const data = e.dataTransfer.getData('text/plain');
+                const droppedElement = sourceContainer.querySelector(`[data-item="${data}"]`);
+
+                if (droppedElement && droppedElement.parentElement !== onesZone) {
+                    onesZone.appendChild(droppedElement); // Move the element
+                    let onesCountInZone = onesZone.children.length;
+                    counterElement.textContent = `${onesCountInZone} / 10`;
+
+                    // 3. Check for transformation
+                    if (onesCountInZone >= 10) {
+                        onesZone.style.pointerEvents = 'none'; // Disable dropping during animation
+
+                        setTimeout(() => {
+                            onesZone.classList.add('bg-yellow-300', 'border-yellow-500', 'transition-all', 'duration-300');
+                            
+                            setTimeout(() => {
+                                // Grab the first 10 cubes to transform
+                                const cubesToTransform = Array.from(onesZone.querySelectorAll('.draggable')).slice(0, 10);
+                                cubesToTransform.forEach(c => c.remove());
+                                
+                                onesZone.classList.remove('bg-yellow-300', 'border-yellow-500');
+                                
+                                // Create and add the ten rod
+                                const tenRodSVG = createBaseTenBlocksSVG(1, 0);
+                                tenRodSVG.classList.add('m-2');
+                                tensArea.appendChild(tenRodSVG);
+
+                                // Recalculate count and re-enable dropping
+                                onesCountInZone = onesZone.children.length;
+                                counterElement.textContent = `${onesCountInZone} / 10`;
+                                onesZone.style.pointerEvents = 'auto';
+
+                            }, 500);
+                        }, 200);
+                    }
+                }
+            });
+        }
+
+
+        // --- DRAG & DROP LOGIC ---
+        function initializeDragAndDrop(container) {
+            const draggables = container.querySelectorAll('.draggable');
+            const dropTargets = container.querySelectorAll('.drop-target');
+
+            draggables.forEach(draggable => {
+                draggable.addEventListener('dragstart', e => {
+                    e.dataTransfer.setData('text/plain', e.target.dataset.item);
+                     e.dataTransfer.setData('sourceId', e.target.parentElement.id);
+                    e.target.classList.add('opacity-50');
+                });
+                draggable.addEventListener('dragend', e => {
+                    e.target.classList.remove('opacity-50');
+                });
+            });
+
+            dropTargets.forEach(target => {
+                target.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    target.classList.add('drag-over');
+                });
+                target.addEventListener('dragleave', () => {
+                    target.classList.remove('drag-over');
+                });
+                target.addEventListener('drop', e => {
+                    e.preventDefault();
+                    target.classList.remove('drag-over');
+                    const data = e.dataTransfer.getData('text/plain');
+                    const sourceId = e.dataTransfer.getData('sourceId');
+                    const originalDraggable = Array.from(document.querySelectorAll('.draggable')).find(d => d.dataset.item === data && (d.parentElement.id === sourceId || !sourceId));
+                    if(originalDraggable) {
+                         const newDraggable = originalDraggable.cloneNode(true);
+                         // For matching, allow only one item
+                         if(container.querySelector('.grid')){ // A bit of a hack to detect match type
+                             if(target.children.length > 0){
+                                 // swap
+                                 const existing = target.children[0];
+                                 const sourceContainer = document.getElementById(sourceId) || originalDraggable.parentElement;
+                                 sourceContainer.appendChild(existing);
+                             }
+                             target.innerHTML = ''; // clear before appending
+                         }
+                        target.appendChild(newDraggable);
+                        originalDraggable.parentElement.removeChild(originalDraggable);
+                    }
+                });
+            });
+        }
+
+        // --- PERSISTENCE & EXPORT ---
+        function saveProgress() {
+            try {
+                const dataString = JSON.stringify(appState);
+                localStorage.setItem('lessonProgress', dataString);
+                const dataScript = document.getElementById('progress-data');
+                if (dataScript) {
+                    dataScript.textContent = dataString;
+                }
+            } catch (error) {
+                console.error("Could not save progress:", error);
+            }
+        }
+
+        function loadProgress() {
+            const dataScript = document.getElementById('progress-data');
+            let dataString = dataScript && dataScript.textContent ? dataScript.textContent : localStorage.getItem('lessonProgress');
+            if (dataString) {
+                try {
+                    const loadedState = JSON.parse(dataString);
+                    // Ensure all keys exist to prevent errors from old data structures
+                    appState.currentView = loadedState.currentView || 'lesson';
+                    appState.currentLessonSlide = loadedState.currentLessonSlide || 0;
+                    appState.currentAssessmentItem = loadedState.currentAssessmentItem || 0;
+                    appState.userAnswers = loadedState.userAnswers || {};
+
+                } catch (error) {
+                    console.error("Could not load progress, starting fresh.", error);
+                    // Reset to default if data is corrupt
+                    appState = { currentView: 'lesson', currentLessonSlide: 0, currentAssessmentItem: 0, userAnswers: {} };
+                }
+            }
+        }
+
+        function downloadHTML() {
+            // Ensure the latest state is in the script tag
+            saveProgress();
+            
+            const htmlContent = document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'my_lesson_work.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function downloadPDF() {
+            const printContainer = document.getElementById('print-container');
+            printContainer.innerHTML = ''; // Clear previous content
+
+            const allContent = [...lessonPlan, ...assessmentPlan.filter(item => appState.userAnswers[item.id])];
+
+            allContent.forEach(item => {
+                const slideClone = document.createElement('div');
+                slideClone.className = 'print-slide';
+
+                const prompt = item.prompt || item.content;
+                const answer = appState.userAnswers[item.id];
+                
+                let answerHtml = '<p><em>No answer recorded.</em></p>';
+                if(answer) {
+                    if(Array.isArray(answer.answer)) {
+                        answerHtml = `<ul>${answer.answer.map(a => `<li>${a}</li>`).join('')}</ul>`;
+                    } else if (typeof answer.answer === 'object' && answer.answer !== null) {
+                         answerHtml = `<pre>${JSON.stringify(answer.answer, null, 2)}</pre>`;
+                    } else {
+                        answerHtml = `<p>${answer.answer || 'Not answered'}</p>`;
+                    }
+                }
+
+                slideClone.innerHTML = `
+                    <div class="question-prompt">${prompt}</div>
+                    <div class="user-answer-static"><strong>Answer:</strong> ${answerHtml}</div>
+                `;
+                printContainer.appendChild(slideClone);
+            });
+            
+            alert("Preparing PDF. This may take a moment...");
+
+            try {
+                printContainer.style.display = 'block'; // Make it visible for capture
+                const { jsPDF } = window.jspdf;
+                const canvas = await html2canvas(printContainer, { scale: 2 });
+                printContainer.style.display = 'none'; // Hide it again
+
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'px',
+                    format: [canvas.width, canvas.height]
+                });
+                
+                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+                pdf.save('lesson_summary.pdf');
+
+            } catch(e) {
+                console.error("PDF Generation failed:", e);
+                alert("Sorry, there was an error creating the PDF.");
+                printContainer.style.display = 'none';
+            }
+        }
+
+
+        // --- STARTUP ---
+        init();
+    </script>
+</body>
+</html>
+
+
